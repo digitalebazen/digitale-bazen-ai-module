@@ -22,13 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<?php elseif ( ! $field_group_found ) : ?>
 		<div class="notice notice-error">
 			<p>
-				<?php
-				printf(
-					/* translators: %s = ACF field group key */
-					esc_html__( 'De vereiste ACF field group %s is niet gevonden.', 'digitale-bazen-ai-module' ),
-					'<code>' . esc_html( DB_AI_ACF_FIELD_GROUP_KEY ) . '</code>'
-				);
-				?>
+				<?php esc_html_e( 'Geen ACF field group met een flexible content veld gevonden op deze site. Maak er één aan (of importeer een bestaande), en kies hem daarna in Instellingen → AI Module → ACF integratie.', 'digitale-bazen-ai-module' ); ?>
 			</p>
 		</div>
 	<?php else : ?>

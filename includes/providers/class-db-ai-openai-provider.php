@@ -195,57 +195,29 @@ TXT;
 	}
 
 	/**
-	 * Zie DB_AI_Anthropic_Provider::build_structure_section — zelfde logica, voor consistentie
-	 * tussen providers. Past het STRUCTUUR-blok aan op basis van geactiveerde layouts.
+	 * Site-agnostisch STRUCTUUR-blok — geen hardcoded layout-namen.
+	 * Zie DB_AI_Anthropic_Provider::build_structure_section voor uitleg.
 	 *
 	 * @param string[] $available
 	 */
 	private function build_structure_section( array $available ): string {
-		$has_banner  = in_array( 'banner', $available, true );
-		$has_faq     = in_array( 'veelgestelde_vragen', $available, true );
-		$has_tma     = in_array( 'tekst_met_afbeelding', $available, true );
-		$has_usps    = in_array( 'usps', $available, true );
-		$has_tw      = in_array( 'tekst_weergaves', $available, true );
-		$has_galerij = in_array( 'fotogalerij', $available, true );
+		$names = array_filter( array_map( 'strval', $available ) );
 
-		$lines = [ 'STRUCTUUR — bepaal zelf wat past bij het onderwerp:', '' ];
-
-		$vast = [];
-		if ( $has_banner ) {
-			$vast[] = '- Eerste blok: banner (intro/hero met hoofdzoekwoord in titel + eerste paragraaf)';
-		}
-		if ( $has_faq ) {
-			$vast[] = '- Laatste blok: veelgestelde_vragen (5-8 vragen, 1 onderwerp)';
-		}
-		if ( ! empty( $vast ) ) {
-			$lines[] = 'VAST:';
-			$lines   = array_merge( $lines, $vast );
-			$lines[] = '';
-		}
-
-		$vrij = [];
-		if ( $has_tma ) {
-			$vrij[] = '- tekst_met_afbeelding — typisch 2-5 stuks, alternerend positie links/rechts. Gebruik voor body content, uitleg, stappen, voorbeelden.';
-		}
-		if ( $has_usps ) {
-			$vrij[] = '- usps — voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn (3-5 items). Sla over als het onderwerp niet om "waarom kiezen" gaat.';
-		}
-		if ( $has_tw ) {
-			$vrij[] = '- tekst_weergaves — voeg toe voor 2-kolom vergelijking, verdiepende sectie, of when/hoe afweging.';
-		}
-		if ( $has_galerij ) {
-			$vrij[] = '- fotogalerij — alleen voor visueel-zware onderwerpen waar meerdere foto\'s waarde toevoegen.';
-		}
-		if ( ! empty( $vrij ) ) {
-			$lines[] = 'VRIJ — kies aantal en samenstelling op basis van topic-complexiteit en wat de inhoud nodig heeft:';
-			$lines   = array_merge( $lines, $vrij );
-			$lines[] = '';
-		}
-
+		$lines   = [];
+		$lines[] = 'STRUCTUUR — bepaal zelf wat past bij het onderwerp:';
+		$lines[] = '';
+		$lines[] = 'Op deze site zijn deze layouts beschikbaar: ' . ( empty( $names ) ? '(geen)' : implode( ', ', $names ) );
+		$lines[] = '';
 		$lines[] = 'RICHTLIJNEN VOOR JE KEUZE:';
+		$lines[] = '- Begin met een visueel intro-blok als beschikbaar (vaak een banner/hero/intro-achtige layout — hoofdzoekwoord prominent in titel + eerste paragraaf).';
+		$lines[] = '- Eindig bij voorkeur met een FAQ-blok als de site er een heeft (vaak `faq`, `veelgestelde_vragen` of vergelijkbaar — 5-8 vragen).';
+		$lines[] = '- Voor de middelste blocks: kies aantal en mix op basis van topic-complexiteit en wat de inhoud écht nodig heeft.';
+		$lines[] = '- USP-achtige layouts: voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn. Sla over als het onderwerp daar niet om vraagt.';
 		$lines[] = '- Korte/eenvoudige onderwerpen → 3-4 blocks totaal';
 		$lines[] = '- Brede/complexe/how-to onderwerpen → 5-7 blocks totaal';
-		$lines[] = '- Niet meer blocks dan nodig om het onderwerp goed te dekken. Vermijd block-padding.';
+		$lines[] = '- Niet meer blocks dan nodig. Vermijd block-padding.';
+		$lines[] = '';
+		$lines[] = 'De exacte velden + types per layout staan in de layout-spec hieronder. Match je output daar exact op.';
 
 		return implode( "\n", $lines );
 	}

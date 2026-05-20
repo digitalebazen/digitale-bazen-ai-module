@@ -6,16 +6,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class DB_AI_ACF_Mapper {
 
+	/**
+	 * Fallback flex field name als geen Settings/filter gezet. Alleen actief op de
+	 * originele Digitale Bazen site; andere sites kiezen via DB_AI_Settings.
+	 */
 	public const FLEX_FIELD_NAME = 'paginacontent';
-
-	public const DEFAULT_ALLOWED_LAYOUTS = [
-		'banner',
-		'tekst_met_afbeelding',
-		'tekst_weergaves',
-		'usps',
-		'veelgestelde_vragen',
-		'fotogalerij',
-	];
 
 	/**
 	 * Image fields per layout (whitelist that the AI returns as { query, alt } objects).
@@ -43,6 +38,21 @@ class DB_AI_ACF_Mapper {
 	];
 
 	/**
+	 * Resolved field group key voor deze site (Settings → constant → auto-detect).
+	 */
+	public function get_field_group_key(): string {
+		return DB_AI_Settings::get_field_group_key();
+	}
+
+	/**
+	 * Resolved flex field name binnen de field group (Settings → first available).
+	 */
+	public function get_flex_field_name(): string {
+		$name = DB_AI_Settings::get_flex_field_name();
+		return '' === $name ? self::FLEX_FIELD_NAME : $name;
+	}
+
+	/**
 	 * Return raw layouts array from the ACF field group, keyed by layout key.
 	 *
 	 * @return array|WP_Error
@@ -52,14 +62,22 @@ class DB_AI_ACF_Mapper {
 			return new WP_Error( 'db_ai_acf_missing', __( 'ACF Pro functies niet beschikbaar.', 'digitale-bazen-ai-module' ) );
 		}
 
-		$group = acf_get_field_group( DB_AI_ACF_FIELD_GROUP_KEY );
+		$group_key = $this->get_field_group_key();
+		if ( '' === $group_key ) {
+			return new WP_Error(
+				'db_ai_field_group_missing',
+				__( 'Geen ACF field group geconfigureerd. Kies één in Instellingen → AI Module → ACF integratie.', 'digitale-bazen-ai-module' )
+			);
+		}
+
+		$group = acf_get_field_group( $group_key );
 		if ( empty( $group ) ) {
 			return new WP_Error(
 				'db_ai_field_group_missing',
 				sprintf(
 					/* translators: %s = field group key */
 					__( 'ACF field group %s niet gevonden.', 'digitale-bazen-ai-module' ),
-					DB_AI_ACF_FIELD_GROUP_KEY
+					$group_key
 				)
 			);
 		}
@@ -69,9 +87,10 @@ class DB_AI_ACF_Mapper {
 			return new WP_Error( 'db_ai_no_fields', __( 'Field group bevat geen velden.', 'digitale-bazen-ai-module' ) );
 		}
 
-		$flex = null;
+		$flex_name = $this->get_flex_field_name();
+		$flex      = null;
 		foreach ( $fields as $field ) {
-			if ( ( $field['name'] ?? '' ) === self::FLEX_FIELD_NAME && ( $field['type'] ?? '' ) === 'flexible_content' ) {
+			if ( ( $field['name'] ?? '' ) === $flex_name && ( $field['type'] ?? '' ) === 'flexible_content' ) {
 				$flex = $field;
 				break;
 			}
@@ -83,7 +102,7 @@ class DB_AI_ACF_Mapper {
 				sprintf(
 					/* translators: %s = flex field name */
 					__( 'Flexible content veld "%s" niet gevonden in field group.', 'digitale-bazen-ai-module' ),
-					self::FLEX_FIELD_NAME
+					$flex_name
 				)
 			);
 		}
@@ -91,8 +110,28 @@ class DB_AI_ACF_Mapper {
 		return $flex['layouts'];
 	}
 
+	/**
+	 * Alle layouts die in de gekozen field group zitten. Volgorde = ACF-volgorde.
+	 *
+	 * @return string[]
+	 */
+	public function get_default_allowed_layouts(): array {
+		$layouts = $this->get_raw_layouts();
+		if ( is_wp_error( $layouts ) ) {
+			return [];
+		}
+		$names = [];
+		foreach ( $layouts as $layout ) {
+			$n = (string) ( $layout['name'] ?? '' );
+			if ( '' !== $n ) {
+				$names[] = $n;
+			}
+		}
+		return $names;
+	}
+
 	public function get_allowed_layouts(): array {
-		return apply_filters( 'db_ai_allowed_layouts', self::DEFAULT_ALLOWED_LAYOUTS );
+		return apply_filters( 'db_ai_allowed_layouts', $this->get_default_allowed_layouts() );
 	}
 
 	/**
@@ -446,8 +485,10 @@ class DB_AI_ACF_Mapper {
 	}
 
 	/**
-	 * Velden die volgens brief sectie 5 + 18 altijd leeg moeten in V1.
-	 * Key = layout naam (of `layout.repeater` voor nested context).
+	 * Site-specifieke layout.field combinaties die ALTIJD leeg moeten blijven —
+	 * backwards-compat defaults voor de originele Digitale Bazen site. Op andere
+	 * sites zijn deze layout-namen er niet, dus deze map heeft daar geen effect.
+	 * Voor extra site-specifieke regels: gebruik filter `db_ai_always_empty_fields`.
 	 */
 	private const ALWAYS_EMPTY_FIELDS = [
 		'banner'               => [ 'button', 'button_2', 'mobiele_afbeelding' ],
@@ -457,7 +498,7 @@ class DB_AI_ACF_Mapper {
 	];
 
 	/**
-	 * Schrijf AI-blocks (na image-replacement) naar de `paginacontent` flex field.
+	 * Schrijf AI-blocks (na image-replacement) naar het flex field.
 	 * Verwacht dat image-velden al ints (attachment IDs) zijn.
 	 */
 	public function write_blocks_to_post( int $post_id, array $blocks ): void {
@@ -479,12 +520,39 @@ class DB_AI_ACF_Mapper {
 			$prepared[]           = $row;
 		}
 
-		update_field( self::FLEX_FIELD_NAME, $prepared, $post_id );
+		update_field( $this->get_flex_field_name(), $prepared, $post_id );
+	}
+
+	/**
+	 * Bouwt de lijst velden die op deze layout altijd leeg moeten blijven.
+	 * Combineert:
+	 *  - Auto-detectie van `link` velden (AI moet geen URLs verzinnen)
+	 *  - Hardcoded ALWAYS_EMPTY_FIELDS (alleen actief op de Digitale Bazen site;
+	 *    layout-namen matchen niet op andere sites dus daar effect-loos)
+	 *  - Filter `db_ai_always_empty_fields` voor site-specifieke overrides
+	 *
+	 * @param array  $sub_fields  ACF sub_fields van deze layout/context.
+	 * @param string $context     Layout-naam, of `layout.repeater` bij nested.
+	 * @return string[]
+	 */
+	private function compute_always_empty_for( array $sub_fields, string $context ): array {
+		$auto = [];
+		foreach ( $sub_fields as $field ) {
+			if ( ( $field['type'] ?? '' ) === 'link' ) {
+				$name = (string) ( $field['name'] ?? '' );
+				if ( '' !== $name ) {
+					$auto[] = $name;
+				}
+			}
+		}
+		$manual = self::ALWAYS_EMPTY_FIELDS[ $context ] ?? [];
+		$merged = array_values( array_unique( array_merge( $auto, $manual ) ) );
+		return (array) apply_filters( 'db_ai_always_empty_fields', $merged, $context );
 	}
 
 	private function sanitize_block( array $sub_fields, array $data, string $context ): array {
 		$out          = [];
-		$always_empty = self::ALWAYS_EMPTY_FIELDS[ $context ] ?? [];
+		$always_empty = $this->compute_always_empty_for( $sub_fields, $context );
 
 		foreach ( $sub_fields as $field ) {
 			$name = $field['name'] ?? '';

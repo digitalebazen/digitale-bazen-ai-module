@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -34,7 +34,7 @@ Daglimiet per gebruiker: 10 generaties (filterbaar).
 
 * WordPress 6.0+
 * PHP 7.4+
-* ACF Pro (met field group `group_5da97023a084d` actief)
+* ACF Pro (met minstens één field group die een flexible content veld bevat — kiesbaar in Instellingen → AI Module)
 * RankMath SEO (free of Pro)
 * API keys via Settings-page of `wp-config.php` constants:
     * `DB_AI_ANTHROPIC_API_KEY` of `DB_AI_OPENAI_API_KEY`
@@ -55,6 +55,7 @@ Optionele constants:
 * `db_ai_system_prompt`, `db_ai_user_prompt`
 * `db_ai_image_orientation`, `db_ai_rate_limit_per_day`, `db_ai_allowed_layouts`
 * `db_ai_reference_post_types`
+* `db_ai_field_group_key`, `db_ai_flex_field_name`, `db_ai_always_empty_fields`
 * `db_ai_github_repo_url`, `db_ai_update_branch`
 
 == Actions ==
@@ -65,6 +66,24 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.1.0 =
+* **Site-agnostisch ACF integratie**: niet meer hardcoded op één field group key.
+  Settings-page (Instellingen → AI Module) heeft nu een ACF integratie sectie
+  met dropdowns: "Welke ACF field group?" + "Welk flex field?". Plugin
+  auto-detecteert alle field groups met flex content op activatie.
+* Block-layout checkboxes worden nu dynamisch gegenereerd vanuit de gekozen
+  field group, met de ACF-labels als display-naam. Werkt op elke site
+  ongeacht naming conventions.
+* AI system prompt + structuur-sectie zijn nu generiek: geen hardcoded
+  layout-namen meer (banner/veelgestelde_vragen). AI ziet de beschikbare
+  layouts en kiest zelf de juiste op basis van de layout-spec.
+* Auto-detectie van ACF `link` velden als "always empty" — voorkomt dat de
+  AI bogus URLs verzint.
+* Nieuwe filters: `db_ai_field_group_key`, `db_ai_flex_field_name`,
+  `db_ai_always_empty_fields` (met `$context` parameter).
+* Dependency-check op activatie is gerelaxed: vereist alleen nog "ten minste
+  één ACF field group met flex content", niet meer een specifieke key.
 
 = 1.0.0 =
 * Eerste stable release. Bundelt V1 (volledige generatie-flow), V2 (Excel

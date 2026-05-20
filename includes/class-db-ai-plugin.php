@@ -56,11 +56,7 @@ final class DB_AI_Plugin {
 		if ( ! self::field_group_exists() ) {
 			deactivate_plugins( plugin_basename( DB_AI_PLUGIN_FILE ) );
 			wp_die(
-				sprintf(
-					/* translators: %s = ACF field group key */
-					esc_html__( 'Digitale Bazen AI Module kon de vereiste ACF field group (%s) niet vinden. Importeer of activeer deze veldgroep en probeer opnieuw.', 'digitale-bazen-ai-module' ),
-					esc_html( DB_AI_ACF_FIELD_GROUP_KEY )
-				),
+				esc_html__( 'Digitale Bazen AI Module: geen ACF field group met een flexible content veld gevonden op deze site. Importeer of activeer eerst een veldgroep met minstens één flex content veld en probeer opnieuw.', 'digitale-bazen-ai-module' ),
 				esc_html__( 'ACF field group ontbreekt', 'digitale-bazen-ai-module' ),
 				[ 'back_link' => true ]
 			);
@@ -96,11 +92,7 @@ final class DB_AI_Plugin {
 		if ( ! self::field_group_exists() ) {
 			add_action( 'admin_notices', function () {
 				echo '<div class="notice notice-error"><p>';
-				printf(
-					/* translators: %s = ACF field group key */
-					esc_html__( 'Digitale Bazen AI Module: vereiste ACF field group %s ontbreekt.', 'digitale-bazen-ai-module' ),
-					'<code>' . esc_html( DB_AI_ACF_FIELD_GROUP_KEY ) . '</code>'
-				);
+				esc_html_e( 'Digitale Bazen AI Module: geen ACF field group met een flexible content veld gevonden. Maak er één aan of importeer een bestaande, en kies hem in Instellingen → AI Module.', 'digitale-bazen-ai-module' );
 				echo '</p></div>';
 			} );
 		}
@@ -110,11 +102,17 @@ final class DB_AI_Plugin {
 		return function_exists( 'acf_get_field_group' ) && function_exists( 'get_field' );
 	}
 
+	/**
+	 * Heeft deze site überhaupt een bruikbare ACF field group met een flex content veld?
+	 *
+	 * Sinds V1.1: niet meer locked op de Digitale Bazen-specifieke `group_5da97023a084d`,
+	 * maar accepteert élke field group met minstens één flex veld. De daadwerkelijke
+	 * keuze welke field group de plugin gebruikt is configureerbaar in Instellingen.
+	 */
 	public static function field_group_exists(): bool {
-		if ( ! function_exists( 'acf_get_field_group' ) ) {
+		if ( ! function_exists( 'acf_get_field_groups' ) ) {
 			return false;
 		}
-		$group = acf_get_field_group( DB_AI_ACF_FIELD_GROUP_KEY );
-		return ! empty( $group );
+		return DB_AI_ACF_Discovery::has_any();
 	}
 }

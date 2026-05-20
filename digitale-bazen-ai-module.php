@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitale Bazen AI Module
  * Description: Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Digitale Bazen
  * Author URI:  https://digitalebazen.nl
  * Text Domain: digitale-bazen-ai-module
@@ -15,13 +15,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DB_AI_VERSION', '1.0.0' );
+define( 'DB_AI_VERSION', '1.1.0' );
 define( 'DB_AI_PLUGIN_FILE', __FILE__ );
 define( 'DB_AI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DB_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'DB_AI_ACF_FIELD_GROUP_KEY', 'group_5da97023a084d' );
+
+// Default fallback field group key — alleen gebruikt als geen Settings-keuze gemaakt
+// is EN de constante hieronder NIET via wp-config wordt overschreven. Op andere sites
+// vindt DB_AI_Settings::get_field_group_key() automatisch een werkende default via
+// DB_AI_ACF_Discovery.
+if ( ! defined( 'DB_AI_ACF_FIELD_GROUP_KEY' ) ) {
+	define( 'DB_AI_ACF_FIELD_GROUP_KEY', 'group_5da97023a084d' );
+}
 
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-plugin.php';
+require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-acf-discovery.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-settings.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-style-profile.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-admin-page.php';
