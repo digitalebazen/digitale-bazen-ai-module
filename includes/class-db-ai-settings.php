@@ -32,6 +32,7 @@ class DB_AI_Settings {
 		'openai'    => 'DB_AI_OPENAI_API_KEY',
 		'pexels'    => 'DB_AI_PEXELS_API_KEY',
 		'unsplash'  => 'DB_AI_UNSPLASH_API_KEY',
+		'github'    => 'DB_AI_GITHUB_TOKEN',
 	];
 
 	/**
@@ -68,6 +69,34 @@ class DB_AI_Settings {
 	public static function is_constant_defined( string $name ): bool {
 		$const = self::KEY_TO_CONSTANT[ $name ] ?? '';
 		return '' !== $const && defined( $const ) && '' !== trim( (string) constant( $const ) );
+	}
+
+	/**
+	 * GitHub repo URL voor auto-update. Fallback-volgorde:
+	 *  1. Constant `DB_AI_GITHUB_REPO_URL` in wp-config (wint altijd)
+	 *  2. Settings: `github_repo_url`
+	 *  3. Plugin default in DB_AI_Updater::DEFAULT_REPO_URL
+	 */
+	public static function get_github_repo_url(): string {
+		if ( defined( 'DB_AI_GITHUB_REPO_URL' ) ) {
+			$val = trim( (string) DB_AI_GITHUB_REPO_URL );
+			if ( '' !== $val ) {
+				return $val;
+			}
+		}
+		$opts   = self::get_options();
+		$stored = trim( (string) ( $opts['github_repo_url'] ?? '' ) );
+		if ( '' !== $stored ) {
+			return $stored;
+		}
+		if ( class_exists( 'DB_AI_Updater' ) ) {
+			return DB_AI_Updater::DEFAULT_REPO_URL;
+		}
+		return '';
+	}
+
+	public static function is_github_url_constant_defined(): bool {
+		return defined( 'DB_AI_GITHUB_REPO_URL' ) && '' !== trim( (string) DB_AI_GITHUB_REPO_URL );
 	}
 
 	/**
@@ -255,6 +284,33 @@ class DB_AI_Settings {
 			);
 		}
 
+		// ─── GitHub auto-update sectie ────────────────────────────────────
+		add_settings_section(
+			'db_ai_github_section',
+			__( 'GitHub auto-update', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Voor het automatisch ophalen van plugin-updates uit de Digitale Bazen GitHub repo. Token = GitHub Personal Access Token met read-access op de repo. Constants in wp-config.php winnen ook hier.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'github_repo_url',
+			__( 'GitHub repo URL', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_github_repo_url_field' ],
+			self::PAGE_SLUG,
+			'db_ai_github_section'
+		);
+
+		add_settings_field(
+			'github_key',
+			__( 'GitHub Personal Access Token', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_api_key_field' ],
+			self::PAGE_SLUG,
+			'db_ai_github_section',
+			[ 'name' => 'github' ]
+		);
+
 		// ─── Tone of voice & content sectie ───────────────────────────────
 		add_settings_section(
 			'db_ai_style_section',
@@ -343,7 +399,7 @@ class DB_AI_Settings {
 
 		// Keys: lege submission = bestaande waarde behouden (we tonen ze niet terug,
 		// dus user kan niet "weten" of er iets staat — we updaten alleen bij niet-lege input).
-		foreach ( [ 'anthropic', 'openai', 'pexels', 'unsplash' ] as $name ) {
+		foreach ( [ 'anthropic', 'openai', 'pexels', 'unsplash', 'github' ] as $name ) {
 			$field = $name . '_key';
 			if ( self::is_constant_defined( $name ) ) {
 				continue; // Constant wint, optie negeren.
@@ -356,6 +412,12 @@ class DB_AI_Settings {
 				continue;
 			}
 			$out[ $field ] = sanitize_text_field( $val );
+		}
+
+		// GitHub repo URL — geen secret dus standaard sanitize + esc_url_raw.
+		if ( ! self::is_github_url_constant_defined() && array_key_exists( 'github_repo_url', $input ) ) {
+			$val = trim( (string) $input['github_repo_url'] );
+			$out['github_repo_url'] = ( '' === $val ) ? '' : esc_url_raw( $val );
 		}
 
 		// ACF integratie — alleen accepteren als de gekozen group/flex bestaat op deze site.
@@ -558,6 +620,36 @@ class DB_AI_Settings {
 		}
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Het specifieke flex content veld binnen de gekozen field group. Meestal is er maar één — alleen relevant als de field group meerdere heeft.', 'digitale-bazen-ai-module' ) . '</p>';
+	}
+
+	public function render_github_repo_url_field(): void {
+		$locked  = self::is_github_url_constant_defined();
+		$opts    = self::get_options();
+		$current = self::get_github_repo_url();
+		$stored  = (string) ( $opts['github_repo_url'] ?? '' );
+
+		if ( $locked ) {
+			printf(
+				'<input type="text" class="regular-text code" value="%s" disabled>',
+				esc_attr( $current )
+			);
+			echo '<p class="description">'
+				. esc_html__( 'Ingesteld via', 'digitale-bazen-ai-module' )
+				. ' <code>DB_AI_GITHUB_REPO_URL</code> '
+				. esc_html__( 'in wp-config.php — verwijder de constant om hier te kunnen wijzigen.', 'digitale-bazen-ai-module' )
+				. '</p>';
+			return;
+		}
+
+		printf(
+			'<input type="text" class="regular-text code" name="%s[github_repo_url]" value="%s" placeholder="%s">',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( $stored ),
+			esc_attr( $current )
+		);
+		echo '<p class="description">';
+		esc_html_e( 'Leeg laten = gebruik de plugin-default (Digitale Bazen GitHub). Override alleen als je een eigen fork hebt.', 'digitale-bazen-ai-module' );
+		echo '</p>';
 	}
 
 	public function render_reference_posts_field(): void {

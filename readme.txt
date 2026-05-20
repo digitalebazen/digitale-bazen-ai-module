@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,14 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.1.1 =
+* GitHub repo URL en Personal Access Token kunnen nu ook via Instellingen →
+  AI Module → "GitHub auto-update" worden ingesteld. Constants in wp-config.php
+  winnen nog steeds als die gedefinieerd zijn. Scheelt code-edits per klant-site
+  voor multi-site distributie.
+* Token wordt gemaskeerd weergegeven (••••••XYZW) en niet teruggetoond, zelfde
+  pattern als de andere API keys.
 
 = 1.1.0 =
 * **Site-agnostisch ACF integratie**: niet meer hardcoded op één field group key.

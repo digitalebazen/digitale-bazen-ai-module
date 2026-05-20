@@ -53,8 +53,15 @@ class DB_AI_Updater {
 			$checker->setBranch( $branch );
 		}
 
-		if ( defined( 'DB_AI_GITHUB_TOKEN' ) && '' !== trim( (string) DB_AI_GITHUB_TOKEN ) ) {
-			$checker->setAuthentication( (string) DB_AI_GITHUB_TOKEN );
+		// Token: wp-config constant > Settings option (via DB_AI_Settings helper).
+		// Settings helper retourneert lege string als niets ingesteld — dan blijft de
+		// checker unauthenticated en geeft public repos terug; private = 404.
+		$token = class_exists( 'DB_AI_Settings' )
+			? DB_AI_Settings::get_api_key( 'github' )
+			: ( defined( 'DB_AI_GITHUB_TOKEN' ) ? (string) DB_AI_GITHUB_TOKEN : '' );
+
+		if ( '' !== trim( $token ) ) {
+			$checker->setAuthentication( $token );
 		}
 
 		// Lees release-info uit GitHub Releases (i.p.v. uit de plugin-header van de master branch).
@@ -69,8 +76,11 @@ class DB_AI_Updater {
 	}
 
 	private static function repo_url(): string {
-		$url = self::DEFAULT_REPO_URL;
-		if ( defined( 'DB_AI_GITHUB_REPO_URL' ) && '' !== trim( (string) DB_AI_GITHUB_REPO_URL ) ) {
+		// Settings helper handelt constant > option > default fallback chain.
+		$url = class_exists( 'DB_AI_Settings' )
+			? DB_AI_Settings::get_github_repo_url()
+			: self::DEFAULT_REPO_URL;
+		if ( '' === $url && defined( 'DB_AI_GITHUB_REPO_URL' ) ) {
 			$url = (string) DB_AI_GITHUB_REPO_URL;
 		}
 		return (string) apply_filters( 'db_ai_github_repo_url', $url );
