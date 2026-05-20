@@ -67,11 +67,14 @@ class DB_AI_Updater {
 		// Lees release-info uit GitHub Releases (i.p.v. uit de plugin-header van de master branch).
 		// Dit zorgt dat alleen getagde releases als update worden gezien — werk-in-uitvoering op main
 		// triggert geen update notice voor klantensites.
+		//
+		// VEREIST voor PRIVATE repos: enable release assets en upload per release een schoon zip-bestand
+		// onder Assets. Reden: PUC kan source-tarballs van private repos niet betrouwbaar downloaden
+		// (auth-header wordt niet doorgegeven aan github's archive endpoint, geeft 404).
+		// Workflow: build zip lokaal, upload als asset bij de GitHub Release.
 		$vcs_api = $checker->getVcsApi();
 		if ( $vcs_api && method_exists( $vcs_api, 'enableReleaseAssets' ) ) {
-			// Optioneel: gebruik een meegeleverd zip-asset uit de GitHub release ipv source-tarball.
-			// Aanzetten als je per release een schoon .zip uploadt onder Assets:
-			// $vcs_api->enableReleaseAssets( '/digitale-bazen-ai\.zip/' );
+			$vcs_api->enableReleaseAssets( '/digitale-bazen-ai-module.*\.zip/' );
 		}
 	}
 

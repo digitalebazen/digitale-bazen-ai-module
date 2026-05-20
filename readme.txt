@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,13 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.1.3 =
+* **Fix auto-update voor private GitHub repos**: enableReleaseAssets() is nu
+  aan in de updater. Source-tarball-download van GitHub werkt onbetrouwbaar
+  voor private repos (auth-header wordt niet doorgegeven, geeft "Download
+  mislukt. Not Found"). Per release moet nu een `digitale-bazen-ai-module*.zip`
+  bestand als asset worden geüpload — zie DEPLOYMENT.md.
 
 = 1.1.2 =
 * Re-release om auto-update flow te testen. Geen functionele wijzigingen sinds 1.1.1.

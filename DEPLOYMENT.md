@@ -131,17 +131,32 @@ git commit -am "Bump version to 1.1.0"
 git push
 ```
 
-### 3. Tag + release
+### 3. Tag + release-zip bouwen
 
 ```sh
+# Tag
 git tag -a v1.1.0 -m "v1.1.0 — internal linking feature"
 git push origin v1.1.0
+
+# Build release-zip — VERPLICHT voor private repos
+cd /Applications/MAMP/htdocs/db_template/wp-content/plugins/
+zip -r digitale-bazen-ai-module.zip digitale-bazen-ai-module/ \
+  -x "digitale-bazen-ai-module/.git/*" \
+  -x "digitale-bazen-ai-module/.git" \
+  -x "*.DS_Store"
 ```
 
-Ga naar GitHub → Releases → **Draft a new release** → kies tag `v1.1.0` → vul
-de release notes (changelog) → Publish.
+### 4. GitHub Release + zip asset uploaden
 
-### 4. Klantsites updaten
+Ga naar GitHub → Releases → **Draft a new release** → kies tag `v1.1.0`:
+1. Vul release notes in (changelog)
+2. **Sleep `digitale-bazen-ai-module.zip` in het "Attach binaries" gebied** (cruciaal!)
+3. Wacht tot upload klaar is
+4. **Publish release**
+
+**Waarom de zip-asset verplicht is**: PUC (de update-checker library) kan source-tarballs van private GitHub repos niet betrouwbaar downloaden — het auth-token wordt niet doorgegeven aan GitHub's `/zipball/` endpoint, waardoor de download met 404 faalt ("Update mislukt: Download mislukt. Not Found"). Met een geüpload zip-asset werkt het wel — PUC pakt die asset op via een geauthenticeerde request en herkent hem via de regex in `class-db-ai-updater.php` (`/digitale-bazen-ai-module.*\.zip/`).
+
+### 5. Klantsites updaten
 
 **Zonder iets te doen:** elke klantsite ziet binnen ~12 uur de update verschijnen.
 
