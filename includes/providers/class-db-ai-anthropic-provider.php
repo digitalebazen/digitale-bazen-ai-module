@@ -1,0 +1,280 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class DB_AI_Anthropic_Provider implements DB_AI_Provider {
+
+	public const ENDPOINT          = 'https://api.anthropic.com/v1/messages';
+	public const API_VERSION       = '2023-06-01';
+	public const DEFAULT_MODEL     = 'claude-sonnet-4-6';
+	public const HTTP_TIMEOUT      = 120;
+	public const DEFAULT_MAX_TOKENS = 8000;
+
+	private $api_key;
+	private $last_tokens = 0;
+	private $last_model  = self::DEFAULT_MODEL;
+
+	public function __construct( string $api_key ) {
+		$this->api_key = $api_key;
+	}
+
+	public function get_model_identifier(): string {
+		return 'anthropic:' . $this->last_model;
+	}
+
+	public function get_last_token_usage(): int {
+		return $this->last_tokens;
+	}
+
+	/**
+	 * @param string   $main_keyword
+	 * @param string[] $secondary_keywords
+	 * @param array    $context  Expects 'layout_spec' and 'output_schema'.
+	 * @return array|WP_Error
+	 */
+	public function generate_blog( string $main_keyword, array $secondary_keywords, array $context ) {
+		if ( '' === trim( $this->api_key ) ) {
+			return new WP_Error(
+				'db_ai_missing_api_key',
+				__( 'Anthropic API-sleutel ontbreekt. Definieer DB_AI_ANTHROPIC_API_KEY in wp-config.php.', 'digitale-bazen-ai-module' )
+			);
+		}
+
+		$model      = (string) apply_filters( 'db_ai_anthropic_model', self::DEFAULT_MODEL );
+		$max_tokens = (int) apply_filters( 'db_ai_anthropic_max_tokens', self::DEFAULT_MAX_TOKENS );
+
+		$this->last_model = $model;
+
+		$system_prompt = apply_filters( 'db_ai_system_prompt', $this->build_system_prompt() );
+		$user_prompt   = apply_filters(
+			'db_ai_user_prompt',
+			$this->build_user_prompt( $main_keyword, $secondary_keywords, $context ),
+			$main_keyword,
+			$secondary_keywords
+		);
+
+		$body = [
+			'model'      => $model,
+			'max_tokens' => $max_tokens,
+			'system'     => $system_prompt,
+			'messages'   => [
+				[
+					'role'    => 'user',
+					'content' => $user_prompt,
+				],
+			],
+		];
+
+		$response = wp_remote_post(
+			self::ENDPOINT,
+			[
+				'timeout' => self::HTTP_TIMEOUT,
+				'headers' => [
+					'x-api-key'         => $this->api_key,
+					'anthropic-version' => self::API_VERSION,
+					'content-type'      => 'application/json',
+				],
+				'body'    => wp_json_encode( $body ),
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'db_ai_anthropic_http_error',
+				sprintf( __( 'Anthropic HTTP-fout: %s', 'digitale-bazen-ai-module' ), $response->get_error_message() )
+			);
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$raw  = wp_remote_retrieve_body( $response );
+
+		if ( $code < 200 || $code >= 300 ) {
+			$snippet = mb_substr( (string) $raw, 0, 400 );
+			return new WP_Error(
+				'db_ai_anthropic_status_error',
+				sprintf(
+					/* translators: 1 = status, 2 = response snippet */
+					__( 'Anthropic antwoordde met status %1$d. Response: %2$s', 'digitale-bazen-ai-module' ),
+					$code,
+					$snippet
+				)
+			);
+		}
+
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return new WP_Error( 'db_ai_anthropic_invalid_json', __( 'Anthropic antwoord is geen geldige JSON.', 'digitale-bazen-ai-module' ) );
+		}
+
+		// Extract first text block (skipping thinking blocks if present).
+		$text = '';
+		foreach ( $decoded['content'] ?? [] as $block ) {
+			if ( ( $block['type'] ?? '' ) === 'text' && isset( $block['text'] ) ) {
+				$text = (string) $block['text'];
+				break;
+			}
+		}
+		if ( '' === trim( $text ) ) {
+			return new WP_Error( 'db_ai_anthropic_empty_content', __( 'Anthropic antwoord bevat geen text content.', 'digitale-bazen-ai-module' ) );
+		}
+
+		$text = $this->strip_markdown_fences( $text );
+
+		$parsed = json_decode( $text, true );
+		if ( ! is_array( $parsed ) ) {
+			$snippet = mb_substr( $text, 0, 400 );
+			return new WP_Error(
+				'db_ai_anthropic_content_invalid_json',
+				sprintf( __( 'AI gaf geen geldig JSON-object terug. Begin van content: %s', 'digitale-bazen-ai-module' ), $snippet )
+			);
+		}
+
+		$input  = isset( $decoded['usage']['input_tokens'] ) ? (int) $decoded['usage']['input_tokens'] : 0;
+		$output = isset( $decoded['usage']['output_tokens'] ) ? (int) $decoded['usage']['output_tokens'] : 0;
+		$this->last_tokens = $input + $output;
+
+		do_action( 'db_ai_after_ai_response', $parsed, $main_keyword );
+
+		return $parsed;
+	}
+
+	/**
+	 * Claude soms wraps JSON in ```json ... ``` ondanks de instructie. Strippen.
+	 */
+	private function strip_markdown_fences( string $text ): string {
+		$text = trim( $text );
+		if ( preg_match( '/^```(?:json)?\s*\n?(.*)\n?```\s*$/s', $text, $m ) ) {
+			return trim( $m[1] );
+		}
+		return $text;
+	}
+
+	private function build_system_prompt(): string {
+		$base = $this->base_system_prompt();
+		return $base . DB_AI_Style_Profile::get_prompt_addition();
+	}
+
+	private function base_system_prompt(): string {
+		return <<<TXT
+Je bent een ervaren Nederlandse contentstrateeg en SEO-copywriter voor MKB-bedrijven.
+Je schrijft blogartikelen die zowel voor lezers waardevol zijn als goed scoren in Google.
+
+OUTPUTREGELS:
+1. Je antwoordt UITSLUITEND met één geldig JSON-object, geen markdown, geen toelichting, geen code fences.
+2. De JSON-structuur is exact zoals gespecificeerd in de gebruikersinstructie.
+3. Alle teksten zijn in het Nederlands, behalve de "query" velden voor afbeeldingen (die zijn Engels).
+4. HTML in tekstvelden beperkt tot: <p>, <strong>, <em>, <ul>, <ol>, <li>, <a href="">.
+   GEEN <h1>, <h2>, <h3> in tekstvelden (titels staan in aparte "titel" velden).
+   GEEN inline styles, klassen of IDs.
+5. Geen externe links naar concurrenten of onbekende bronnen.
+6. Geen verzonnen statistieken of percentages.
+
+SCHRIJFSTIJL:
+- Professioneel maar toegankelijk
+- Aanspreekvorm: "je" / "jij" (informeel-zakelijk)
+- Doelgroep: MKB-ondernemers en marketingmanagers in Nederland
+- Concreet en praktisch — geef voorbeelden, vermijd holle frasen
+- Vermijd: "innovatieve oplossingen", "unieke kans", "in deze snel veranderende wereld"
+- Vermijd jargon, of leg het uit als het nodig is
+
+SEO-RICHTLIJNEN:
+- Hoofdzoekwoord verwerken in: post-titel, eerste paragraaf van banner, minimaal 2 H2's (titel-velden), meta_title, meta_description
+- Secundaire keywords natuurlijk verweven (niet stuffing)
+- FAQ-vragen formuleren als echte gebruikersvragen (long-tail keywords)
+- Meta_title: focus keyword vooraan, max 60 chars
+- Meta_description: focus keyword + duidelijke CTA, max 155 chars
+
+LENGTE: streef naar 1200-1800 woorden totaal in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).
+TXT;
+	}
+
+	private function build_user_prompt( string $main_keyword, array $secondary_keywords, array $context ): string {
+		$layout_spec   = $context['layout_spec'] ?? [];
+		$output_schema = $context['output_schema'] ?? [];
+
+		$secondary_list = empty( $secondary_keywords )
+			? __( '(geen secundaire keywords beschikbaar)', 'digitale-bazen-ai-module' )
+			: implode( ', ', $secondary_keywords );
+
+		$layout_spec_json   = wp_json_encode( $layout_spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		$output_schema_json = wp_json_encode( $output_schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+
+		$structure = $this->build_structure_section( array_column( $layout_spec, 'name' ) );
+
+		return sprintf(
+			'Schrijf een Nederlandse blogpost over: "%1$s"' . "\n\n"
+			. 'Secundaire keywords om natuurlijk te verwerken: %2$s' . "\n\n"
+			. '%3$s' . "\n\n"
+			. 'Beschikbare blok-layouts en hun exacte veldspec:' . "\n"
+			. '%4$s' . "\n\n"
+			. 'Geef antwoord als één JSON-object volgens deze exacte structuur:' . "\n"
+			. '%5$s' . "\n\n"
+			. 'BELANGRIJK: antwoord met UITSLUITEND het JSON-object zelf. Geen markdown, geen ```json fences, geen toelichting ervoor of erna.',
+			$main_keyword,
+			$secondary_list,
+			$structure,
+			$layout_spec_json,
+			$output_schema_json
+		);
+	}
+
+	/**
+	 * Bouwt het STRUCTUUR-blok in de user prompt op basis van welke layouts daadwerkelijk
+	 * beschikbaar zijn (na `db_ai_allowed_layouts` filter). Banner en FAQ worden alleen als
+	 * "VAST" eerste/laatste blok genoemd als ze geactiveerd zijn. Vrije middelste layouts
+	 * worden alleen vermeld als ze beschikbaar zijn.
+	 *
+	 * @param string[] $available  Layout-namen die de AI mag gebruiken.
+	 */
+	private function build_structure_section( array $available ): string {
+		$has_banner   = in_array( 'banner', $available, true );
+		$has_faq      = in_array( 'veelgestelde_vragen', $available, true );
+		$has_tma      = in_array( 'tekst_met_afbeelding', $available, true );
+		$has_usps     = in_array( 'usps', $available, true );
+		$has_tw       = in_array( 'tekst_weergaves', $available, true );
+		$has_galerij  = in_array( 'fotogalerij', $available, true );
+
+		$lines = [ 'STRUCTUUR — bepaal zelf wat past bij het onderwerp:', '' ];
+
+		$vast = [];
+		if ( $has_banner ) {
+			$vast[] = '- Eerste blok: banner (intro/hero met hoofdzoekwoord in titel + eerste paragraaf)';
+		}
+		if ( $has_faq ) {
+			$vast[] = '- Laatste blok: veelgestelde_vragen (5-8 vragen, 1 onderwerp)';
+		}
+		if ( ! empty( $vast ) ) {
+			$lines[] = 'VAST:';
+			$lines   = array_merge( $lines, $vast );
+			$lines[] = '';
+		}
+
+		$vrij = [];
+		if ( $has_tma ) {
+			$vrij[] = '- tekst_met_afbeelding — typisch 2-5 stuks, alternerend positie links/rechts. Gebruik voor body content, uitleg, stappen, voorbeelden.';
+		}
+		if ( $has_usps ) {
+			$vrij[] = '- usps — voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn (3-5 items). Sla over als het onderwerp niet om "waarom kiezen" gaat.';
+		}
+		if ( $has_tw ) {
+			$vrij[] = '- tekst_weergaves — voeg toe voor 2-kolom vergelijking, verdiepende sectie, of when/hoe afweging.';
+		}
+		if ( $has_galerij ) {
+			$vrij[] = '- fotogalerij — alleen voor visueel-zware onderwerpen waar meerdere foto\'s waarde toevoegen.';
+		}
+		if ( ! empty( $vrij ) ) {
+			$lines[] = 'VRIJ — kies aantal en samenstelling op basis van topic-complexiteit en wat de inhoud nodig heeft:';
+			$lines   = array_merge( $lines, $vrij );
+			$lines[] = '';
+		}
+
+		$lines[] = 'RICHTLIJNEN VOOR JE KEUZE:';
+		$lines[] = '- Korte/eenvoudige onderwerpen → 3-4 blocks totaal';
+		$lines[] = '- Brede/complexe/how-to onderwerpen → 5-7 blocks totaal';
+		$lines[] = '- Niet meer blocks dan nodig om het onderwerp goed te dekken. Vermijd block-padding.';
+
+		return implode( "\n", $lines );
+	}
+}

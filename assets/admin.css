@@ -1,0 +1,251 @@
+.db-ai-wrap {
+	max-width: 720px;
+}
+
+.db-ai-step {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px 20px;
+	margin: 16px 0;
+}
+
+.db-ai-step h2 {
+	margin-top: 0;
+}
+
+.db-ai-step label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+#db-ai-keyword-select {
+	width: 100%;
+	max-width: 480px;
+}
+
+#db-ai-csv-file {
+	margin-bottom: 8px;
+}
+
+.db-ai-status {
+	margin-top: 8px;
+	font-size: 13px;
+	min-height: 1.4em;
+}
+
+.db-ai-status.is-loading { color: #1d2327; }
+.db-ai-status.is-success { color: #007017; }
+.db-ai-status.is-error   { color: #b32d2e; }
+
+.db-ai-status.is-loading::before {
+	content: "";
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-right: 6px;
+	border: 2px solid #c3c4c7;
+	border-top-color: #2271b1;
+	border-radius: 50%;
+	animation: db-ai-spin 0.8s linear infinite;
+	vertical-align: -2px;
+}
+
+@keyframes db-ai-spin {
+	to { transform: rotate(360deg); }
+}
+
+.db-ai-quota {
+	margin-left: 8px;
+	color: #50575e;
+	font-size: 12px;
+}
+
+#db-ai-secondary-preview {
+	margin-top: 12px;
+	padding: 12px 16px;
+	background: #f6f7f7;
+	border-left: 4px solid #2271b1;
+	min-height: 1px;
+}
+
+#db-ai-secondary-preview:empty {
+	display: none;
+}
+
+#db-ai-secondary-preview ul {
+	margin: 4px 0 0 16px;
+}
+
+#db-ai-generate-btn[disabled],
+#db-ai-dry-run-btn[disabled] {
+	cursor: not-allowed;
+}
+
+.db-ai-result {
+	margin-top: 12px;
+}
+
+.db-ai-result .db-ai-errors {
+	background: #fdecea;
+	border-left: 4px solid #b32d2e;
+	padding: 8px 12px;
+	margin-bottom: 8px;
+}
+
+.db-ai-result .db-ai-warnings {
+	background: #fcf9e8;
+	border-left: 4px solid #dba617;
+	padding: 8px 12px;
+	margin-bottom: 8px;
+}
+
+.db-ai-result h3 {
+	margin: 0 0 4px;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.db-ai-result ul {
+	margin: 0 0 0 16px;
+}
+
+.db-ai-json {
+	background: #1d2327;
+	color: #f0f0f1;
+	padding: 12px;
+	overflow-x: auto;
+	max-height: 480px;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.45;
+	border-radius: 3px;
+}
+
+.db-ai-result details summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.db-ai-image-card {
+	display: flex;
+	gap: 16px;
+	align-items: flex-start;
+	background: #f6f7f7;
+	padding: 12px;
+	border-radius: 3px;
+}
+
+.db-ai-image-card img {
+	max-width: 240px;
+	height: auto;
+	border-radius: 3px;
+	border: 1px solid #c3c4c7;
+}
+
+.db-ai-image-card dl {
+	margin: 0;
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 4px 12px;
+	font-size: 13px;
+}
+
+.db-ai-image-card dt { font-weight: 600; }
+.db-ai-image-card dd { margin: 0; }
+
+.db-ai-generate-card {
+	background: #f0f6fc;
+	border-left: 4px solid #2271b1;
+	padding: 12px 16px;
+}
+
+.db-ai-generate-card .button {
+	margin-right: 6px;
+}
+
+.db-ai-template-link {
+	margin-left: 8px;
+	font-size: 12px;
+}
+
+.db-ai-mapping {
+	margin-top: 16px;
+	padding: 12px 16px;
+	background: #f6f7f7;
+	border-left: 4px solid #2271b1;
+}
+
+.db-ai-mapping h3 {
+	margin-top: 0;
+}
+
+.db-ai-mapping-table {
+	width: 100%;
+	max-width: 640px;
+	border-collapse: collapse;
+	margin: 8px 0 12px;
+}
+
+.db-ai-mapping-table th,
+.db-ai-mapping-table td {
+	padding: 6px 10px;
+	text-align: left;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.db-ai-mapping-table th {
+	background: #fff;
+	font-weight: 600;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.db-ai-mapping-table td:first-child {
+	font-weight: 600;
+	width: 200px;
+}
+
+.db-ai-mapping-table select {
+	width: 100%;
+	max-width: 360px;
+}
+
+.db-ai-mapping-preview {
+	margin: 8px 0 12px;
+}
+
+.db-ai-mapping-preview summary {
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.db-ai-preview-table {
+	margin-top: 6px;
+	border-collapse: collapse;
+	font-size: 12px;
+	max-width: 100%;
+	overflow-x: auto;
+	display: block;
+}
+
+.db-ai-preview-table th,
+.db-ai-preview-table td {
+	border: 1px solid #dcdcde;
+	padding: 4px 8px;
+	background: #fff;
+	white-space: nowrap;
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.db-ai-preview-table th {
+	background: #f0f0f1;
+	font-weight: 600;
+}
