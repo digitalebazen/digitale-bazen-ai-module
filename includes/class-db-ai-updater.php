@@ -24,7 +24,23 @@ class DB_AI_Updater {
 	 */
 	public const DEFAULT_REPO_URL = 'https://github.com/DigitaleBazen/digitale-bazen-ai-module/';
 
+	/**
+	 * Option-key die bijhoudt voor welke plugin-versie de update-cache het laatst
+	 * is gepurged. Bij elke versie-bump wordt de cache eenmalig gewist zodat
+	 * stale asset-URLs (na release-asset replace met nieuw asset_id) geen
+	 * PCLZIP_ERR_BAD_FORMAT meer kunnen veroorzaken.
+	 */
+	private const PURGE_FLAG_OPTION = 'db_ai_updater_last_purge_for_version';
+
 	public static function register(): void {
+		// Eenmalige cache-purge per versie. Voorkomt PCLZIP errors door stale
+		// download URLs in PUC's eigen option en in de update_plugins transient.
+		if ( is_admin() && get_option( self::PURGE_FLAG_OPTION ) !== DB_AI_VERSION ) {
+			delete_site_transient( 'update_plugins' );
+			delete_option( 'external_updates-digitale-bazen-ai-module' );
+			update_option( self::PURGE_FLAG_OPTION, DB_AI_VERSION, false );
+		}
+
 		$loader = DB_AI_PLUGIN_DIR . 'vendor/plugin-update-checker/plugin-update-checker.php';
 		if ( ! file_exists( $loader ) ) {
 			return; // Library niet aanwezig — graceful exit, plugin werkt zonder updates

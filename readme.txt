@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.7
+Stable tag: 1.1.8
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,14 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.1.8 =
+* Updater: eenmalige cache-purge per versie-bump. Wist `update_plugins`
+  transient + PUC's eigen option-cache wanneer `DB_AI_VERSION` is gewijzigd.
+  Voorkomt `PCLZIP_ERR_BAD_FORMAT` na het vervangen van een release-asset
+  op GitHub (nieuwe asset_id maakt oude gecachede download URL ongeldig).
+  Zelfgenezend — geen wp-config of phpMyAdmin tweaks meer nodig wanneer
+  een asset op een release wordt vervangen.
 
 = 1.1.7 =
 * Test release voor verificatie van de auto-update flow na handmatige
