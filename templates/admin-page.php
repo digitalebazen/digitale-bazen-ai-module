@@ -10,6 +10,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 $saved_kwos = class_exists( 'DB_AI_Keyword_Research' )
 	? DB_AI_Keyword_Research::get_all()
 	: [];
+
+$internal_links_enabled = class_exists( 'DB_AI_Internal_Links' ) && DB_AI_Internal_Links::is_enabled();
+$link_post_types        = $internal_links_enabled ? DB_AI_Internal_Links::get_post_types() : [];
+$link_candidates        = [];
+if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
+	$link_candidates = get_posts(
+		[
+			'post_type'        => $link_post_types,
+			'post_status'      => 'publish',
+			'numberposts'      => 100,
+			'orderby'          => 'modified',
+			'order'            => 'DESC',
+			'suppress_filters' => false,
+		]
+	);
+}
 ?>
 <div class="wrap db-ai-wrap">
 	<h1>
@@ -243,6 +259,27 @@ $saved_kwos = class_exists( 'DB_AI_Keyword_Research' )
 					></textarea>
 					<p class="description"><?php esc_html_e( 'Bestaande top-3 in Google voor dit zoekwoord doet meestal iets standaards. Wat is jouw edge?', 'digitale-bazen-ai-module' ); ?></p>
 				</div>
+
+				<?php if ( $internal_links_enabled && ! empty( $link_candidates ) ) : ?>
+					<div class="db-ai-field-wrap">
+						<label for="db-ai-forced-links"><?php esc_html_e( 'Verplicht linken naar (optioneel)', 'digitale-bazen-ai-module' ); ?></label>
+						<select
+							id="db-ai-forced-links"
+							multiple
+							size="8"
+							style="width:100%;max-width:560px;"
+						>
+							<?php foreach ( $link_candidates as $candidate ) : ?>
+								<option value="<?php echo (int) $candidate->ID; ?>">
+									[<?php echo esc_html( $candidate->post_type ); ?>] <?php echo esc_html( $candidate->post_title ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<p class="description">
+							<?php esc_html_e( 'Cmd/Ctrl + klik om meerdere te selecteren. Deze pagina\'s krijgen PRIORITEIT in de prompt — AI zal ze proberen te plaatsen waar ze passen. Boven de algemene relevance-pool die automatisch wordt opgebouwd.', 'digitale-bazen-ai-module' ); ?>
+						</p>
+					</div>
+				<?php endif; ?>
 
 				<p>
 					<button type="button" class="button button-primary" data-wizard-next="5">

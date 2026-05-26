@@ -44,20 +44,54 @@ class DB_AI_Post_Creator {
 			return $layout_spec;
 		}
 
+		// Bouw eventueel pool van interne links — enabled via Settings.
+		// Forced links uit blog_input krijgen voorrang, dan de automatische
+		// relevance-pool, samen ge-cap'd op het Settings-max.
+		$internal_link_pool   = [];
+		$internal_link_max    = 0;
+		$internal_link_forced = 0;
+		$preprocess_warnings  = [];
+		if ( DB_AI_Internal_Links::is_enabled() ) {
+			$internal_link_max = DB_AI_Internal_Links::get_max_links();
+			$forced_ids        = (array) ( $blog_input['forced_link_ids'] ?? [] );
+			$forced            = DB_AI_Internal_Links::get_forced_links( $forced_ids );
+			$auto_pool         = DB_AI_Internal_Links::get_link_pool( $main_keyword, $secondary_keywords );
+			$merged            = DB_AI_Internal_Links::merge_pools( $forced, $auto_pool, $internal_link_max );
+			$internal_link_pool   = $merged['pool'];
+			$internal_link_forced = $merged['forced_count'];
+		}
+
 		// 1. AI call
 		$ai_output = $this->ai_provider->generate_blog(
 			$main_keyword,
 			$secondary_keywords,
 			[
-				'layout_spec'   => $layout_spec,
-				'output_schema' => $this->acf_mapper->get_output_schema_example(),
-				'blog_input'    => $blog_input,
+				'layout_spec'          => $layout_spec,
+				'output_schema'        => $this->acf_mapper->get_output_schema_example(),
+				'blog_input'           => $blog_input,
+				'internal_link_pool'   => $internal_link_pool,
+				'internal_link_max'    => $internal_link_max,
+				'internal_link_forced' => $internal_link_forced,
 			]
 		);
 		if ( is_wp_error( $ai_output ) ) {
 			$this->log_failure( 0, $user_id, $main_keyword, 'ai_error', $ai_output->get_error_message() );
 			do_action( 'db_ai_generation_failed', $ai_output, $main_keyword, $user_id );
 			return $ai_output;
+		}
+
+		// Cleanup: strip <a>-tags die naar niet-bestaande interne URLs wijzen.
+		// AI kan ondanks expliciete instructie alsnog een URL verzinnen — die
+		// vervangen we door alleen de anchor-text om 404's te voorkomen.
+		if ( ! empty( $internal_link_pool ) ) {
+			$stripped = DB_AI_Internal_Links::clean_orphan_links( $ai_output, $internal_link_pool );
+			if ( $stripped > 0 ) {
+				/* translators: %d = aantal opgeruimde links */
+				$preprocess_warnings[] = sprintf(
+					__( '%d niet-bestaande interne link(s) verwijderd uit de output.', 'digitale-bazen-ai-module' ),
+					$stripped
+				);
+			}
 		}
 
 		// 2. Validate
@@ -72,7 +106,7 @@ class DB_AI_Post_Creator {
 			do_action( 'db_ai_generation_failed', $err, $main_keyword, $user_id );
 			return $err;
 		}
-		$warnings = $validation['warnings'];
+		$warnings = array_merge( $preprocess_warnings, $validation['warnings'] );
 
 		// 3. Insert draft post
 		$post_type = (string) apply_filters( 'db_ai_post_type', self::DEFAULT_POST_TYPE );

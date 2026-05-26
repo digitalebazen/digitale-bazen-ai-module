@@ -595,6 +595,54 @@ class DB_AI_Settings {
 			]
 		);
 
+		// ─── Interne links sectie ─────────────────────────────────────────
+		add_settings_section(
+			'db_ai_internal_links_section',
+			__( 'Interne links', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Laat de AI automatisch 2-5 interne links toevoegen naar relevante pagina\'s op je site. Top-15 meest relevante pagina\'s worden in de prompt aangeboden (op basis van keyword-overlap). Niet-bestaande URLs worden na generatie automatisch opgeruimd.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'internal_links_enabled',
+			__( 'Interne links aanzetten', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_checkbox_field' ],
+			self::PAGE_SLUG,
+			'db_ai_internal_links_section',
+			[
+				'key'   => 'internal_links_enabled',
+				'label' => __( 'AI mag interne links toevoegen aan gegenereerde blogs', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Bij uit: geen interne links in output. Bij aan: 2-5 links naar relevante bestaande pagina\'s.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'internal_links_max',
+			__( 'Max aantal links per blog', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_select_field' ],
+			self::PAGE_SLUG,
+			'db_ai_internal_links_section',
+			[
+				'key'     => 'internal_links_max',
+				'options' => [
+					'2' => __( '2 links', 'digitale-bazen-ai-module' ),
+					'3' => __( '3 links (aanbevolen)', 'digitale-bazen-ai-module' ),
+					'4' => __( '4 links', 'digitale-bazen-ai-module' ),
+					'5' => __( '5 links', 'digitale-bazen-ai-module' ),
+				],
+			]
+		);
+
+		add_settings_field(
+			'internal_links_post_types',
+			__( 'Post types als linkbron', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_internal_link_post_types_field' ],
+			self::PAGE_SLUG,
+			'db_ai_internal_links_section'
+		);
+
 		// ─── Zoekwoordenonderzoek sectie ──────────────────────────────────
 		add_settings_section(
 			'db_ai_kwo_section',
@@ -708,11 +756,27 @@ class DB_AI_Settings {
 			$out['audience_language_level'] = in_array( $val, [ '', 'b1', 'expert' ], true ) ? $val : '';
 		}
 
-		// Anti-generiek toggles — unchecked checkboxes komen niet in $input. Form
-		// bevat alle tabs in één submit, dus we resetten ze altijd unconditioneel.
-		foreach ( [ 'anti_opinion', 'anti_examples', 'anti_downsides' ] as $bool_key ) {
+		// Anti-generiek + interne links toggles — unchecked checkboxes komen niet in
+		// $input. Form bevat alle tabs in één submit, dus we resetten ze altijd
+		// unconditioneel.
+		foreach ( [ 'anti_opinion', 'anti_examples', 'anti_downsides', 'internal_links_enabled' ] as $bool_key ) {
 			$out[ $bool_key ] = ! empty( $input[ $bool_key ] ) ? 1 : 0;
 		}
+
+		// Internal links max — select, alleen 2..5
+		if ( array_key_exists( 'internal_links_max', $input ) ) {
+			$val = (int) $input['internal_links_max'];
+			$out['internal_links_max'] = ( $val >= 2 && $val <= 5 ) ? $val : 3;
+		}
+
+		// Internal links post types — array van post type names, intersect met public ones
+		$valid_pts = array_keys( get_post_types( [ 'public' => true ], 'names' ) );
+		$raw_pts   = isset( $input['internal_links_post_types'] ) && is_array( $input['internal_links_post_types'] )
+			? $input['internal_links_post_types']
+			: [];
+		$out['internal_links_post_types'] = array_values(
+			array_intersect( $valid_pts, array_map( 'sanitize_key', $raw_pts ) )
+		);
 
 		// Referentie-posts: array van post IDs, max 5, alleen bestaande gepubliceerde posts.
 		if ( array_key_exists( 'reference_post_ids', $input ) ) {
@@ -938,6 +1002,33 @@ class DB_AI_Settings {
 		echo '<p class="description">' . esc_html__( 'Het specifieke flex content veld binnen de gekozen field group. Meestal is er maar één — alleen relevant als de field group meerdere heeft.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
+	public function render_internal_link_post_types_field(): void {
+		$opts    = self::get_options();
+		$current = $opts['internal_links_post_types'] ?? [ 'page', 'blog' ];
+		if ( ! is_array( $current ) ) {
+			$current = [ 'page', 'blog' ];
+		}
+
+		$available = get_post_types( [ 'public' => true ], 'objects' );
+		// Sluit attachment etc. uit — alleen post-types die content kunnen zijn
+		unset( $available['attachment'] );
+
+		echo '<fieldset>';
+		foreach ( $available as $pt ) {
+			$checked = in_array( $pt->name, $current, true );
+			printf(
+				'<label style="display:block;margin:4px 0;"><input type="checkbox" name="%s[internal_links_post_types][]" value="%s"%s> %s <code>%s</code></label>',
+				esc_attr( self::OPTION_NAME ),
+				esc_attr( $pt->name ),
+				$checked ? ' checked' : '',
+				esc_html( $pt->labels->name ?? $pt->name ),
+				esc_html( $pt->name )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Vink aan welke post types als bron voor interne links mogen dienen. Standaard alleen pages en blogs (de meest waardevolle landingsmateriaal).', 'digitale-bazen-ai-module' ) . '</p>';
+	}
+
 	public function render_kwo_manager_field(): void {
 		$all = DB_AI_Keyword_Research::get_all();
 		?>
@@ -1150,6 +1241,13 @@ class DB_AI_Settings {
 				'title'    => __( 'Anti-generieke content', 'digitale-bazen-ai-module' ),
 				'intro'    => __( 'Vink aan wat je expliciet wél wilt — dat is het verschil tussen "duidelijk AI" en authentieke content.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_antigeneric_section' ],
+			],
+			[
+				'id'       => 'links',
+				'label'    => __( 'Interne links', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Interne links', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'AI plaatst automatisch interne links naar relevante pagina\'s op je site bij elke blog-generatie. Goed voor SEO en doorklik-gedrag.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_internal_links_section' ],
 			],
 			[
 				'id'       => 'kwo',

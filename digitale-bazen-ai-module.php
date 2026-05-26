@@ -33,6 +33,7 @@ require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-acf-discovery.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-settings.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-style-profile.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-blog-input.php';
+require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-internal-links.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-admin-page.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-keyword-importer.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-keyword-research.php';

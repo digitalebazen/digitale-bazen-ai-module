@@ -553,6 +553,17 @@
 			}
 		});
 
+		// Forced internal links — multi-select met post IDs (alleen als
+		// internal linking aanstaat en de select bestaat in de DOM).
+		const forcedSelect = $('#db-ai-forced-links');
+		if (forcedSelect && forcedSelect.selectedOptions) {
+			Array.from(forcedSelect.selectedOptions).forEach(function (opt) {
+				if (opt.value) {
+					formData.append('forced_link_ids[]', opt.value);
+				}
+			});
+		}
+
 		fetch(config.ajaxUrl, {
 			method: 'POST',
 			credentials: 'same-origin',

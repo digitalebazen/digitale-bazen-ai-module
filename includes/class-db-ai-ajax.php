@@ -237,6 +237,13 @@ class DB_AI_Ajax {
 				: '';
 		}
 
+		// Forced internal link IDs — max 5, gevalideerd op bestaan in Post_Creator.
+		$out['forced_link_ids'] = [];
+		if ( ! empty( $_POST['forced_link_ids'] ) && is_array( $_POST['forced_link_ids'] ) ) {
+			$ids = array_filter( array_map( 'absint', wp_unslash( $_POST['forced_link_ids'] ) ) );
+			$out['forced_link_ids'] = array_values( array_slice( array_unique( $ids ), 0, 5 ) );
+		}
+
 		return $out;
 	}
 

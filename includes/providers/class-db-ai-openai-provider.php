@@ -169,6 +169,9 @@ TXT;
 		$layout_spec   = $context['layout_spec'] ?? [];
 		$output_schema = $context['output_schema'] ?? [];
 		$blog_input    = (array) ( $context['blog_input'] ?? [] );
+		$link_pool     = (array) ( $context['internal_link_pool'] ?? [] );
+		$max_links     = (int) ( $context['internal_link_max'] ?? 0 );
+		$forced_count  = (int) ( $context['internal_link_forced'] ?? 0 );
 
 		$secondary_list = empty( $secondary_keywords )
 			? __( '(geen secundaire keywords beschikbaar)', 'digitale-bazen-ai-module' )
@@ -197,6 +200,13 @@ TXT;
 		$blog_input_block = DB_AI_Blog_Input::get_prompt_addition( $blog_input );
 		if ( '' !== $blog_input_block ) {
 			$prompt .= "\n\n" . $blog_input_block;
+		}
+
+		if ( ! empty( $link_pool ) && $max_links > 0 ) {
+			$links_block = DB_AI_Internal_Links::get_prompt_addition( $link_pool, $max_links, $forced_count );
+			if ( '' !== $links_block ) {
+				$prompt .= "\n\n" . $links_block;
+			}
 		}
 
 		return $prompt;
