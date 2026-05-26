@@ -1,0 +1,204 @@
+/* Digitale Bazen AI Module — Settings tabs
+ *
+ * Klikbare tabs voor de Settings-page. Geen step-progression — gewoon
+ * navigeren tussen secties. Sticky footer met save-knop blijft altijd
+ * zichtbaar. Graceful degradation: zonder JS toont alle panes onder
+ * elkaar met standaard submit_button().
+ */
+
+.db-ai-tabs {
+	max-width: 920px;
+}
+
+.db-ai-tabs h1 {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.db-ai-dirty-badge {
+	display: none;
+	background: #f59e0b;
+	color: #fff;
+	padding: 3px 10px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.db-ai-tabs.is-dirty .db-ai-dirty-badge {
+	display: inline-block;
+}
+
+/* Tab navigatie */
+.db-ai-tabs-nav {
+	display: none; /* zonder JS verborgen — alle panes tonen onder elkaar */
+	list-style: none;
+	margin: 16px 0 24px;
+	padding: 0;
+	border-bottom: 1px solid #c3c4c7;
+}
+
+.db-ai-tabs.js-enabled .db-ai-tabs-nav {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.db-ai-tabs-nav li {
+	padding: 10px 18px;
+	cursor: pointer;
+	color: #50575e;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	transition: color .15s;
+	user-select: none;
+}
+
+.db-ai-tabs-nav li:hover {
+	color: #2271b1;
+}
+
+.db-ai-tabs-nav li.is-active {
+	color: #2271b1;
+	border-bottom-color: #2271b1;
+	font-weight: 600;
+}
+
+/* Pane */
+.db-ai-tabs-pane {
+	background: #fff;
+	padding: 24px 28px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	margin-bottom: 24px;
+}
+
+.db-ai-tabs.js-enabled .db-ai-tabs-pane {
+	margin-bottom: 80px; /* ruimte onder sticky save bar */
+}
+
+.db-ai-tabs.js-enabled .db-ai-tabs-pane:not(.is-active) {
+	display: none;
+}
+
+.db-ai-tabs-pane h2 {
+	margin-top: 0;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 18px;
+}
+
+.db-ai-tabs-pane .description-intro {
+	color: #50575e;
+	margin: 0 0 16px;
+}
+
+/* Sticky save bar */
+.db-ai-tabs-savebar {
+	display: none; /* zonder JS verborgen — wp default submit_button() volstaat */
+	position: sticky;
+	bottom: 0;
+	background: #f0f0f1;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 12px 20px;
+	margin-top: 24px;
+	gap: 10px;
+	align-items: center;
+	box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+	z-index: 5;
+}
+
+.db-ai-tabs.js-enabled .db-ai-tabs-savebar {
+	display: flex;
+}
+
+.db-ai-tabs-savebar .db-ai-spacer {
+	flex: 1;
+}
+
+/* Fallback submit-button verbergen als JS actief is */
+.db-ai-tabs.js-enabled .db-ai-fallback-submit {
+	display: none;
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+	.db-ai-tabs-nav li {
+		padding: 8px 12px;
+		font-size: 13px;
+	}
+
+	.db-ai-tabs-pane {
+		padding: 18px;
+	}
+}
+
+/* KWO uploader + lijst (Settings → Zoekwoorden tab) */
+
+.db-ai-kwo-uploader .db-ai-kwo-upload-form {
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px 20px;
+	margin-bottom: 24px;
+}
+
+.db-ai-kwo-uploader .db-ai-kwo-upload-form p {
+	margin: 0 0 12px;
+}
+
+.db-ai-kwo-uploader .db-ai-kwo-upload-form p:last-of-type {
+	margin-bottom: 0;
+}
+
+.db-ai-kwo-uploader .db-ai-kwo-upload-form label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.db-ai-kwo-uploader #db-ai-kwo-file {
+	margin-right: 8px;
+}
+
+.db-ai-kwo-table {
+	margin-top: 8px;
+}
+
+.db-ai-kwo-table .button-link-delete {
+	color: #b32d2e;
+}
+
+.db-ai-kwo-table .button-link-delete:hover {
+	color: #b32d2e;
+	text-decoration: underline;
+}
+
+/* Status indicator (hergebruikt patroon uit admin.css) */
+.db-ai-status {
+	margin-top: 8px;
+	font-size: 13px;
+	min-height: 1.4em;
+}
+
+.db-ai-status.is-loading { color: #1d2327; }
+.db-ai-status.is-success { color: #007017; }
+.db-ai-status.is-error   { color: #b32d2e; }
+
+.db-ai-status.is-loading::before {
+	content: "";
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-right: 6px;
+	border: 2px solid #c3c4c7;
+	border-top-color: #2271b1;
+	border-radius: 50%;
+	animation: db-ai-spin 0.8s linear infinite;
+	vertical-align: -2px;
+}
+
+@keyframes db-ai-spin {
+	to { transform: rotate(360deg); }
+}

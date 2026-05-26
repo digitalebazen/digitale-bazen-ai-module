@@ -168,6 +168,7 @@ TXT;
 	private function build_user_prompt( string $main_keyword, array $secondary_keywords, array $context ): string {
 		$layout_spec   = $context['layout_spec'] ?? [];
 		$output_schema = $context['output_schema'] ?? [];
+		$blog_input    = (array) ( $context['blog_input'] ?? [] );
 
 		$secondary_list = empty( $secondary_keywords )
 			? __( '(geen secundaire keywords beschikbaar)', 'digitale-bazen-ai-module' )
@@ -178,7 +179,7 @@ TXT;
 
 		$structure = $this->build_structure_section( array_column( $layout_spec, 'name' ) );
 
-		return sprintf(
+		$prompt = sprintf(
 			'Schrijf een Nederlandse blogpost over: "%1$s"' . "\n\n"
 			. 'Secundaire keywords om natuurlijk te verwerken: %2$s' . "\n\n"
 			. '%3$s' . "\n\n"
@@ -192,6 +193,13 @@ TXT;
 			$layout_spec_json,
 			$output_schema_json
 		);
+
+		$blog_input_block = DB_AI_Blog_Input::get_prompt_addition( $blog_input );
+		if ( '' !== $blog_input_block ) {
+			$prompt .= "\n\n" . $blog_input_block;
+		}
+
+		return $prompt;
 	}
 
 	/**

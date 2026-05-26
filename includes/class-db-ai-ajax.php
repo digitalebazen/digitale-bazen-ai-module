@@ -21,6 +21,118 @@ class DB_AI_Ajax {
 	public function register(): void {
 		add_action( 'wp_ajax_db_ai_parse_csv', [ $this, 'parse_csv' ] );
 		add_action( 'wp_ajax_db_ai_generate', [ $this, 'generate' ] );
+		add_action( 'wp_ajax_db_ai_save_kwo', [ $this, 'save_kwo' ] );
+		add_action( 'wp_ajax_db_ai_load_kwo', [ $this, 'load_kwo' ] );
+		add_action( 'wp_ajax_db_ai_delete_kwo', [ $this, 'delete_kwo' ] );
+	}
+
+	/**
+	 * Upload + opslaan van een zoekwoordenonderzoek (CSV) als CPT.
+	 */
+	public function save_kwo(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		if ( '' === $name ) {
+			wp_send_json_error( [ 'message' => __( 'Geef het onderzoek een naam.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		if ( empty( $_FILES['csv'] ) || ! isset( $_FILES['csv']['tmp_name'] ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen bestand ontvangen.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$file = $_FILES['csv'];
+
+		if ( ! empty( $file['error'] ) ) {
+			wp_send_json_error( [ 'message' => $this->upload_error_message( (int) $file['error'] ) ], 400 );
+		}
+		if ( ! is_uploaded_file( $file['tmp_name'] ) ) {
+			wp_send_json_error( [ 'message' => __( 'Ongeldige upload.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+		if ( (int) $file['size'] > self::MAX_UPLOAD_BYTES ) {
+			wp_send_json_error( [ 'message' => __( 'Bestand is te groot (max 1 MB).', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$filename  = isset( $file['name'] ) ? sanitize_file_name( $file['name'] ) : 'upload.csv';
+		$ext_check = wp_check_filetype_and_ext( $file['tmp_name'], $filename, [ 'csv' => 'text/csv' ] );
+		$ext       = strtolower( $ext_check['ext'] ?? '' );
+
+		if ( 'csv' !== $ext ) {
+			wp_send_json_error( [ 'message' => __( 'Alleen .csv bestanden zijn toegestaan (xlsx/ods wordt door je browser eerst geconverteerd).', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$importer = new DB_AI_Keyword_Importer();
+		$parsed   = $importer->parse_csv( $file['tmp_name'] );
+
+		if ( is_wp_error( $parsed ) ) {
+			wp_send_json_error( [ 'message' => $parsed->get_error_message() ], 400 );
+		}
+
+		$saved = DB_AI_Keyword_Research::save( $name, $parsed['rows'] );
+		if ( is_wp_error( $saved ) ) {
+			wp_send_json_error( [ 'message' => $saved->get_error_message() ], 400 );
+		}
+
+		wp_send_json_success(
+			[
+				'id'    => (int) $saved,
+				'name'  => $name,
+				'count' => count( $parsed['rows'] ),
+				'all'   => DB_AI_Keyword_Research::get_all(),
+			]
+		);
+	}
+
+	/**
+	 * Laad een opgeslagen onderzoek (rijen + grouped) voor gebruik in de generator.
+	 */
+	public function load_kwo(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'publish_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		if ( ! $id ) {
+			wp_send_json_error( [ 'message' => __( 'Geen onderzoek-id ontvangen.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$data = DB_AI_Keyword_Research::get_with_rows( $id );
+		if ( is_wp_error( $data ) ) {
+			wp_send_json_error( [ 'message' => $data->get_error_message() ], 404 );
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Verwijder een opgeslagen onderzoek.
+	 */
+	public function delete_kwo(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		if ( ! $id ) {
+			wp_send_json_error( [ 'message' => __( 'Geen onderzoek-id ontvangen.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		if ( ! DB_AI_Keyword_Research::delete( $id ) ) {
+			wp_send_json_error( [ 'message' => __( 'Verwijderen mislukt.', 'digitale-bazen-ai-module' ) ], 500 );
+		}
+
+		wp_send_json_success( [ 'all' => DB_AI_Keyword_Research::get_all() ] );
 	}
 
 	public function generate(): void {
@@ -45,6 +157,8 @@ class DB_AI_Ajax {
 				}
 			}
 		}
+
+		$blog_input = $this->collect_blog_input();
 
 		$provider = $this->resolve_provider();
 		if ( is_wp_error( $provider ) ) {
@@ -76,7 +190,7 @@ class DB_AI_Ajax {
 			$logger
 		);
 
-		$result = $creator->create_from_keyword( $main_keyword, $secondary, $user_id );
+		$result = $creator->create_from_keyword( $main_keyword, $secondary, $user_id, $blog_input );
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error(
@@ -96,6 +210,34 @@ class DB_AI_Ajax {
 				]
 			)
 		);
+	}
+
+	/**
+	 * Verzamelt + sanitizeert de per-blog input velden uit POST.
+	 *
+	 * @return array{type_content:string,funnel_phase:string,awareness_level:string,must_include:string,must_avoid:string,beat_competition:string,extra_instructions:string}
+	 */
+	private function collect_blog_input(): array {
+		$enum_values = [
+			'type_content'    => [ 'blog', 'landing', 'faq', 'comparison', 'case', 'service' ],
+			'funnel_phase'    => [ 'tofu', 'mofu', 'bofu' ],
+			'awareness_level' => [ 'unaware', 'problem', 'solution', 'product' ],
+		];
+
+		$out = [];
+
+		foreach ( $enum_values as $key => $allowed ) {
+			$raw          = isset( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';
+			$out[ $key ]  = in_array( $raw, $allowed, true ) ? $raw : '';
+		}
+
+		foreach ( [ 'must_include', 'must_avoid', 'beat_competition', 'extra_instructions' ] as $key ) {
+			$out[ $key ] = isset( $_POST[ $key ] )
+				? sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) )
+				: '';
+		}
+
+		return $out;
 	}
 
 	public function parse_csv(): void {

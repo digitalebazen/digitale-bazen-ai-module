@@ -5,14 +5,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Bouwt de TOV / business-context / huisregels / referentie-voorbeelden sectie die
- * aan de AI system prompt wordt toegevoegd. Leest uit `db_ai_settings` option.
+ * Bouwt de algemene contextsectie (bedrijfsinfo + doelgroep + TOV + anti-generiek +
+ * huisregels + referentie-voorbeelden) die aan de AI system prompt wordt toegevoegd.
+ * Leest uit `db_ai_settings` option.
  *
- * Velden:
- *   tone_of_voice       (string)  Vrijetekst beschrijving van merkstem
- *   site_context        (string)  Bedrijf + doelgroep + WAT NIET DOEN
- *   style_rules         (string)  Huisstijl/uitvoeringsregels (geen em-dashes etc.)
- *   reference_post_ids  (int[])   Tot 5 post IDs gebruikt als few-shot voorbeelden
+ * Velden (allemaal optioneel):
+ *   — Bedrijfsinformatie:
+ *     company_name, company_industry, company_services, company_usps, company_competitors
+ *   — Doelgroep:
+ *     audience_who, audience_objections, audience_frustrations, audience_buying_criteria,
+ *     audience_language_level (b1|expert|'')
+ *   — Tone of voice + content (bestaand):
+ *     tone_of_voice, site_context, style_rules, reference_post_ids
+ *   — Anti-generiek toggles:
+ *     anti_opinion, anti_examples, anti_downsides (bool)
  */
 class DB_AI_Style_Profile {
 
@@ -26,6 +32,16 @@ class DB_AI_Style_Profile {
 	public static function get_prompt_addition(): string {
 		$opts     = DB_AI_Settings::get_options();
 		$sections = [];
+
+		$company = self::build_company_section( $opts );
+		if ( '' !== $company ) {
+			$sections[] = $company;
+		}
+
+		$audience = self::build_audience_section( $opts );
+		if ( '' !== $audience ) {
+			$sections[] = $audience;
+		}
 
 		$tov = trim( (string) ( $opts['tone_of_voice'] ?? '' ) );
 		if ( '' !== $tov ) {
@@ -42,6 +58,11 @@ class DB_AI_Style_Profile {
 			$sections[] = "EXTRA HUISSTIJL-REGELS (volg STRIKT):\n" . $rules;
 		}
 
+		$anti_generic = self::build_anti_generic_section( $opts );
+		if ( '' !== $anti_generic ) {
+			$sections[] = $anti_generic;
+		}
+
 		$samples = self::get_reference_samples();
 		if ( ! empty( $samples ) ) {
 			$sample_block = "VOORBEELDEN VAN GEWENSTE SCHRIJFSTIJL — match toon, ritme en zinslengte:";
@@ -56,6 +77,84 @@ class DB_AI_Style_Profile {
 		}
 
 		return "\n\n---\n\n" . implode( "\n\n", $sections );
+	}
+
+	private static function build_company_section( array $opts ): string {
+		$lines = [];
+
+		$pairs = [
+			'company_name'        => 'Bedrijfsnaam',
+			'company_industry'    => 'Branche',
+			'company_services'    => 'Diensten/producten',
+			'company_usps'        => "USP's / wat maakt het uniek",
+			'company_competitors' => 'Concurrenten (noem deze NOOIT in de blog, maar gebruik ze om te positioneren)',
+		];
+
+		foreach ( $pairs as $key => $label ) {
+			$val = trim( (string) ( $opts[ $key ] ?? '' ) );
+			if ( '' === $val ) {
+				continue;
+			}
+			$lines[] = '- ' . $label . ': ' . $val;
+		}
+
+		if ( empty( $lines ) ) {
+			return '';
+		}
+
+		return "BEDRIJFSINFORMATIE:\n" . implode( "\n", $lines );
+	}
+
+	private static function build_audience_section( array $opts ): string {
+		$lines = [];
+
+		$pairs = [
+			'audience_who'             => 'Voor wie schrijf je',
+			'audience_objections'      => 'Bezwaren die weggenomen moeten worden',
+			'audience_frustrations'    => 'Frustraties / pijnpunten',
+			'audience_buying_criteria' => 'Wat de doelgroep belangrijk vindt bij beslissen',
+		];
+
+		foreach ( $pairs as $key => $label ) {
+			$val = trim( (string) ( $opts[ $key ] ?? '' ) );
+			if ( '' === $val ) {
+				continue;
+			}
+			$lines[] = '- ' . $label . ': ' . $val;
+		}
+
+		$level = (string) ( $opts['audience_language_level'] ?? '' );
+		if ( 'b1' === $level ) {
+			$lines[] = '- Taalniveau: B1 — eenvoudige zinnen, geen vaktermen tenzij uitgelegd, korte alinea\'s.';
+		} elseif ( 'expert' === $level ) {
+			$lines[] = '- Taalniveau: expert — vakjargon mag, geen basisuitleg van bekende begrippen.';
+		}
+
+		if ( empty( $lines ) ) {
+			return '';
+		}
+
+		return "DOELGROEP:\n" . implode( "\n", $lines );
+	}
+
+	private static function build_anti_generic_section( array $opts ): string {
+		$lines = [];
+
+		if ( ! empty( $opts['anti_opinion'] ) ) {
+			$lines[] = '- Geef expliciet een gefundeerde mening of standpunt waar het past — vermijd neutrale "objectieve" formuleringen die alles open laten.';
+		}
+		if ( ! empty( $opts['anti_examples'] ) ) {
+			$lines[] = '- Werk met concrete praktijkvoorbeelden in plaats van algemene principes (geen verzonnen cijfers — gebruik realistische scenarios).';
+		}
+		if ( ! empty( $opts['anti_downsides'] ) ) {
+			$lines[] = '- Benoem ook nadelen, beperkingen of "wanneer dit NIET voor jou is" — toont expertise en bouwt vertrouwen.';
+		}
+
+		if ( empty( $lines ) ) {
+			return '';
+		}
+
+		return "ANTI-GENERIEKE CONTENT (vermijd standaard AI-tekst):\n" . implode( "\n", $lines );
 	}
 
 	/**

@@ -29,9 +29,14 @@ class DB_AI_Post_Creator {
 	}
 
 	/**
+	 * @param array $blog_input  Per-blog input: type_content, funnel_phase,
+	 *                           awareness_level, must_include, must_avoid,
+	 *                           beat_competition, extra_instructions.
+	 *                           Allemaal optioneel — wordt via DB_AI_Blog_Input
+	 *                           geformatteerd en aan de user prompt geappended.
 	 * @return array|WP_Error  Array met post_id, edit_link, warnings, tokens, model.
 	 */
-	public function create_from_keyword( string $main_keyword, array $secondary_keywords, int $user_id ) {
+	public function create_from_keyword( string $main_keyword, array $secondary_keywords, int $user_id, array $blog_input = [] ) {
 		do_action( 'db_ai_before_generate', $main_keyword, $secondary_keywords, $user_id );
 
 		$layout_spec = $this->acf_mapper->get_layout_spec_for_prompt();
@@ -46,6 +51,7 @@ class DB_AI_Post_Creator {
 			[
 				'layout_spec'   => $layout_spec,
 				'output_schema' => $this->acf_mapper->get_output_schema_example(),
+				'blog_input'    => $blog_input,
 			]
 		);
 		if ( is_wp_error( $ai_output ) ) {

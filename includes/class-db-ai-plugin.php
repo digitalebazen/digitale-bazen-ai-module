@@ -29,6 +29,10 @@ final class DB_AI_Plugin {
 		$this->faq_schema = new DB_AI_FAQ_Schema();
 		$this->faq_schema->register();
 
+		// Zoekwoordenonderzoek CPT — moet vroeg geregistreerd worden (`init`) zodat
+		// REST/AJAX queries werken. Geen aparte instance nodig; static method.
+		DB_AI_Keyword_Research::register();
+
 		if ( is_admin() ) {
 			$this->admin_page = new DB_AI_Admin_Page();
 			$this->admin_page->register();

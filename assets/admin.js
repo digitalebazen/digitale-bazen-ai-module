@@ -18,8 +18,59 @@
 
 	let wizardState = null; // {headers: [], dataRows: [], mapping: {}, file: File}
 
+	// Generator wizard state (5 stappen: upload → keyword → basisinfo → specifiek → genereer).
+	// Stap 1 en 2 zijn action-driven (auto-advance bij success). Stap 3-4 zijn
+	// optionele input — user klikt "Volgende →" of "Sla over" om door te gaan.
+	// Bij keyword-select unlocken we meteen alle volgende stappen zodat user kan
+	// kiezen om direct te genereren of eerst tussenstappen te doorlopen.
+	const STEP_UPLOAD = 1;
+	const STEP_KEYWORD = 2;
+	const STEP_BASIC = 3;
+	const STEP_SPECIFIC = 4;
+	const STEP_GENERATE = 5;
+	let generatorStep = STEP_UPLOAD;
+	let maxReachableStep = STEP_UPLOAD;
+
 	function $(selector) {
 		return document.querySelector(selector);
+	}
+
+	function $$(selector) {
+		return Array.from( document.querySelectorAll(selector) );
+	}
+
+	function wizardGoTo(step) {
+		if (step < STEP_UPLOAD || step > STEP_GENERATE) return;
+		if (step > maxReachableStep) return;
+		generatorStep = step;
+
+		$$('.db-ai-wizard-pane').forEach(function (pane) {
+			pane.classList.toggle('is-active', parseInt(pane.dataset.step, 10) === step);
+		});
+
+		$$('.db-ai-wizard-progress li[data-step]').forEach(function (li) {
+			const s = parseInt(li.dataset.step, 10);
+			li.classList.toggle('is-active', s === step);
+			li.classList.toggle('is-done', s < step && s < maxReachableStep);
+			li.classList.toggle('is-enabled', s <= maxReachableStep);
+		});
+
+		// Smooth scroll to top of wizard
+		const wizard = $('.db-ai-wizard');
+		if (wizard) {
+			wizard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}
+
+	function wizardUnlockStep(step) {
+		if (step > maxReachableStep) {
+			maxReachableStep = step;
+		}
+		// Update progress visual state without forcing a step change
+		$$('.db-ai-wizard-progress li[data-step]').forEach(function (li) {
+			const s = parseInt(li.dataset.step, 10);
+			li.classList.toggle('is-enabled', s <= maxReachableStep);
+		});
 	}
 
 	function renderQuota(remaining) {
@@ -384,6 +435,10 @@
 					'success'
 				);
 				renderSecondaryPreview('');
+
+				// Wizard: ontgrendel stap 2 en spring er naartoe.
+				wizardUnlockStep(STEP_KEYWORD);
+				wizardGoTo(STEP_KEYWORD);
 			})
 			.catch(function () {
 				setStatus('#db-ai-status', config.i18n.networkError || 'Netwerkfout.', 'error');
@@ -405,6 +460,52 @@
 		a.click();
 		document.body.removeChild(a);
 		setTimeout(function () { URL.revokeObjectURL(url); }, 100);
+	}
+
+	function loadSavedKwo(id) {
+		const loadStatus = $('#db-ai-kwo-load-status');
+		if (loadStatus) {
+			loadStatus.textContent = config.i18n.uploading || 'Bezig met laden…';
+			loadStatus.className = 'db-ai-status is-loading';
+		}
+
+		const formData = new FormData();
+		formData.append('action', 'db_ai_load_kwo');
+		formData.append('nonce', config.nonce);
+		formData.append('id', String(id));
+
+		fetch(config.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+			.then(function (res) { return res.json(); })
+			.then(function (json) {
+				if (!json || !json.success) {
+					const msg = (json && json.data && json.data.message) || (config.i18n.uploadFailed || 'Laden mislukt.');
+					if (loadStatus) {
+						loadStatus.textContent = msg;
+						loadStatus.className = 'db-ai-status is-error';
+					}
+					return;
+				}
+				rows = json.data.rows || [];
+				buildSelect(json.data.grouped || {});
+				if (loadStatus) {
+					loadStatus.textContent = (config.i18n.uploadOk || '%d zoekwoorden geladen.').replace('%d', json.data.count);
+					loadStatus.className = 'db-ai-status is-success';
+				}
+				renderSecondaryPreview('');
+				// Wizard: ontgrendel + spring naar Keyword stap.
+				wizardUnlockStep(STEP_KEYWORD);
+				wizardGoTo(STEP_KEYWORD);
+			})
+			.catch(function () {
+				if (loadStatus) {
+					loadStatus.textContent = config.i18n.networkError || 'Netwerkfout.';
+					loadStatus.className = 'db-ai-status is-error';
+				}
+			});
 	}
 
 	function getCurrentKeyword() {
@@ -429,6 +530,27 @@
 		formData.append('main_keyword', keyword);
 		currentSecondary.forEach(function (kw) {
 			formData.append('secondary_keywords[]', kw);
+		});
+
+		const extraEl = $('#db-ai-extra-instructions');
+		if (extraEl && extraEl.value.trim() !== '') {
+			formData.append('extra_instructions', extraEl.value);
+		}
+
+		// Stap 3 + 4 input velden — alleen meesturen als ze gevuld zijn.
+		const fieldMap = {
+			'db-ai-type-content':     'type_content',
+			'db-ai-funnel-phase':     'funnel_phase',
+			'db-ai-awareness-level':  'awareness_level',
+			'db-ai-must-include':     'must_include',
+			'db-ai-must-avoid':       'must_avoid',
+			'db-ai-beat-competition': 'beat_competition',
+		};
+		Object.keys(fieldMap).forEach(function (id) {
+			const el = document.getElementById(id);
+			if (el && el.value && el.value.toString().trim() !== '') {
+				formData.append(fieldMap[id], el.value);
+			}
 		});
 
 		fetch(config.ajaxUrl, {
@@ -514,7 +636,66 @@
 		if (select) {
 			select.addEventListener('change', function (e) {
 				renderSecondaryPreview(e.target.value);
+
+				// Wizard: bij keyword-selectie ontgrendel ALLE volgende stappen
+				// (basisinfo, specifiek, genereer) en spring naar basisinfo. User
+				// kan vandaaruit doorklikken of via progress-indicator skippen.
+				if (e.target.value) {
+					wizardUnlockStep(STEP_GENERATE);
+					wizardGoTo(STEP_BASIC);
+				}
 			});
+		}
+
+		// Wizard: "Volgende →" en "Sla over" knoppen binnen stap 3 en 4.
+		$$('[data-wizard-next]').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const target = parseInt(btn.dataset.wizardNext, 10);
+				if (!isNaN(target)) wizardGoTo(target);
+			});
+		});
+		$$('[data-wizard-skip]').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const target = parseInt(btn.dataset.wizardSkip, 10);
+				if (!isNaN(target)) wizardGoTo(target);
+			});
+		});
+
+		// Wizard: klikken op enabled progress-circles springt direct naar die stap.
+		$$('.db-ai-wizard-progress li[data-step]').forEach(function (li) {
+			li.addEventListener('click', function () {
+				if (!li.classList.contains('is-enabled')) return;
+				wizardGoTo(parseInt(li.dataset.step, 10));
+			});
+		});
+
+		// KWO dropdown — selecteer een opgeslagen zoekwoordenonderzoek.
+		const kwoSelect = $('#db-ai-kwo-select');
+		if (kwoSelect) {
+			kwoSelect.addEventListener('change', function (e) {
+				const id = parseInt(e.target.value, 10);
+				if (!id) return;
+				loadSavedKwo(id);
+			});
+		}
+
+		// "Of upload hieronder eenmalig" link toont de file-upload sectie als die verborgen is.
+		const kwoToggle = $('#db-ai-kwo-toggle-upload');
+		if (kwoToggle) {
+			kwoToggle.addEventListener('click', function (e) {
+				e.preventDefault();
+				const uploadWrap = document.querySelector('.db-ai-csv-upload-wrap');
+				if (uploadWrap) {
+					uploadWrap.hidden = false;
+					uploadWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+				}
+			});
+		}
+
+		// Wizard: enable JS-styling pas als JS daadwerkelijk draait.
+		const wizardEl = $('.db-ai-wizard');
+		if (wizardEl) {
+			wizardEl.classList.add('js-enabled');
 		}
 
 		const applyBtn  = $('#db-ai-mapping-apply');

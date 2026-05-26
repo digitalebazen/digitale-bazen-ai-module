@@ -2,6 +2,158 @@
 	max-width: 720px;
 }
 
+/* ─── Wizard ─────────────────────────────────────────────────────────────
+ *
+ * Generator-page wizard met 3 stappen (upload → keyword → genereer).
+ * Action-driven forward navigation (CSV success → auto-advance, keyword
+ * select → auto-advance), klikbare progress voor terug-navigatie.
+ *
+ * Graceful degradation: zonder JS wordt .js-enabled niet gezet en blijven
+ * alle panes zichtbaar onder elkaar als de oude flat-lijst.
+ */
+
+.db-ai-wizard {
+	margin-top: 16px;
+}
+
+.db-ai-wizard-progress {
+	display: none;
+	list-style: none;
+	margin: 0 0 24px;
+	padding: 0;
+	counter-reset: db-ai-step;
+}
+
+.db-ai-wizard.js-enabled .db-ai-wizard-progress {
+	display: flex;
+	gap: 0;
+	align-items: center;
+}
+
+.db-ai-wizard-progress li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: #50575e;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: default;
+	flex: 0 0 auto;
+}
+
+.db-ai-wizard-progress li.is-enabled {
+	cursor: pointer;
+	color: #2271b1;
+}
+
+.db-ai-wizard-progress li.is-enabled:hover .step-circle {
+	background: #135e96;
+}
+
+.db-ai-wizard-progress li.is-active {
+	color: #1d2327;
+	font-weight: 600;
+}
+
+.db-ai-wizard-progress li.is-active .step-circle {
+	background: #2271b1;
+	box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.18);
+}
+
+.db-ai-wizard-progress li.is-done .step-circle {
+	background: #2271b1;
+}
+
+.db-ai-wizard-progress .step-circle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #c3c4c7;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 600;
+	transition: background .15s;
+}
+
+.db-ai-wizard-progress li.is-done .step-circle::after {
+	content: "✓";
+}
+
+.db-ai-wizard-progress li.is-done .step-circle .step-number {
+	display: none;
+}
+
+.db-ai-wizard-progress .step-connector {
+	flex: 1;
+	height: 2px;
+	background: #c3c4c7;
+	margin: 0 12px;
+	min-width: 24px;
+	max-width: 80px;
+}
+
+.db-ai-wizard-progress li.is-done + .step-connector,
+.db-ai-wizard-progress li.is-active + .step-connector {
+	background: #2271b1;
+}
+
+.db-ai-wizard-pane {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px 24px;
+}
+
+.db-ai-wizard.js-enabled .db-ai-wizard-pane:not(.is-active) {
+	display: none;
+}
+
+.db-ai-wizard.js-enabled .db-ai-wizard-pane + .db-ai-wizard-pane {
+	margin-top: 0;
+}
+
+.db-ai-wizard-pane h2 {
+	margin-top: 0;
+}
+
+.db-ai-wizard-pane label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+#db-ai-extra-instructions {
+	width: 100%;
+	max-width: 100%;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.db-ai-wizard-pane .db-ai-extra-instructions-wrap {
+	margin: 16px 0;
+}
+
+.db-ai-wizard-pane .db-ai-extra-instructions-wrap .description {
+	margin-top: 4px;
+	color: #50575e;
+}
+
+@media (max-width: 720px) {
+	.db-ai-wizard-progress li {
+		font-size: 12px;
+	}
+
+	.db-ai-wizard-progress .step-connector {
+		min-width: 12px;
+	}
+
+	.db-ai-wizard-pane {
+		padding: 16px;
+	}
+}
+
 .db-ai-step {
 	background: #fff;
 	border: 1px solid #c3c4c7;

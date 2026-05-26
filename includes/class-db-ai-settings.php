@@ -142,10 +142,71 @@ class DB_AI_Settings {
 
 	// ─── Instance: menu + Settings API ─────────────────────────────────────
 
+	private $page_hook = '';
+
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_assets' ] );
 		add_filter( 'db_ai_allowed_layouts', [ $this, 'filter_allowed_layouts' ] );
+	}
+
+	public function maybe_enqueue_assets( $hook_suffix ): void {
+		if ( '' === $this->page_hook || $hook_suffix !== $this->page_hook ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'db-ai-settings',
+			DB_AI_PLUGIN_URL . 'assets/settings.css',
+			[],
+			DB_AI_VERSION
+		);
+
+		// SheetJS Community Edition voor client-side xlsx/xls/ods → csv conversie.
+		wp_enqueue_script(
+			'db-ai-xlsx',
+			DB_AI_PLUGIN_URL . 'assets/vendor/xlsx.full.min.js',
+			[],
+			'0.20.3',
+			true
+		);
+
+		wp_enqueue_script(
+			'db-ai-settings',
+			DB_AI_PLUGIN_URL . 'assets/settings.js',
+			[ 'db-ai-xlsx' ],
+			DB_AI_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'db-ai-settings',
+			'dbAiSettings',
+			[
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( DB_AI_Ajax::NONCE_ACTION ),
+				'i18n'    => [
+					'missingName'      => __( 'Geef het onderzoek een naam.', 'digitale-bazen-ai-module' ),
+					'missingFile'      => __( 'Selecteer een bestand.', 'digitale-bazen-ai-module' ),
+					'uploading'        => __( 'Bezig met uploaden…', 'digitale-bazen-ai-module' ),
+					'parsing'          => __( 'Bestand lezen…', 'digitale-bazen-ai-module' ),
+					/* translators: %d = aantal zoekwoorden */
+					'uploadOk'         => __( 'Opgeslagen — %d zoekwoorden.', 'digitale-bazen-ai-module' ),
+					'uploadFailed'     => __( 'Upload mislukt.', 'digitale-bazen-ai-module' ),
+					'parseFailed'      => __( 'Bestand kon niet gelezen worden.', 'digitale-bazen-ai-module' ),
+					'networkError'     => __( 'Netwerkfout.', 'digitale-bazen-ai-module' ),
+					'confirmDelete'    => __( 'Dit onderzoek verwijderen?', 'digitale-bazen-ai-module' ),
+					'deleted'          => __( 'Verwijderd.', 'digitale-bazen-ai-module' ),
+					'deleteFailed'     => __( 'Verwijderen mislukt.', 'digitale-bazen-ai-module' ),
+					'noKwoYet'         => __( 'Nog geen onderzoeken opgeslagen.', 'digitale-bazen-ai-module' ),
+					'tableNameLabel'   => __( 'Naam', 'digitale-bazen-ai-module' ),
+					'tableCountLabel'  => __( 'Zoekwoorden', 'digitale-bazen-ai-module' ),
+					'tableDateLabel'   => __( 'Geüpload op', 'digitale-bazen-ai-module' ),
+					'tableDeleteLabel' => __( 'Verwijder', 'digitale-bazen-ai-module' ),
+				],
+			]
+		);
 	}
 
 	/**
@@ -166,7 +227,7 @@ class DB_AI_Settings {
 	}
 
 	public function register_menu(): void {
-		add_options_page(
+		$this->page_hook = (string) add_options_page(
 			__( 'AI Module', 'digitale-bazen-ai-module' ),
 			__( 'AI Module', 'digitale-bazen-ai-module' ),
 			'manage_options',
@@ -315,12 +376,241 @@ class DB_AI_Settings {
 			'db_ai_style_section'
 		);
 
+		// ─── Block-layouts sectie (los van style section voor wizard-stap 4) ───
+		add_settings_section(
+			'db_ai_layouts_section',
+			__( 'Block-layouts', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Welke ACF flex-layouts mag de AI gebruiken in gegenereerde blogs.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
 		add_settings_field(
 			'allowed_layouts',
 			__( 'Beschikbare block-layouts', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_allowed_layouts_field' ],
 			self::PAGE_SLUG,
-			'db_ai_style_section'
+			'db_ai_layouts_section'
+		);
+
+		// ─── Bedrijfsinformatie sectie ────────────────────────────────────
+		add_settings_section(
+			'db_ai_company_section',
+			__( 'Bedrijfsinformatie', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Wat is jouw bedrijf, branche en wat maakt je uniek. Wordt aan de AI system prompt toegevoegd zodat output past bij jouw business.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'company_name',
+			__( 'Bedrijfsnaam', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_text_field' ],
+			self::PAGE_SLUG,
+			'db_ai_company_section',
+			[ 'key' => 'company_name', 'placeholder' => __( 'Bv: Digitale Bazen', 'digitale-bazen-ai-module' ) ]
+		);
+
+		add_settings_field(
+			'company_industry',
+			__( 'Branche / sector', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_text_field' ],
+			self::PAGE_SLUG,
+			'db_ai_company_section',
+			[ 'key' => 'company_industry', 'placeholder' => __( 'Bv: online marketing voor MKB, bruidsmode, restaurantcatering', 'digitale-bazen-ai-module' ) ]
+		);
+
+		add_settings_field(
+			'company_services',
+			__( 'Diensten / producten', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_company_section',
+			[
+				'key'         => 'company_services',
+				'rows'        => 3,
+				'placeholder' => __( "Wat verkoop / lever je. Bv:\n- Website-bouw (WordPress)\n- SEO + content\n- Online marketing campagnes", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Wat je daadwerkelijk levert. Voorkomt dat AI dingen belooft die je niet doet.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'company_usps',
+			__( "USP's — wat maakt je uniek", 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_company_section',
+			[
+				'key'         => 'company_usps',
+				'rows'        => 3,
+				'placeholder' => __( "Bv:\n- Vaste contactpersoon, geen tickets\n- 10+ jaar ervaring in jouw branche\n- Prijs vooraf bekend, geen verrassingen", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Concrete, controleerbare onderscheidende punten. Geen "marktleider" of "innovatief" — die werken niet.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'company_competitors',
+			__( 'Concurrenten (intern, niet noemen in blogs)', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_company_section',
+			[
+				'key'         => 'company_competitors',
+				'rows'        => 2,
+				'placeholder' => __( 'Bv: bureau X, platform Y, freelancer-collectief Z', 'digitale-bazen-ai-module' ),
+				'description' => __( 'AI gebruikt deze om jouw USPs slimmer te positioneren, maar noemt ze NOOIT bij naam in de tekst.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		// ─── Doelgroep sectie ─────────────────────────────────────────────
+		add_settings_section(
+			'db_ai_audience_section',
+			__( 'Doelgroep', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Beschrijf één hoofddoelgroep diep. Bezwaren, frustraties en aankoopcriteria zijn de sterkste hefbomen voor content die echt aansluit.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'audience_who',
+			__( 'Voor wie schrijf je?', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_audience_section',
+			[
+				'key'         => 'audience_who',
+				'rows'        => 3,
+				'placeholder' => __( "Bv: MKB-ondernemers tussen 35-55, vaak technisch ongeschoold maar wel digitaal-vaardig. Hebben 5-50 werknemers, runnen meestal een diensten- of webshop-business.", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Demografie + situatie. Concreter is beter.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'audience_objections',
+			__( 'Bezwaren die weggenomen moeten worden', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_audience_section',
+			[
+				'key'         => 'audience_objections',
+				'rows'        => 4,
+				'placeholder' => __( "Wat zegt je doelgroep tegen zichzelf om NIET te kopen. Bv:\n- \"Dat kan ik zelf wel\"\n- \"Te duur voor mijn bedrijf\"\n- \"Bureaus beloven veel maar leveren weinig\"\n- \"Ik heb eerder slechte ervaringen gehad\"", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Sterkste hefboom voor content die converteert. AI weeft tegenargumenten subtiel in.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'audience_frustrations',
+			__( 'Frustraties / pijnpunten', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_audience_section',
+			[
+				'key'         => 'audience_frustrations',
+				'rows'        => 3,
+				'placeholder' => __( "Wat irriteert / frustreert ze dagelijks. Bv:\n- Geen tijd om zelf marketing te doen\n- Bureaus die alleen rapportages sturen, geen resultaat\n- Concurrenten die hoger scoren op Google", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Geeft AI input om aan de juiste pijn te raken vroeg in de tekst.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'audience_buying_criteria',
+			__( 'Wat de doelgroep belangrijk vindt bij beslissen', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_audience_section',
+			[
+				'key'         => 'audience_buying_criteria',
+				'rows'        => 3,
+				'placeholder' => __( "Bv:\n- Transparante prijzen\n- Aantoonbare cases uit hun branche\n- Persoonlijk contact, geen ticket-systeem\n- Vaste contactpersoon", 'digitale-bazen-ai-module' ),
+				'description' => __( 'Wat hun beslissing dichtbij brengt. AI verwerkt deze in CTAs en argumentatie.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'audience_language_level',
+			__( 'Taalniveau', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_select_field' ],
+			self::PAGE_SLUG,
+			'db_ai_audience_section',
+			[
+				'key'     => 'audience_language_level',
+				'options' => [
+					''       => __( 'Standaard (informeel-zakelijk)', 'digitale-bazen-ai-module' ),
+					'b1'     => __( 'B1 — eenvoudig, geen jargon', 'digitale-bazen-ai-module' ),
+					'expert' => __( 'Expert — vakjargon mag', 'digitale-bazen-ai-module' ),
+				],
+			]
+		);
+
+		// ─── Anti-generiek sectie ─────────────────────────────────────────
+		add_settings_section(
+			'db_ai_antigeneric_section',
+			__( 'Anti-generieke content', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Standaard AI-output voelt vaak vlak en safe. Vink hieronder aan wat je expliciet wél wilt — dat maakt het verschil tussen "duidelijk AI" en authentiek.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'anti_opinion',
+			__( 'AI mag een mening / standpunt geven', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_checkbox_field' ],
+			self::PAGE_SLUG,
+			'db_ai_antigeneric_section',
+			[
+				'key'   => 'anti_opinion',
+				'label' => __( 'Geef expliciete meningen / standpunten in de tekst', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Vermijdt "objectieve" gepolijste teksten die niemand interesseren. Aanrader voor opinion blogs en deep-dive content.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'anti_examples',
+			__( 'Werk met concrete praktijkvoorbeelden', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_checkbox_field' ],
+			self::PAGE_SLUG,
+			'db_ai_antigeneric_section',
+			[
+				'key'   => 'anti_examples',
+				'label' => __( 'Voeg realistische scenario\'s en voorbeelden toe', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Vervangt theoretische algemeenheden door concrete cases. AI verzint geen statistieken, alleen plausibele scenarios.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'anti_downsides',
+			__( 'Benoem ook nadelen / beperkingen', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_checkbox_field' ],
+			self::PAGE_SLUG,
+			'db_ai_antigeneric_section',
+			[
+				'key'   => 'anti_downsides',
+				'label' => __( 'Vermeld ook "wanneer dit NIET past" of nadelen', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Bouwt vertrouwen — een tekst die alleen voordelen noemt voelt als sales-talk.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		// ─── Zoekwoordenonderzoek sectie ──────────────────────────────────
+		add_settings_section(
+			'db_ai_kwo_section',
+			__( 'Zoekwoordenonderzoeken', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Upload zoekwoordenonderzoeken één keer hier en kies ze in de generator. Geen Settings-save nodig — uploads en verwijderen werken direct.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'kwo_manager',
+			__( 'Opgeslagen onderzoeken', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_kwo_manager_field' ],
+			self::PAGE_SLUG,
+			'db_ai_kwo_section'
 		);
 	}
 
@@ -391,12 +681,37 @@ class DB_AI_Settings {
 			}
 		}
 
-		// Tone of voice / context / rules — freeform textareas. Leeg toegestaan.
-		foreach ( [ 'tone_of_voice', 'site_context', 'style_rules' ] as $field ) {
+		// Tone of voice / context / rules + bedrijfs- en doelgroep-velden — freeform textareas/text.
+		$textarea_fields = [
+			'tone_of_voice', 'site_context', 'style_rules',
+			'company_services', 'company_usps', 'company_competitors',
+			'audience_who', 'audience_objections', 'audience_frustrations', 'audience_buying_criteria',
+		];
+		foreach ( $textarea_fields as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
 				continue;
 			}
 			$out[ $field ] = sanitize_textarea_field( (string) $input[ $field ] );
+		}
+
+		// Single-line text velden (bedrijfsnaam, branche).
+		foreach ( [ 'company_name', 'company_industry' ] as $field ) {
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+			$out[ $field ] = sanitize_text_field( (string) $input[ $field ] );
+		}
+
+		// Taalniveau select — alleen toegestane waarden.
+		if ( array_key_exists( 'audience_language_level', $input ) ) {
+			$val = strtolower( trim( (string) $input['audience_language_level'] ) );
+			$out['audience_language_level'] = in_array( $val, [ '', 'b1', 'expert' ], true ) ? $val : '';
+		}
+
+		// Anti-generiek toggles — unchecked checkboxes komen niet in $input. Form
+		// bevat alle tabs in één submit, dus we resetten ze altijd unconditioneel.
+		foreach ( [ 'anti_opinion', 'anti_examples', 'anti_downsides' ] as $bool_key ) {
+			$out[ $bool_key ] = ! empty( $input[ $bool_key ] ) ? 1 : 0;
 		}
 
 		// Referentie-posts: array van post IDs, max 5, alleen bestaande gepubliceerde posts.
@@ -426,6 +741,69 @@ class DB_AI_Settings {
 		);
 
 		return $out;
+	}
+
+	public function render_text_field( array $args ): void {
+		$key         = (string) ( $args['key'] ?? '' );
+		$placeholder = (string) ( $args['placeholder'] ?? '' );
+		$description = (string) ( $args['description'] ?? '' );
+
+		$opts    = self::get_options();
+		$current = (string) ( $opts[ $key ] ?? '' );
+
+		printf(
+			'<input type="text" name="%s[%s]" value="%s" class="regular-text" placeholder="%s">',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( $key ),
+			esc_attr( $current ),
+			esc_attr( $placeholder )
+		);
+		if ( '' !== $description ) {
+			echo '<p class="description">' . wp_kses_post( $description ) . '</p>';
+		}
+	}
+
+	public function render_select_field( array $args ): void {
+		$key         = (string) ( $args['key'] ?? '' );
+		$options     = (array) ( $args['options'] ?? [] );
+		$description = (string) ( $args['description'] ?? '' );
+
+		$opts    = self::get_options();
+		$current = (string) ( $opts[ $key ] ?? '' );
+
+		echo '<select name="' . esc_attr( self::OPTION_NAME ) . '[' . esc_attr( $key ) . ']">';
+		foreach ( $options as $value => $label ) {
+			printf(
+				'<option value="%s"%s>%s</option>',
+				esc_attr( (string) $value ),
+				selected( $current, (string) $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+		if ( '' !== $description ) {
+			echo '<p class="description">' . wp_kses_post( $description ) . '</p>';
+		}
+	}
+
+	public function render_checkbox_field( array $args ): void {
+		$key   = (string) ( $args['key'] ?? '' );
+		$label = (string) ( $args['label'] ?? '' );
+		$help  = (string) ( $args['help'] ?? '' );
+
+		$opts    = self::get_options();
+		$checked = ! empty( $opts[ $key ] );
+
+		printf(
+			'<label><input type="checkbox" name="%s[%s]" value="1"%s> %s</label>',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( $key ),
+			checked( $checked, true, false ),
+			esc_html( $label )
+		);
+		if ( '' !== $help ) {
+			echo '<p class="description">' . esc_html( $help ) . '</p>';
+		}
 	}
 
 	public function render_textarea_field( array $args ): void {
@@ -560,6 +938,72 @@ class DB_AI_Settings {
 		echo '<p class="description">' . esc_html__( 'Het specifieke flex content veld binnen de gekozen field group. Meestal is er maar één — alleen relevant als de field group meerdere heeft.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
+	public function render_kwo_manager_field(): void {
+		$all = DB_AI_Keyword_Research::get_all();
+		?>
+		<div class="db-ai-kwo-uploader" id="db-ai-kwo-uploader">
+			<div class="db-ai-kwo-upload-form">
+				<p>
+					<label for="db-ai-kwo-name"><?php esc_html_e( 'Naam onderzoek', 'digitale-bazen-ai-module' ); ?></label>
+					<input
+						type="text"
+						id="db-ai-kwo-name"
+						class="regular-text"
+						placeholder="<?php echo esc_attr__( 'Bv: KWO 2026 Q1 — Digitale Bazen', 'digitale-bazen-ai-module' ); ?>"
+					>
+				</p>
+				<p>
+					<label for="db-ai-kwo-file"><?php esc_html_e( 'Bestand', 'digitale-bazen-ai-module' ); ?></label>
+					<input
+						type="file"
+						id="db-ai-kwo-file"
+						accept=".csv,.xlsx,.xls,.ods,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.oasis.opendocument.spreadsheet"
+					>
+					<button type="button" id="db-ai-kwo-upload-btn" class="button button-primary">
+						<?php esc_html_e( 'Upload + opslaan', 'digitale-bazen-ai-module' ); ?>
+					</button>
+				</p>
+				<p class="description">
+					<?php esc_html_e( 'Accepteert .xlsx, .xls, .csv en .ods. Headers worden automatisch herkend (Zoekwoord verplicht; Maandelijks volume / Pagina / Onderwerp / Concurrentie / CPC optioneel).', 'digitale-bazen-ai-module' ); ?>
+				</p>
+				<div id="db-ai-kwo-status" class="db-ai-status" role="status" aria-live="polite"></div>
+			</div>
+
+			<h3><?php esc_html_e( 'Opgeslagen onderzoeken', 'digitale-bazen-ai-module' ); ?></h3>
+			<table class="widefat striped db-ai-kwo-table" id="db-ai-kwo-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Naam', 'digitale-bazen-ai-module' ); ?></th>
+						<th><?php esc_html_e( 'Zoekwoorden', 'digitale-bazen-ai-module' ); ?></th>
+						<th><?php esc_html_e( 'Geüpload op', 'digitale-bazen-ai-module' ); ?></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php if ( empty( $all ) ) : ?>
+						<tr class="db-ai-kwo-empty">
+							<td colspan="4"><em><?php esc_html_e( 'Nog geen onderzoeken opgeslagen.', 'digitale-bazen-ai-module' ); ?></em></td>
+						</tr>
+					<?php else : ?>
+						<?php foreach ( $all as $r ) : ?>
+							<tr data-kwo-id="<?php echo (int) $r['id']; ?>">
+								<td><?php echo esc_html( $r['name'] ); ?></td>
+								<td><?php echo (int) $r['count']; ?></td>
+								<td><?php echo esc_html( $r['uploaded_at'] ); ?></td>
+								<td>
+									<button type="button" class="button-link-delete db-ai-kwo-delete-btn" data-kwo-id="<?php echo (int) $r['id']; ?>">
+										<?php esc_html_e( 'Verwijder', 'digitale-bazen-ai-module' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</div>
+		<?php
+	}
+
 	public function render_reference_posts_field(): void {
 		$opts    = self::get_options();
 		$current = $opts['reference_post_ids'] ?? [];
@@ -673,25 +1117,123 @@ class DB_AI_Settings {
 		echo '</p>';
 	}
 
+	/**
+	 * Definitie van de tab-secties. Elke tab koppelt aan één of meer
+	 * Settings API sections die in die tab gerenderd worden.
+	 */
+	private function get_tabs(): array {
+		return [
+			[
+				'id'       => 'company',
+				'label'    => __( 'Bedrijf', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Bedrijfsinformatie', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Wat is jouw bedrijf en wat maakt je uniek. AI gebruikt dit om context te krijgen voor elke gegenereerde blog.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_company_section' ],
+			],
+			[
+				'id'       => 'audience',
+				'label'    => __( 'Doelgroep', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Doelgroep', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Beschrijf je hoofddoelgroep diep — bezwaren en frustraties zijn de sterkste hefbomen voor content die echt aansluit.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_audience_section' ],
+			],
+			[
+				'id'       => 'style',
+				'label'    => __( 'Tone of voice', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Tone of voice & content', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Beschrijf je merkstem, stijlregels en referentie-posts. Alles optioneel — leeg laten = generieke output.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_style_section' ],
+			],
+			[
+				'id'       => 'antigeneric',
+				'label'    => __( 'Anti-generiek', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Anti-generieke content', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Vink aan wat je expliciet wél wilt — dat is het verschil tussen "duidelijk AI" en authentieke content.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_antigeneric_section' ],
+			],
+			[
+				'id'       => 'kwo',
+				'label'    => __( 'Zoekwoorden', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Zoekwoordenonderzoeken', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Upload één of meer onderzoeken; in de generator kies je welke je wilt gebruiken zonder opnieuw te uploaden.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_kwo_section' ],
+			],
+			[
+				'id'       => 'layouts',
+				'label'    => __( 'Block-layouts', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Beschikbare block-layouts', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Welke ACF flex-layouts mag de AI gebruiken in gegenereerde blogs. Standaard staat alles aan.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_layouts_section' ],
+			],
+			[
+				'id'       => 'acf',
+				'label'    => __( 'ACF integratie', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'ACF integratie', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Kies welke ACF field group + welk flex content veld de plugin gebruikt voor AI-generatie.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_acf_section' ],
+			],
+			[
+				'id'       => 'ai',
+				'label'    => __( 'AI setup', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'AI provider + API keys', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Welke AI provider gebruikt de plugin en welke keys horen daarbij. Constants in wp-config.php winnen altijd van waarden hier.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_provider_section', 'db_ai_keys_section' ],
+			],
+		];
+	}
+
 	public function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Geen toegang.', 'digitale-bazen-ai-module' ) );
 		}
+
+		$tabs = $this->get_tabs();
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Digitale Bazen AI Module — Instellingen', 'digitale-bazen-ai-module' ); ?></h1>
+		<div class="wrap db-ai-tabs">
+			<h1>
+				<?php esc_html_e( 'Digitale Bazen AI Module — Instellingen', 'digitale-bazen-ai-module' ); ?>
+				<span class="db-ai-dirty-badge"><?php esc_html_e( 'Niet opgeslagen', 'digitale-bazen-ai-module' ); ?></span>
+			</h1>
 			<p>
 				<a href="<?php echo esc_url( admin_url( 'edit.php?post_type=blog&page=db-ai-generator' ) ); ?>">
 					<?php esc_html_e( '← Terug naar de generator', 'digitale-bazen-ai-module' ); ?>
 				</a>
 			</p>
 			<?php settings_errors( self::OPTION_NAME ); ?>
+
+			<ul class="db-ai-tabs-nav">
+				<?php foreach ( $tabs as $tab ) : ?>
+					<li data-tab="<?php echo esc_attr( $tab['id'] ); ?>">
+						<?php echo esc_html( $tab['label'] ); ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+
 			<form method="post" action="options.php">
-				<?php
-				settings_fields( 'db_ai_settings_group' );
-				do_settings_sections( self::PAGE_SLUG );
-				submit_button();
-				?>
+				<?php settings_fields( 'db_ai_settings_group' ); ?>
+
+				<?php foreach ( $tabs as $tab ) : ?>
+					<section class="db-ai-tabs-pane" data-tab="<?php echo esc_attr( $tab['id'] ); ?>">
+						<h2><?php echo esc_html( $tab['title'] ); ?></h2>
+						<p class="description-intro"><?php echo esc_html( $tab['intro'] ); ?></p>
+						<table class="form-table" role="presentation">
+							<?php
+							foreach ( $tab['sections'] as $section_id ) {
+								do_settings_fields( self::PAGE_SLUG, $section_id );
+							}
+							?>
+						</table>
+					</section>
+				<?php endforeach; ?>
+
+				<div class="db-ai-fallback-submit">
+					<?php submit_button(); ?>
+				</div>
+
+				<footer class="db-ai-tabs-savebar">
+					<span class="db-ai-spacer"></span>
+					<?php submit_button( __( 'Opslaan', 'digitale-bazen-ai-module' ), 'primary', 'submit', false ); ?>
+				</footer>
 			</form>
 		</div>
 		<?php

@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.8
+Stable tag: 1.1.9
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,34 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.1.9 =
+* Algemene instellingen fors uitgebreid: nieuwe tabs Bedrijfsinformatie
+  (naam, branche, diensten, USP's, concurrenten), Doelgroep (bezwaren,
+  frustraties, aankoopcriteria, taalniveau) en Anti-generiek toggles
+  (AI mag mening / praktijkvoorbeelden / nadelen benoemen). Alle algemene
+  velden worden in de AI system prompt geïnjecteerd zodat output beter
+  past bij bedrijfscontext en doelgroep.
+* Generator-flow herwerkt naar 5-staps wizard: Upload → Keyword →
+  Basisinfo → Specifiek → Genereer. Stap 3+4 zijn optioneel en geven
+  per-blog overrides: type content (blog/landing/FAQ/comparison/case/
+  service), funnel-fase, awareness-niveau, must-include, must-avoid,
+  "wat beter dan top-3 Google".
+* Zoekwoordenonderzoeken zijn nu opslaan + herbruiken: nieuwe Settings-tab
+  "Zoekwoorden" om onderzoeken eenmalig te uploaden en te beheren (CPT
+  db_ai_kwo, niet publiek). Generator-stap 1 toont een dropdown van
+  opgeslagen onderzoeken naast de bestaande directe upload als fallback.
+  Naam-veld vult automatisch met de bestandsnaam, blijft aanpasbaar.
+* Settings-page herwerkt van wizard-stappen naar pure tabs (klikbare
+  tabs, sticky save-bar, geen "Vorige/Volgende"-knoppen meer) — past
+  beter bij niet-sequentiële configuratie. Generator behoudt de wizard-
+  flow want daar is volgorde wél betekenisvol.
+* Nieuwe filter: `db_ai_reference_post_types` (al sinds 2.1, nu
+  gedocumenteerd in DB_AI_Blog_Input helper class).
+* Architectuur: DB_AI_Style_Profile injecteert algemene Settings in
+  system prompt; nieuwe DB_AI_Blog_Input class injecteert per-blog input
+  in user prompt. Onderscheid is bewust — algemene context is constant,
+  per-blog instructies overrulen bij conflict.
 
 = 1.1.8 =
 * Updater: eenmalige cache-purge per versie-bump. Wist `update_plugins`
