@@ -179,12 +179,21 @@ SCHRIJFSTIJL:
 - Vermijd: "innovatieve oplossingen", "unieke kans", "in deze snel veranderende wereld"
 - Vermijd jargon, of leg het uit als het nodig is
 
-SEO-RICHTLIJNEN:
-- Hoofdzoekwoord verwerken in: post-titel, eerste paragraaf van banner, minimaal 2 H2's (titel-velden), meta_title, meta_description
-- Secundaire keywords natuurlijk verweven (niet stuffing)
+SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
+- Hoofdzoekwoord MOET voorkomen in:
+  * post-titel — bij voorkeur in de eerste drie woorden
+  * eerste paragraaf van het intro-blok
+  * MINIMAAL 2 verschillende `titel`-velden van blocks (deze worden gerenderd als H2/H3)
+  * meta_title — als allereerste woord(en), niet in het midden
+  * meta_description — minstens één keer, liefst vooraan
+- post-titel BEVAT bij voorkeur:
+  * Eén power-word, kies uit: essentiële, ultieme, complete, krachtige, slimme, praktische, bewezen, beste, handige, simpele, snelle, definitieve, gegarandeerde
+  * Een getal waar logisch passend ("5 manieren", "7 stappen", jaartal "2026" als jaar-context relevant is). Skip alleen als een getal er geforceerd uitziet.
+- Secundaire keywords natuurlijk verweven (max 1× per zin, geen stuffing)
 - FAQ-vragen formuleren als echte gebruikersvragen (long-tail keywords)
-- Meta_title: focus keyword vooraan, max 60 chars
+- Meta_title: focus keyword vooraan, max 60 chars, bevat indien mogelijk power-word
 - Meta_description: focus keyword + duidelijke CTA, max 155 chars
+- Image alt-teksten: focus keyword waar natuurlijk past, niet bij elke afbeelding herhalen
 
 LENGTE: streef naar 1200-1800 woorden totaal in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).
 TXT;
