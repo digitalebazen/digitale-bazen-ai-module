@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitale Bazen AI Module
  * Description: Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
- * Version:     1.1.9
+ * Version:     1.2.0
  * Author:      Digitale Bazen
  * Author URI:  https://digitalebazen.nl
  * Text Domain: digitale-bazen-ai-module
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DB_AI_VERSION', '1.1.9' );
+define( 'DB_AI_VERSION', '1.2.0' );
 define( 'DB_AI_PLUGIN_FILE', __FILE__ );
 define( 'DB_AI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DB_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

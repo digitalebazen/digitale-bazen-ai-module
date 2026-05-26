@@ -22,20 +22,10 @@ class DB_AI_ACF_Mapper {
 		'fotogalerij'           => [ /* nested via repeater 'afbeeldingen' */ ],
 	];
 
-	/**
-	 * Repeater fields that must contain at least one item, and their required sub-fields.
-	 */
-	private const REPEATER_RULES = [
-		'usps' => [
-			'repeater_field' => 'usps',
-			'required_subs'  => [ 'titel_content', 'tekst_content' ],
-		],
-		'fotogalerij' => [
-			'repeater_field' => 'afbeeldingen',
-			'required_subs'  => [ 'afbeelding' ], // image object
-			'image_subs'     => [ 'afbeelding' => true ],
-		],
-	];
+	// REPEATER_RULES verwijderd in scope A — validatie van repeater-items gebeurt nu
+	// volledig dynamisch via get_layout_repeater_specs() op basis van ACF's eigen
+	// `required` flag per sub_field. Geen hardcoded layout/field-name aannames meer,
+	// zodat de plugin werkt op elke site ongeacht naming-conventie.
 
 	/**
 	 * Resolved field group key voor deze site (Settings → constant → auto-detect).
@@ -50,6 +40,45 @@ class DB_AI_ACF_Mapper {
 	public function get_flex_field_name(): string {
 		$name = DB_AI_Settings::get_flex_field_name();
 		return '' === $name ? self::FLEX_FIELD_NAME : $name;
+	}
+
+	/**
+	 * Field-KEY van het flex content veld binnen de gekozen field group.
+	 *
+	 * Belangrijk voor `update_field`: bij meerdere field groups die toevallig
+	 * hetzelfde flex-name gebruiken (bv. `paginacontent` op meerdere CPTs),
+	 * dwingt de field-key ACF om naar de JUISTE group te schrijven. Anders kan
+	 * ACF data droppen omdat hij de verkeerde layout-spec gebruikt voor resolve.
+	 */
+	public function get_flex_field_key(): string {
+		if ( ! function_exists( 'acf_get_field_group' ) || ! function_exists( 'acf_get_fields' ) ) {
+			return '';
+		}
+
+		$group_key = $this->get_field_group_key();
+		$flex_name = $this->get_flex_field_name();
+		if ( '' === $group_key || '' === $flex_name ) {
+			return '';
+		}
+
+		$group = acf_get_field_group( $group_key );
+		if ( empty( $group ) ) {
+			return '';
+		}
+
+		$fields = acf_get_fields( $group );
+		if ( empty( $fields ) ) {
+			return '';
+		}
+
+		foreach ( $fields as $field ) {
+			if ( 'flexible_content' === ( $field['type'] ?? '' )
+				&& ( $field['name'] ?? '' ) === $flex_name
+			) {
+				return (string) ( $field['key'] ?? '' );
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -381,10 +410,8 @@ class DB_AI_ACF_Mapper {
 			$this->validate_image_object( $block[ $img_name ], "block[$i].$img_name", $errors );
 		}
 
-		// Repeater rules
-		if ( isset( self::REPEATER_RULES[ $layout ] ) ) {
-			$this->validate_repeater_block( $i, $layout, $block, $errors );
-		}
+		// Repeaters in deze layout — dynamisch ontdekt + gevalideerd via ACF flags
+		$this->validate_repeaters_dynamic( $i, $layout, $block, $errors );
 
 		// Special: veelgestelde_vragen has nested repeaters (onderwerpen > vragen)
 		if ( 'veelgestelde_vragen' === $layout ) {
@@ -392,48 +419,125 @@ class DB_AI_ACF_Mapper {
 		}
 	}
 
-	private function validate_repeater_block( int $i, string $layout, array $block, array &$errors ): void {
-		$rule          = self::REPEATER_RULES[ $layout ];
-		$repeater_name = $rule['repeater_field'];
-		$items         = $block[ $repeater_name ] ?? null;
-
-		if ( ! is_array( $items ) || empty( $items ) ) {
-			$errors[] = sprintf(
-				__( 'Block %1$d (%2$s): repeater "%3$s" moet minstens 1 item bevatten.', 'digitale-bazen-ai-module' ),
-				$i,
-				$layout,
-				$repeater_name
-			);
-			return;
+	/**
+	 * Geeft per layout-name een lijst van repeater-specs uit ACF.
+	 *
+	 * @return array<int,array{name:string,required:bool,min:int,required_subs:string[],image_subs:array<string,bool>}>
+	 */
+	private function get_layout_repeater_specs( string $layout_name ): array {
+		$fields = $this->get_layout_fields( $layout_name );
+		if ( is_wp_error( $fields ) || ! is_array( $fields ) ) {
+			return [];
 		}
 
-		foreach ( $items as $j => $item ) {
-			if ( ! is_array( $item ) ) {
+		$specs = [];
+		foreach ( $fields as $field ) {
+			if ( 'repeater' !== ( $field['type'] ?? '' ) ) {
+				continue;
+			}
+
+			$required_subs = [];
+			$image_subs    = [];
+			foreach ( $field['sub_fields'] ?? [] as $sub ) {
+				$sub_name = (string) ( $sub['name'] ?? '' );
+				if ( '' === $sub_name ) {
+					continue;
+				}
+				if ( ! empty( $sub['required'] ) ) {
+					$required_subs[] = $sub_name;
+				}
+				if ( 'image' === ( $sub['type'] ?? '' ) ) {
+					$image_subs[ $sub_name ] = true;
+				}
+			}
+
+			$specs[] = [
+				'name'          => (string) ( $field['name'] ?? '' ),
+				'required'      => ! empty( $field['required'] ),
+				'min'           => (int) ( $field['min'] ?? 0 ),
+				'required_subs' => $required_subs,
+				'image_subs'    => $image_subs,
+			];
+		}
+		return $specs;
+	}
+
+	/**
+	 * Site-agnostische repeater-validatie: respecteert ACF's eigen `required`-flag
+	 * per repeater én per sub_field. Geen hardcoded layout/field-name aannames meer.
+	 */
+	private function validate_repeaters_dynamic( int $i, string $layout, array $block, array &$errors ): void {
+		$repeaters = $this->get_layout_repeater_specs( $layout );
+		foreach ( $repeaters as $rep ) {
+			$rep_name = $rep['name'];
+			if ( '' === $rep_name ) {
+				continue;
+			}
+			$items = $block[ $rep_name ] ?? [];
+			if ( ! is_array( $items ) ) {
+				$items = [];
+			}
+			$count = count( $items );
+
+			// Repeater zelf is volgens ACF required, maar leeg
+			if ( $rep['required'] && 0 === $count ) {
 				$errors[] = sprintf(
-					__( 'Block %1$d (%2$s): %3$s[%4$d] is geen object.', 'digitale-bazen-ai-module' ),
+					/* translators: 1 = index, 2 = layout, 3 = repeater name */
+					__( 'Block %1$d (%2$s): repeater "%3$s" moet minstens 1 item bevatten.', 'digitale-bazen-ai-module' ),
 					$i,
 					$layout,
-					$repeater_name,
-					$j
+					$rep_name
 				);
 				continue;
 			}
-			foreach ( $rule['required_subs'] as $sub_name ) {
-				$value = $item[ $sub_name ] ?? null;
-				$is_image_sub = isset( $rule['image_subs'][ $sub_name ] );
-				if ( $is_image_sub ) {
-					$this->validate_image_object( $value, "block[$i].$repeater_name" . "[$j].$sub_name", $errors );
-					continue;
-				}
-				if ( $this->is_empty_value( $value ) ) {
+
+			// Min-items check (los van required-flag)
+			if ( $rep['min'] > 0 && $count < $rep['min'] ) {
+				$errors[] = sprintf(
+					/* translators: 1 = index, 2 = layout, 3 = repeater, 4 = actual count, 5 = min count */
+					__( 'Block %1$d (%2$s): repeater "%3$s" heeft %4$d items, minimaal %5$d vereist.', 'digitale-bazen-ai-module' ),
+					$i,
+					$layout,
+					$rep_name,
+					$count,
+					$rep['min']
+				);
+				continue;
+			}
+
+			// Optionele repeater, leeg = OK
+			if ( 0 === $count ) {
+				continue;
+			}
+
+			// Per item: alleen sub_fields valideren die volgens ACF required zijn
+			foreach ( $items as $j => $item ) {
+				if ( ! is_array( $item ) ) {
 					$errors[] = sprintf(
-						__( 'Block %1$d (%2$s): %3$s[%4$d].%5$s ontbreekt of is leeg.', 'digitale-bazen-ai-module' ),
+						__( 'Block %1$d (%2$s): %3$s[%4$d] is geen object.', 'digitale-bazen-ai-module' ),
 						$i,
 						$layout,
-						$repeater_name,
-						$j,
-						$sub_name
+						$rep_name,
+						$j
 					);
+					continue;
+				}
+				foreach ( $rep['required_subs'] as $sub_name ) {
+					$value = $item[ $sub_name ] ?? null;
+					if ( isset( $rep['image_subs'][ $sub_name ] ) ) {
+						$this->validate_image_object( $value, "block[$i].$rep_name" . "[$j].$sub_name", $errors );
+						continue;
+					}
+					if ( $this->is_empty_value( $value ) ) {
+						$errors[] = sprintf(
+							__( 'Block %1$d (%2$s): %3$s[%4$d].%5$s ontbreekt of is leeg.', 'digitale-bazen-ai-module' ),
+							$i,
+							$layout,
+							$rep_name,
+							$j,
+							$sub_name
+						);
+					}
 				}
 			}
 		}
@@ -520,7 +624,28 @@ class DB_AI_ACF_Mapper {
 			$prepared[]           = $row;
 		}
 
-		update_field( $this->get_flex_field_name(), $prepared, $post_id );
+		// Gebruik field-KEY voor de write. Voorkomt dat ACF naar de verkeerde
+		// field group schrijft als er meerdere groups met dezelfde flex-name bestaan.
+		// Fallback naar name als geen key gevonden (bv. wanneer ACF Pro niet draait).
+		$flex_field_key  = $this->get_flex_field_key();
+		$flex_field_name = $this->get_flex_field_name();
+		$write_target    = '' !== $flex_field_key ? $flex_field_key : $flex_field_name;
+
+		// Diagnose-hook: tap via filter `db_ai_debug_write_blocks` in mu-plugin
+		// om de exacte $prepared array en ACF-resultaat te zien. Standaard uit.
+		$debug = (bool) apply_filters( 'db_ai_debug_write_blocks', false );
+		if ( $debug ) {
+			error_log( 'DB_AI WRITE — write_target: ' . $write_target . ' (key=' . $flex_field_key . ', name=' . $flex_field_name . ')' );
+			error_log( 'DB_AI WRITE — prepared array: ' . wp_json_encode( $prepared, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+		}
+
+		$result = update_field( $write_target, $prepared, $post_id );
+
+		if ( $debug ) {
+			error_log( 'DB_AI WRITE — update_field result: ' . var_export( $result, true ) );
+			$stored = get_field( $write_target, $post_id );
+			error_log( 'DB_AI WRITE — stored back: ' . wp_json_encode( $stored, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+		}
 	}
 
 	/**

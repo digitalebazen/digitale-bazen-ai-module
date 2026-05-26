@@ -198,61 +198,77 @@ class DB_AI_Post_Creator {
 	}
 
 	/**
-	 * Vervangt `afbeelding` objecten ({query, alt}) door attachment IDs.
-	 * Werkt op top-level `afbeelding` (banner, tekst_met_afbeelding) en
-	 * op `fotogalerij.afbeeldingen[].afbeelding`.
+	 * Vervangt ALLE image-objecten ({query, alt}) in het block door attachment IDs,
+	 * recursief op elk nestingniveau. Site-agnostisch — detectie op signatuur, niet
+	 * op hardcoded field/layout-namen.
+	 *
+	 * Een image-object is een associative array met:
+	 *  - 'query' (string, niet leeg)
+	 *  - 'alt' (string, optioneel)
+	 *  - geen numerieke keys (om lists te onderscheiden van objecten)
+	 *  - maximaal 3 keys (defensief tegen rare AI-output)
 	 */
 	private function process_block_images( array $block, int $post_id, array &$warnings, int $block_index ): array {
 		$layout = $block['acf_fc_layout'] ?? '';
+		$this->walk_and_resolve_images( $block, $post_id, $warnings, $block_index, $layout, '' );
+		return $block;
+	}
 
-		if ( isset( $block['afbeelding'] ) && is_array( $block['afbeelding'] ) && isset( $block['afbeelding']['query'] ) ) {
-			$img    = $block['afbeelding'];
-			$att_id = $this->image_service->find_and_import(
-				(string) $img['query'],
-				(string) ( $img['alt'] ?? '' ),
-				$post_id
-			);
-			if ( is_wp_error( $att_id ) ) {
-				$warnings[]           = sprintf(
-					/* translators: 1=index, 2=layout, 3=query, 4=error */
-					__( 'Block %1$d (%2$s) afbeelding "%3$s" gefaald: %4$s', 'digitale-bazen-ai-module' ),
-					$block_index,
-					$layout,
-					$img['query'],
-					$att_id->get_error_message()
-				);
-				$block['afbeelding'] = '';
-			} else {
-				$block['afbeelding'] = (int) $att_id;
-			}
-		}
+	private function walk_and_resolve_images( array &$data, int $post_id, array &$warnings, int $block_index, string $layout, string $path ): void {
+		foreach ( $data as $key => &$value ) {
+			$current_path = '' === $path ? (string) $key : $path . '.' . $key;
 
-		if ( 'fotogalerij' === $layout && ! empty( $block['afbeeldingen'] ) && is_array( $block['afbeeldingen'] ) ) {
-			foreach ( $block['afbeeldingen'] as $idx => $item ) {
-				if ( ! is_array( $item ) || ! isset( $item['afbeelding'] ) || ! is_array( $item['afbeelding'] ) ) {
-					continue;
-				}
-				$img    = $item['afbeelding'];
+			if ( $this->is_image_object( $value ) ) {
 				$att_id = $this->image_service->find_and_import(
-					(string) ( $img['query'] ?? '' ),
-					(string) ( $img['alt'] ?? '' ),
+					(string) $value['query'],
+					(string) ( $value['alt'] ?? '' ),
 					$post_id
 				);
 				if ( is_wp_error( $att_id ) ) {
 					$warnings[] = sprintf(
-						/* translators: 1=index, 2=error */
-						__( 'Fotogalerij item %1$d gefaald: %2$s', 'digitale-bazen-ai-module' ),
-						$idx,
+						/* translators: 1=block index, 2=layout, 3=path, 4=query, 5=error */
+						__( 'Block %1$d (%2$s) afbeelding op "%3$s" — query "%4$s" — gefaald: %5$s', 'digitale-bazen-ai-module' ),
+						$block_index,
+						$layout,
+						$current_path,
+						$value['query'],
 						$att_id->get_error_message()
 					);
-					$block['afbeeldingen'][ $idx ]['afbeelding'] = '';
+					$value = '';
 				} else {
-					$block['afbeeldingen'][ $idx ]['afbeelding'] = (int) $att_id;
+					$value = (int) $att_id;
 				}
+				continue;
+			}
+
+			if ( is_array( $value ) ) {
+				$this->walk_and_resolve_images( $value, $post_id, $warnings, $block_index, $layout, $current_path );
 			}
 		}
+	}
 
-		return $block;
+	/**
+	 * Detect of een waarde een AI-image-object is: associatieve array met
+	 * 'query' string en optionele 'alt'. Bewust strikt om lists/random arrays uit te sluiten.
+	 */
+	private function is_image_object( $value ): bool {
+		if ( ! is_array( $value ) ) {
+			return false;
+		}
+		if ( ! isset( $value['query'] ) || ! is_string( $value['query'] ) || '' === trim( $value['query'] ) ) {
+			return false;
+		}
+		// Geen numerieke keys (zou een list zijn, geen object)
+		foreach ( array_keys( $value ) as $k ) {
+			if ( is_int( $k ) ) {
+				return false;
+			}
+		}
+		// Defensief: max 3 keys ('query', 'alt' + eventueel een derde)
+		if ( count( $value ) > 3 ) {
+			return false;
+		}
+		return true;
 	}
 
 	private function log_failure( int $post_id, int $user_id, string $keyword, string $status, string $error ): void {

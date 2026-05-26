@@ -197,6 +197,12 @@ TXT;
 			. '%3$s' . "\n\n"
 			. 'Beschikbare blok-layouts en hun exacte veldspec:' . "\n"
 			. '%4$s' . "\n\n"
+			. 'KRITIEK — FIELD NAMES:' . "\n"
+			. 'Gebruik field-namen EXACT zoals in de spec hierboven, inclusief suffixen.' . "\n"
+			. 'Sub-fields in repeaters mogen NIET afgekort of hernoemd worden — als de spec' . "\n"
+			. '`titel_content` of `tekst_content` zegt, gebruik die letterlijk (NIET `titel`/`tekst`).' . "\n"
+			. 'Velden voor repeater-items zoals `usps[]`, `vragen[]`, `onderwerpen[]` hebben vaak' . "\n"
+			. 'andere namen dan top-level block velden — vul ze in volgens de spec.' . "\n\n"
 			. 'Geef antwoord als één JSON-object volgens deze exacte structuur:' . "\n"
 			. '%5$s',
 			$main_keyword,
@@ -243,9 +249,59 @@ TXT;
 		$lines[] = '- Korte/eenvoudige onderwerpen → 3-4 blocks totaal';
 		$lines[] = '- Brede/complexe/how-to onderwerpen → 5-7 blocks totaal';
 		$lines[] = '- Niet meer blocks dan nodig. Vermijd block-padding.';
+
+		$role_hints = $this->build_layout_role_hints( $names );
+		if ( '' !== $role_hints ) {
+			$lines[] = '';
+			$lines[] = $role_hints;
+		}
+
+		$lines[] = '';
+		$lines[] = 'DIVERSITEIT — vermijd dat elke blog dezelfde drie-vier "veilige" layouts gebruikt:';
+		$lines[] = '- Gebruik minstens 4 VERSCHILLENDE layout-types per blog van 5-7 blocks.';
+		$lines[] = '- Sta niet 3+ identieke layouts (zoals 3× tekst_met_afbeelding) achter elkaar toe.';
+		$lines[] = '- Mix tekstuele blocks met visuele/conversie-blocks (quote, video, cta, gallery) waar de inhoud dat draagt.';
+		$lines[] = '- Liever 1 quote-block dan 2 extra tekst-blocks waar je dezelfde boodschap herhaalt.';
 		$lines[] = '';
 		$lines[] = 'De exacte velden + types per layout staan in de layout-spec hieronder. Match je output daar exact op.';
 
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Genereert per beschikbare layout-name een korte uitleg WANNEER die layout
+	 * zinvol is. Detectie via regex op naam-patronen — site-agnostisch.
+	 * Geeft AI semantische context zodat hij niet alleen voor "veilige" tekst-blocks kiest.
+	 */
+	private function build_layout_role_hints( array $available ): string {
+		$patterns = [
+			'/cta|call.?to.?action|contact|formulier/' => 'voor expliciete call-to-actions of contact-secties — meestal 1× per blog, vlak vóór de FAQ of helemaal aan het eind',
+			'/quote|testimonial|review|aanbeveling/'   => 'voor sociaal bewijs, klant- of medewerker-quotes ter ondersteuning van een argument',
+			'/video/'                                  => 'alleen als het onderwerp zich visueel laat uitleggen (demo, instructie, productpresentatie)',
+			'/case|project/'                           => 'voor case-studies of "hoe wij het hebben gedaan" verhalen — concreet resultaat per item',
+			'/afbeeldingen|gallery|fotogalerij|gallerij/' => 'voor visuele showcases (voorbeelden, voor/na, portfolio-stijl)',
+			'/counter|cijfer|statistiek|getal/'        => 'bij data-gedreven onderwerpen — geen verzonnen cijfers, alleen plausibele scenarios',
+			'/partner/'                                => 'voor geloofwaardigheid via partner-/klant-logos of associaties',
+			'/proces|stappen|stappenplan/'             => 'voor stap-voor-stap uitleg of methodologie',
+			'/usp|feature|voordeel|sterke.?punt/'      => 'voor 3-5 concrete USPs of voordelen — niet voor algemene "wij zijn geweldig" tekst',
+			'/faq|veelgestelde|vraag/'                 => 'voor 5-8 echte gebruikersvragen — long-tail zoekwoorden, niet je eigen marketing-vragen',
+		];
+
+		$hints = [];
+		foreach ( $available as $name ) {
+			$lower = strtolower( (string) $name );
+			foreach ( $patterns as $pattern => $explanation ) {
+				if ( preg_match( $pattern, $lower ) ) {
+					$hints[] = '- `' . $name . '`: ' . $explanation;
+					break;
+				}
+			}
+		}
+
+		if ( empty( $hints ) ) {
+			return '';
+		}
+
+		return "LAYOUT-ROLES — wanneer welk block-type past:\n" . implode( "\n", $hints );
 	}
 }

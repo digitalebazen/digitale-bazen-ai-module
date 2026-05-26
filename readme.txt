@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.9
+Stable tag: 1.2.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,46 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.2.0 =
+* **Interne links feature**: nieuwe Settings-tab "Interne links" met aan/uit
+  toggle, max-aantal (2-5), en post-type-selector als linkbron. Generator-
+  stap 4 krijgt optioneel een "Verplicht linken naar"-veld om specifieke
+  pagina's te forceren. Top-15 relevance-gescoorde pagina's worden in de
+  AI user-prompt geïnjecteerd; verzonnen URLs worden post-generatie
+  opgeruimd via `clean_orphan_links()`.
+* **Site-agnostische repeater-validatie**: hardcoded `REPEATER_RULES`
+  constant verwijderd. Validator gebruikt nu ACF's eigen `required:1` flag
+  per sub_field. Werkt op elke site ongeacht naming-conventie. Vroeger
+  faalde validatie als sub_fields anders heetten dan `titel_content` /
+  `tekst_content` (de Digitale Bazen-conventie); nu volgt de plugin de
+  ACF-definitie automatisch.
+* **Recursieve image-walker** in `DB_AI_Post_Creator::process_block_images`:
+  detecteert image-objecten `{query, alt}` op elk nestingniveau (top-level,
+  in repeaters, in nested repeaters) op basis van object-signatuur, niet
+  op hardcoded layout-namen. Lost op dat images in `usps[].icon`,
+  `tekst_met_afbeelding.afbeeldingen[].afbeelding` en andere nested
+  posities niet werden gedownload.
+* **Kritieke ACF write-fix**: `write_blocks_to_post` gebruikt nu de
+  field-KEY in plaats van field-NAME bij `update_field()`. Voorkomt dat
+  ACF naar de verkeerde field group schrijft als er meerdere groups met
+  dezelfde flex-name bestaan (bv. `paginacontent` op meerdere CPTs).
+  Veroorzaakte voorheen dat alle blocks leeg leken (alleen `acf_fc_layout`
+  werd opgeslagen, alle data van de verkeerde group werd gedropt).
+* **RankMath SEO-prompt strikter**: power-word verplicht in titel (uit
+  concrete lijst), getal in titel waar logisch, hoofdzoekwoord in MINIMAAL
+  2 `titel`-velden (H2/H3), meta_title MOET beginnen met focus keyword.
+  Fixt 3 van de 4 RankMath-errors die nieuwe blogs eerder rapporteerden.
+* **Field-name discipline in user prompt**: KRITIEK-blok dat de AI dwingt
+  exacte ACF field-namen te gebruiken inclusief suffixen (`titel_content`,
+  `tekst_content` etc.) en niet af te korten in repeaters.
+* **Layout role-hints + diversiteits-regel**: prompt geeft per beschikbare
+  layout een uitleg WANNEER hij zinvol is (cta/quote/video/case_detail/etc.)
+  via regex-pattern matching op naam. Plus expliciete eis: minstens 4
+  verschillende layouts per blog van 5-7 blocks, geen 3+ identieke achter
+  elkaar. Doorbreekt AI-bias richting "veilige" tekst-only blogs.
+* Nieuwe filter `db_ai_debug_write_blocks` (default false) voor opt-in
+  diagnose-logging van write_blocks_to_post → update_field flow.
 
 = 1.1.9 =
 * Algemene instellingen fors uitgebreid: nieuwe tabs Bedrijfsinformatie
