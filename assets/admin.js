@@ -25,9 +25,7 @@
 	// kiezen om direct te genereren of eerst tussenstappen te doorlopen.
 	const STEP_UPLOAD = 1;
 	const STEP_KEYWORD = 2;
-	const STEP_BASIC = 3;
-	const STEP_SPECIFIC = 4;
-	const STEP_GENERATE = 5;
+	const STEP_GENERATE = 3;
 	let generatorStep = STEP_UPLOAD;
 	let maxReachableStep = STEP_UPLOAD;
 
@@ -513,16 +511,88 @@
 		return select ? select.value : '';
 	}
 
+	/**
+	 * Fake-progress voor de blog-generatie. Server geeft geen tussenstand
+	 * dus we tonen een asymptotische curve die 95% nadert maar nooit haalt;
+	 * AJAX-resolve zet hem op 100%. Stage-label wisselt per zone zodat de
+	 * gebruiker weet wat er ruwweg gebeurt.
+	 *
+	 * @returns {{ finish: (success: boolean) => void } | null}
+	 */
+	function startGenerateProgress() {
+		const wrap = $('#db-ai-generate-progress');
+		if (!wrap) return null;
+		const bar   = wrap.querySelector('.db-ai-progress__bar');
+		const fill  = wrap.querySelector('.db-ai-progress__fill');
+		const label = wrap.querySelector('.db-ai-progress__label');
+		if (!bar || !fill || !label) return null;
+
+		const stages = [
+			{ upTo:  8, text: (config.i18n.progressPrepare    || 'Zoekwoord-context verzamelen…') },
+			{ upTo: 55, text: (config.i18n.progressWriting    || 'Generator schrijft je blog…') },
+			{ upTo: 80, text: (config.i18n.progressImages     || 'Afbeeldingen ophalen…') },
+			{ upTo: 95, text: (config.i18n.progressAssembling || 'Blog aanmaken en blokken vullen…') },
+			{ upTo: 100, text: (config.i18n.progressAlmost    || 'Bijna klaar…') },
+		];
+
+		wrap.hidden = false;
+		wrap.classList.remove('is-done', 'is-error');
+		fill.style.width = '0%';
+		bar.setAttribute('aria-valuenow', '0');
+		label.textContent = stages[0].text;
+
+		const startTime         = Date.now();
+		const estimatedDuration = 45000; // 45s — midden van het 30-60s bereik
+
+		const intervalId = setInterval(function () {
+			const elapsed = Date.now() - startTime;
+			const t       = elapsed / estimatedDuration;
+			// Asymptotic: y = 1 - e^(-1.2t), schaal naar 95% max.
+			let pct = (1 - Math.exp(-t * 1.2)) * 100;
+			if (pct > 95) pct = 95;
+
+			fill.style.width = pct.toFixed(1) + '%';
+			bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+
+			for (let i = 0; i < stages.length; i++) {
+				if (pct <= stages[i].upTo) {
+					if (label.textContent !== stages[i].text) {
+						label.textContent = stages[i].text;
+					}
+					break;
+				}
+			}
+		}, 250);
+
+		return {
+			finish: function (success) {
+				clearInterval(intervalId);
+				fill.style.width = '100%';
+				bar.setAttribute('aria-valuenow', '100');
+				wrap.classList.add(success ? 'is-done' : 'is-error');
+				label.textContent = success
+					? (config.i18n.progressDone   || 'Klaar!')
+					: (config.i18n.progressFailed || 'Mislukt — zie melding hieronder.');
+				setTimeout(function () {
+					wrap.hidden = true;
+				}, 1200);
+			},
+		};
+	}
+
 	function generateBlog() {
 		const keyword = getCurrentKeyword();
 		if (!keyword) return;
 
 		const btn      = $('#db-ai-generate-btn');
 		const resultEl = $('#db-ai-generate-result');
+		const statusEl = $('#db-ai-generate-status');
 
 		if (resultEl) resultEl.innerHTML = '';
+		if (statusEl) { statusEl.textContent = ''; statusEl.className = 'db-ai-status'; }
 		if (btn) btn.disabled = true;
-		setStatus('#db-ai-generate-status', config.i18n.generateRunning || 'AI + afbeeldingen ophalen… kan 30-60 sec duren.', 'loading');
+
+		const progress = startGenerateProgress();
 
 		const formData = new FormData();
 		formData.append('action', 'db_ai_generate');
@@ -538,8 +608,8 @@
 		}
 
 		// Stap 3 + 4 input velden — alleen meesturen als ze gevuld zijn.
+		// type_content is verwijderd uit de UI; server-side wordt 'blog' altijd geforceerd.
 		const fieldMap = {
-			'db-ai-type-content':     'type_content',
 			'db-ai-funnel-phase':     'funnel_phase',
 			'db-ai-awareness-level':  'awareness_level',
 			'db-ai-must-include':     'must_include',
@@ -572,7 +642,9 @@
 			.then(function (res) { return res.json(); })
 			.then(function (json) {
 				if (btn) btn.disabled = false;
-				if (!json || !json.success) {
+				const ok = !!(json && json.success);
+				if (progress) progress.finish(ok);
+				if (!ok) {
 					const data = (json && json.data) || {};
 					const msg = data.message || (config.i18n.generateFailed || 'Generatie mislukt.');
 					setStatus('#db-ai-generate-status', msg, 'error');
@@ -588,6 +660,7 @@
 			})
 			.catch(function () {
 				if (btn) btn.disabled = false;
+				if (progress) progress.finish(false);
 				setStatus('#db-ai-generate-status', config.i18n.networkError || 'Netwerkfout.', 'error');
 			});
 	}
@@ -648,12 +721,12 @@
 			select.addEventListener('change', function (e) {
 				renderSecondaryPreview(e.target.value);
 
-				// Wizard: bij keyword-selectie ontgrendel ALLE volgende stappen
-				// (basisinfo, specifiek, genereer) en spring naar basisinfo. User
-				// kan vandaaruit doorklikken of via progress-indicator skippen.
+				// Wizard: bij keyword-selectie ontgrendel de Genereer-stap en
+				// spring er direct heen. Optionele velden zitten daar onder een
+				// "Geavanceerd"-toggle.
 				if (e.target.value) {
 					wizardUnlockStep(STEP_GENERATE);
-					wizardGoTo(STEP_BASIC);
+					wizardGoTo(STEP_GENERATE);
 				}
 			});
 		}

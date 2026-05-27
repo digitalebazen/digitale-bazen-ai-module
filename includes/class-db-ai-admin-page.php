@@ -48,11 +48,19 @@ class DB_AI_Admin_Page {
 			return;
 		}
 
+		// Cache-buster: filemtime + plugin-versie. DB_AI_VERSION verandert niet
+		// bij elke code-tweak in development, dus zonder mtime krijgt de browser
+		// stale CSS/JS. mtime garandeert dat asset-wijzigingen meteen geladen worden.
+		$css_path = DB_AI_PLUGIN_DIR . 'assets/admin.css';
+		$js_path  = DB_AI_PLUGIN_DIR . 'assets/admin.js';
+		$css_ver  = file_exists( $css_path ) ? DB_AI_VERSION . '.' . filemtime( $css_path ) : DB_AI_VERSION;
+		$js_ver   = file_exists( $js_path )  ? DB_AI_VERSION . '.' . filemtime( $js_path )  : DB_AI_VERSION;
+
 		wp_enqueue_style(
 			'db-ai-admin',
 			DB_AI_PLUGIN_URL . 'assets/admin.css',
 			[],
-			DB_AI_VERSION
+			$css_ver
 		);
 
 		// SheetJS Community Edition 0.20.3 (MIT) — parseert xlsx/xls/csv/ods client-side
@@ -68,7 +76,7 @@ class DB_AI_Admin_Page {
 			'db-ai-admin',
 			DB_AI_PLUGIN_URL . 'assets/admin.js',
 			[ 'db-ai-xlsx' ],
-			DB_AI_VERSION,
+			$js_ver,
 			true
 		);
 

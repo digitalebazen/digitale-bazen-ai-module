@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,34 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.4.0 =
+* **Wizard van 5 → 3 stappen** — de generator-page heeft nu alleen Upload →
+  Kies zoekwoord → Genereer als zichtbare stappen. Alle optionele velden
+  (funnel-fase, awareness-niveau, must-include, must-avoid, beat-competition,
+  forced internal links, extra instructies) staan gegroepeerd onder één
+  collapsible "Geavanceerd (optioneel)"-toggle in stap 3. Default dicht. Happy
+  path is nu drie clicks. Power-users klappen open voor extra sturing.
+* **Progress bar tijdens generatie** — vervangt de eerdere spinner-tekst. Toont
+  een asymptotische voortgang (curve `1 - exp(-1.2t)`, capped op 95% tot
+  AJAX-respons) met vier stage-labels per zone: "Zoekwoord-context verzamelen"
+  → "Generator schrijft je blog" → "Afbeeldingen ophalen" → "Blog aanmaken en
+  blokken vullen" → "Bijna klaar". Bij succes/fail snap naar 100% in groen/rood,
+  daarna weg na 1,2s.
+* **"Type content"-keuze verwijderd uit UI** — generator produceert nu uitsluitend
+  blogs. Server-side wordt `type_content = 'blog'` geforceerd in
+  `DB_AI_Ajax::collect_blog_input()` zodat de CONTENTTYPE-hint nog steeds in de
+  AI-prompt belandt via `DB_AI_Blog_Input::TYPE_CONTENT_HINTS`. De TYPE_CONTENT_HINTS
+  array blijft staan voor toekomstige uitbreiding.
+* **Cache-buster met `filemtime()`** voor `assets/admin.css` + `admin.js` in
+  `DB_AI_Admin_Page::register_assets()`. Voorkomt dat browsers oude assets serven
+  na een code-tweak binnen dezelfde plugin-versie — geen hard-refresh meer nodig
+  in development.
+* **Settings copy gepolijst** — alle tab-intros, section-intros en field-
+  descriptions consistent in "de generator" idioom (was mix van "AI", "de plugin",
+  "system prompt"). Menu-label en page-titel "AI Module" → "Generator". Tabs
+  Block-layouts/ACF/AI setup volledig herschreven naar gebruikersvriendelijke
+  toon. ACF-veld "Flex field binnen field group" → "Flex content veld".
 
 = 1.3.0 =
 * **RankMath bridge** (`includes/class-db-ai-rankmath-bridge.php` + `assets/rankmath-bridge.js`):

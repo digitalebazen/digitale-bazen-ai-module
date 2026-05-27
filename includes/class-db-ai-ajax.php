@@ -219,12 +219,16 @@ class DB_AI_Ajax {
 	 */
 	private function collect_blog_input(): array {
 		$enum_values = [
-			'type_content'    => [ 'blog', 'landing', 'faq', 'comparison', 'case', 'service' ],
 			'funnel_phase'    => [ 'tofu', 'mofu', 'bofu' ],
 			'awareness_level' => [ 'unaware', 'problem', 'solution', 'product' ],
 		];
 
 		$out = [];
+
+		// type_content is uit de UI verwijderd — generator produceert alleen nog blogs.
+		// Hardcode 'blog' zodat de bijbehorende CONTENTTYPE-hint nog steeds in de
+		// AI-prompt belandt via DB_AI_Blog_Input::TYPE_CONTENT_HINTS.
+		$out['type_content'] = 'blog';
 
 		foreach ( $enum_values as $key => $allowed ) {
 			$raw          = isset( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';

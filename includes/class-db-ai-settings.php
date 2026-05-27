@@ -249,8 +249,8 @@ class DB_AI_Settings {
 
 	public function register_menu(): void {
 		$this->page_hook = (string) add_options_page(
-			__( 'AI Module', 'digitale-bazen-ai-module' ),
-			__( 'AI Module', 'digitale-bazen-ai-module' ),
+			__( 'Generator instellingen', 'digitale-bazen-ai-module' ),
+			__( 'Generator', 'digitale-bazen-ai-module' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
@@ -273,7 +273,7 @@ class DB_AI_Settings {
 			'db_ai_acf_section',
 			__( 'ACF integratie', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Kies welke ACF field group + welk flex content veld de plugin gebruikt voor AI-generatie. Wijzig en sla op om de Layout-checkboxes hieronder te verversen.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Kies de ACF field group en het flex content veld waarop de generator werkt. Meestal stel je dit één keer in. Wijzig je iets? Sla op om de beschikbare layouts opnieuw te laden.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -288,7 +288,7 @@ class DB_AI_Settings {
 
 		add_settings_field(
 			'acf_flex_field_name',
-			__( 'Flex field binnen field group', 'digitale-bazen-ai-module' ),
+			__( 'Flex content veld', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_acf_flex_field_field' ],
 			self::PAGE_SLUG,
 			'db_ai_acf_section'
@@ -296,16 +296,16 @@ class DB_AI_Settings {
 
 		add_settings_section(
 			'db_ai_provider_section',
-			__( 'AI provider', 'digitale-bazen-ai-module' ),
+			__( 'AI-dienst', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Welke provider gebruikt de plugin om blogs te genereren. "Automatisch" geeft Anthropic voorrang als die key is ingesteld, anders OpenAI.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Kies welke AI-dienst de generator gebruikt om blogs te schrijven. Bij "Automatisch" pakken we Anthropic Claude als die key is ingesteld, en anders OpenAI als fallback.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'provider',
-			__( 'Provider', 'digitale-bazen-ai-module' ),
+			__( 'AI-dienst', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_provider_field' ],
 			self::PAGE_SLUG,
 			'db_ai_provider_section'
@@ -313,9 +313,9 @@ class DB_AI_Settings {
 
 		add_settings_section(
 			'db_ai_keys_section',
-			__( 'API keys', 'digitale-bazen-ai-module' ),
+			__( 'API-keys', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Keys worden veilig opgeslagen in de WordPress database en niet teruggetoond. Als een key ook in wp-config.php als constant staat, dan wint die altijd en is het veld hier uitgeschakeld.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Voer hier de API-keys in van de diensten die de generator gebruikt. Keys worden veilig opgeslagen en niet meer teruggetoond. Staat een key ook in wp-config.php? Dan wint die altijd en is het veld hier uitgeschakeld.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -342,14 +342,14 @@ class DB_AI_Settings {
 			'db_ai_style_section',
 			__( 'Tone of voice & content', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Optioneel — beschrijf je merkstem, bedrijfscontext en stijlregels. Alles wat je hier invult wordt aan de AI system prompt toegevoegd zodat output past bij jouw merk en doelgroep. Leeg laten = standaard generieke output.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Beschrijf hoe jullie merk communiceert, schrijft en overkomt. Alles wat je hier invult gebruikt de generator als schrijfstijl. Laat leeg voor een standaard schrijfstijl.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'tone_of_voice',
-			__( 'Merkstem (brand voice)', 'digitale-bazen-ai-module' ),
+			__( 'Merkstem', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_textarea_field' ],
 			self::PAGE_SLUG,
 			'db_ai_style_section',
@@ -357,13 +357,13 @@ class DB_AI_Settings {
 				'key'         => 'tone_of_voice',
 				'rows'        => 4,
 				'placeholder' => __( 'Bv: Warm en uitnodigend zonder klef te worden. Spreek aan met "je". Korte zinnen waar het kan. Vermijd zakelijke clichés. Focus op de lezer, niet op "wij".', 'digitale-bazen-ai-module' ),
-				'description' => __( 'Beschrijf de stem van jouw merk in 2-5 zinnen. De AI gebruikt dit als toon-instructie.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Beschrijf hoe jouw merk klinkt en schrijft. De generator gebruikt dit als schrijfstijl voor de content.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'site_context',
-			__( 'Site-context (bedrijf + WAT NIET TE DOEN)', 'digitale-bazen-ai-module' ),
+			__( 'Site-context', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_textarea_field' ],
 			self::PAGE_SLUG,
 			'db_ai_style_section',
@@ -371,7 +371,7 @@ class DB_AI_Settings {
 				'key'         => 'site_context',
 				'rows'        => 6,
 				'placeholder' => __( "Bv: Bruidsmode-winkel in Eindhoven (Brabant). We verkopen bruidsjurken in maat 34-60, met focus op plus size en betaalbare modellen. Doelgroep: bruiden 25-40.\n\nWAT NIET DOEN:\n- Noem geen specifieke concurrent-winkels\n- Claim niet dat we de goedkoopste zijn\n- Verkoop geen producten die we niet hebben (geen schoenen, geen accessoires)\n- Beloof geen levertijden", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Vertel de AI <strong>wie je bent</strong>, <strong>voor wie</strong> en — heel belangrijk — een lijstje <strong>WAT NIET TE DOEN</strong>. Concrete don\'ts werken veel beter dan algemene "let op"-zinnen.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Vertel kort wie jullie zijn, voor wie jullie werken en wat de generator juist níét moet doen of benoemen. Concrete do’s en don’ts werken het beste.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -385,13 +385,13 @@ class DB_AI_Settings {
 				'key'         => 'style_rules',
 				'rows'        => 5,
 				'placeholder' => __( "Bv:\n- Geen em-dashes (—) of en-dashes (–), gebruik komma's of nieuwe zinnen\n- Max 25 woorden per zin\n- Vermijd 'fantastisch', 'geweldig', 'uniek', 'innovatief'\n- Geen \"in deze snel veranderende wereld\" of soortgelijke clichés\n- Korte alinea's: max 4 zinnen", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Concrete do\'s en don\'ts voor de output-format. Werk in concrete regels, niet in algemeenheden.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Concrete do\'s en don\'ts voor de schrijfstijl. Werk met duidelijke regels, niet met algemene voorkeuren.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'reference_post_ids',
-			__( 'Referentie-posts (schrijfvoorbeelden)', 'digitale-bazen-ai-module' ),
+			__( 'Referentie-posts', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_reference_posts_field' ],
 			self::PAGE_SLUG,
 			'db_ai_style_section'
@@ -400,16 +400,16 @@ class DB_AI_Settings {
 		// ─── Block-layouts sectie (los van style section voor wizard-stap 4) ───
 		add_settings_section(
 			'db_ai_layouts_section',
-			__( 'Block-layouts', 'digitale-bazen-ai-module' ),
+			__( 'Beschikbare layouts', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Welke ACF flex-layouts mag de AI gebruiken in gegenereerde blogs.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Bepaal welke blokken (layouts) de generator mag gebruiken om blogs op te bouwen. Standaard staan alle layouts aan; vink uit wat je liever niet automatisch laat genereren.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'allowed_layouts',
-			__( 'Beschikbare block-layouts', 'digitale-bazen-ai-module' ),
+			__( 'Layouts die de generator mag gebruiken', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_allowed_layouts_field' ],
 			self::PAGE_SLUG,
 			'db_ai_layouts_section'
@@ -420,7 +420,7 @@ class DB_AI_Settings {
 			'db_ai_company_section',
 			__( 'Bedrijfsinformatie', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Wat is jouw bedrijf, branche en wat maakt je uniek. Wordt aan de AI system prompt toegevoegd zodat output past bij jouw business.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Wat is jouw bedrijf en wat maakt je uniek. De generator gebruikt dit als context zodat de content past bij wie jullie zijn.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -453,13 +453,13 @@ class DB_AI_Settings {
 				'key'         => 'company_services',
 				'rows'        => 3,
 				'placeholder' => __( "Wat verkoop / lever je. Bv:\n- Website-bouw (WordPress)\n- SEO + content\n- Online marketing campagnes", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Wat je daadwerkelijk levert. Voorkomt dat AI dingen belooft die je niet doet.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Wat je daadwerkelijk levert. Voorkomt dat de generator dingen belooft die je niet doet.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'company_usps',
-			__( "USP's — wat maakt je uniek", 'digitale-bazen-ai-module' ),
+			__( "USP's", 'digitale-bazen-ai-module' ),
 			[ $this, 'render_textarea_field' ],
 			self::PAGE_SLUG,
 			'db_ai_company_section',
@@ -467,13 +467,13 @@ class DB_AI_Settings {
 				'key'         => 'company_usps',
 				'rows'        => 3,
 				'placeholder' => __( "Bv:\n- Vaste contactpersoon, geen tickets\n- 10+ jaar ervaring in jouw branche\n- Prijs vooraf bekend, geen verrassingen", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Concrete, controleerbare onderscheidende punten. Geen "marktleider" of "innovatief" — die werken niet.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Laat zien waarom klanten voor jullie kiezen. Houd het eerlijk, concreet en duidelijk. Vermijd algemene termen die weinig zeggen.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'company_competitors',
-			__( 'Concurrenten (intern, niet noemen in blogs)', 'digitale-bazen-ai-module' ),
+			__( 'Concurrenten', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_textarea_field' ],
 			self::PAGE_SLUG,
 			'db_ai_company_section',
@@ -481,7 +481,7 @@ class DB_AI_Settings {
 				'key'         => 'company_competitors',
 				'rows'        => 2,
 				'placeholder' => __( 'Bv: bureau X, platform Y, freelancer-collectief Z', 'digitale-bazen-ai-module' ),
-				'description' => __( 'AI gebruikt deze om jouw USPs slimmer te positioneren, maar noemt ze NOOIT bij naam in de tekst.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'De generator gebruikt deze om jullie sterke punten scherper neer te zetten, maar noemt ze nooit bij naam in de tekst.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -490,7 +490,7 @@ class DB_AI_Settings {
 			'db_ai_audience_section',
 			__( 'Doelgroep', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Beschrijf één hoofddoelgroep diep. Bezwaren, frustraties en aankoopcriteria zijn de sterkste hefbomen voor content die echt aansluit.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Beschrijf je doelgroep zo concreet mogelijk. Hoe beter de generator hun situatie, frustraties en twijfels begrijpt, hoe beter de content aansluit.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -505,7 +505,7 @@ class DB_AI_Settings {
 				'key'         => 'audience_who',
 				'rows'        => 3,
 				'placeholder' => __( "Bv: MKB-ondernemers tussen 35-55, vaak technisch ongeschoold maar wel digitaal-vaardig. Hebben 5-50 werknemers, runnen meestal een diensten- of webshop-business.", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Demografie + situatie. Concreter is beter.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Omschrijf wie je doelgroep is en in welke situatie ze zitten.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -519,7 +519,7 @@ class DB_AI_Settings {
 				'key'         => 'audience_objections',
 				'rows'        => 4,
 				'placeholder' => __( "Wat zegt je doelgroep tegen zichzelf om NIET te kopen. Bv:\n- \"Dat kan ik zelf wel\"\n- \"Te duur voor mijn bedrijf\"\n- \"Bureaus beloven veel maar leveren weinig\"\n- \"Ik heb eerder slechte ervaringen gehad\"", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Sterkste hefboom voor content die converteert. AI weeft tegenargumenten subtiel in.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Helpt de generator om tegenargumenten subtiel te verwerken.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -533,7 +533,7 @@ class DB_AI_Settings {
 				'key'         => 'audience_frustrations',
 				'rows'        => 3,
 				'placeholder' => __( "Wat irriteert / frustreert ze dagelijks. Bv:\n- Geen tijd om zelf marketing te doen\n- Bureaus die alleen rapportages sturen, geen resultaat\n- Concurrenten die hoger scoren op Google", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Geeft AI input om aan de juiste pijn te raken vroeg in de tekst.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Helpt de generator om direct de juiste frustraties en pijnpunten te raken.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -547,7 +547,7 @@ class DB_AI_Settings {
 				'key'         => 'audience_buying_criteria',
 				'rows'        => 3,
 				'placeholder' => __( "Bv:\n- Transparante prijzen\n- Aantoonbare cases uit hun branche\n- Persoonlijk contact, geen ticket-systeem\n- Vaste contactpersoon", 'digitale-bazen-ai-module' ),
-				'description' => __( 'Wat hun beslissing dichtbij brengt. AI verwerkt deze in CTAs en argumentatie.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Helpt de generator om sterkere argumenten en CTA’s te schrijven.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -560,9 +560,9 @@ class DB_AI_Settings {
 			[
 				'key'     => 'audience_language_level',
 				'options' => [
-					''       => __( 'Standaard (informeel-zakelijk)', 'digitale-bazen-ai-module' ),
-					'b1'     => __( 'B1 — eenvoudig, geen jargon', 'digitale-bazen-ai-module' ),
-					'expert' => __( 'Expert — vakjargon mag', 'digitale-bazen-ai-module' ),
+					''       => __( 'Gemiddeld | normale zakelijke schrijfstijl', 'digitale-bazen-ai-module' ),
+					'b1'     => __( 'Eenvoudig | duidelijke taal zonder jargon', 'digitale-bazen-ai-module' ),
+					'expert' => __( 'Expert | inhoudelijk en technisch', 'digitale-bazen-ai-module' ),
 				],
 			]
 		);
@@ -572,47 +572,47 @@ class DB_AI_Settings {
 			'db_ai_antigeneric_section',
 			__( 'Anti-generieke content', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Standaard AI-output voelt vaak vlak en safe. Vink hieronder aan wat je expliciet wél wilt — dat maakt het verschil tussen "duidelijk AI" en authentiek.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Standaard content voelt vaak vlak en voorzichtig. Vink hieronder aan wat de generator bewust mag doen om de tekst persoonlijker en sterker te maken.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'anti_opinion',
-			__( 'AI mag een mening / standpunt geven', 'digitale-bazen-ai-module' ),
+			__( 'Mening / standpunt toevoegen', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_checkbox_field' ],
 			self::PAGE_SLUG,
 			'db_ai_antigeneric_section',
 			[
 				'key'   => 'anti_opinion',
 				'label' => __( 'Geef expliciete meningen / standpunten in de tekst', 'digitale-bazen-ai-module' ),
-				'help'  => __( 'Vermijdt "objectieve" gepolijste teksten die niemand interesseren. Aanrader voor opinion blogs en deep-dive content.', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Laat de generator duidelijke standpunten en visie verwerken in de tekst. Zorgt voor sterkere en minder generieke content.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'anti_examples',
-			__( 'Werk met concrete praktijkvoorbeelden', 'digitale-bazen-ai-module' ),
+			__( 'Concrete praktijkvoorbeelden gebruiken', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_checkbox_field' ],
 			self::PAGE_SLUG,
 			'db_ai_antigeneric_section',
 			[
 				'key'   => 'anti_examples',
 				'label' => __( 'Voeg realistische scenario\'s en voorbeelden toe', 'digitale-bazen-ai-module' ),
-				'help'  => __( 'Vervangt theoretische algemeenheden door concrete cases. AI verzint geen statistieken, alleen plausibele scenarios.', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Voeg herkenbare situaties, voorbeelden en scenario\'s toe om de inhoud duidelijker en geloofwaardiger te maken.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
 		add_settings_field(
 			'anti_downsides',
-			__( 'Benoem ook nadelen / beperkingen', 'digitale-bazen-ai-module' ),
+			__( 'Ook nadelen of beperkingen benoemen', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_checkbox_field' ],
 			self::PAGE_SLUG,
 			'db_ai_antigeneric_section',
 			[
 				'key'   => 'anti_downsides',
-				'label' => __( 'Vermeld ook "wanneer dit NIET past" of nadelen', 'digitale-bazen-ai-module' ),
-				'help'  => __( 'Bouwt vertrouwen — een tekst die alleen voordelen noemt voelt als sales-talk.', 'digitale-bazen-ai-module' ),
+				'label' => __( 'Ook nadelen of beperkingen benoemen', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Laat de generator eerlijk aangeven wanneer iets minder geschikt is of beperkingen heeft. Dit maakt de content betrouwbaarder.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -621,21 +621,21 @@ class DB_AI_Settings {
 			'db_ai_internal_links_section',
 			__( 'Interne links', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Laat de AI automatisch 2-5 interne links toevoegen naar relevante pagina\'s op je site. Top-15 meest relevante pagina\'s worden in de prompt aangeboden (op basis van keyword-overlap). Niet-bestaande URLs worden na generatie automatisch opgeruimd.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'De generator voegt automatisch 2 tot 5 interne links toe naar relevante pagina\'s op je site. Dit helpt bezoekers verder én ondersteunt je SEO. Verzonnen URLs worden na generatie automatisch opgeruimd.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'internal_links_enabled',
-			__( 'Interne links aanzetten', 'digitale-bazen-ai-module' ),
+			__( 'Interne links toevoegen', 'digitale-bazen-ai-module' ),
 			[ $this, 'render_checkbox_field' ],
 			self::PAGE_SLUG,
 			'db_ai_internal_links_section',
 			[
 				'key'   => 'internal_links_enabled',
-				'label' => __( 'AI mag interne links toevoegen aan gegenereerde blogs', 'digitale-bazen-ai-module' ),
-				'help'  => __( 'Bij uit: geen interne links in output. Bij aan: 2-5 links naar relevante bestaande pagina\'s.', 'digitale-bazen-ai-module' ),
+				'label' => __( 'De generator mag interne links toevoegen aan gegenereerde blogs', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Voegt automatisch 2 tot 5 relevante interne links toe aan de gegenereerde content.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -669,7 +669,7 @@ class DB_AI_Settings {
 			'db_ai_external_links_section',
 			__( 'Externe bronnen', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'AI stelt na elke generatie 3-5 externe link-suggesties voor naar autoritaire bronnen (Wikipedia, overheid, brancheorganisaties). Suggesties verschijnen in een metabox op de post-edit-screen — geen automatische invoeging. Redacteur ziet eerst groen/oranje per URL (HEAD-check) en kiest welke ingevoegd worden.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'De generator stelt na elke blog 3 tot 5 externe bronnen voor, zoals Wikipedia, overheidssites of brancheorganisaties. Je ziet per suggestie een groen-of-oranje status en kiest zelf welke je toevoegt aan de blog.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -683,7 +683,7 @@ class DB_AI_Settings {
 			[
 				'key'   => 'external_links_enabled',
 				'label' => __( 'Genereer externe link-suggesties bij elke blog', 'digitale-bazen-ai-module' ),
-				'help'  => __( 'Bij uit: geen suggesties, geen tokens-overhead, geen metabox. Bij aan: ~200 extra output-tokens per blog (~$0.005).', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Laat de generator relevante externe bronnen voorstellen bij elke blog.', 'digitale-bazen-ai-module' ),
 			]
 		);
 
@@ -709,7 +709,7 @@ class DB_AI_Settings {
 			'db_ai_kwo_section',
 			__( 'Zoekwoordenonderzoeken', 'digitale-bazen-ai-module' ),
 			function () {
-				echo '<p>' . esc_html__( 'Upload zoekwoordenonderzoeken één keer hier en kies ze in de generator. Geen Settings-save nodig — uploads en verwijderen werken direct.', 'digitale-bazen-ai-module' ) . '</p>';
+				echo '<p>' . esc_html__( 'Hier beheer je je zoekwoordenonderzoeken. Upload ze één keer en kies in de generator per blog welke je wilt gebruiken — geen dubbel werk. Uploads en verwijderen worden direct opgeslagen.', 'digitale-bazen-ai-module' ) . '</p>';
 			},
 			self::PAGE_SLUG
 		);
@@ -1002,7 +1002,7 @@ class DB_AI_Settings {
 		}
 		echo '</fieldset>';
 		echo '<p class="description">';
-		esc_html_e( 'Bepaalt welke ACF-flex layouts de AI mag gebruiken op deze site. Auto-gedetecteerd vanuit de gekozen field group + flex field. Standaard alles aan. De AI kiest zelf welke + hoeveel per blog op basis van het onderwerp. Alles uitvinken = fallback naar alle layouts.', 'digitale-bazen-ai-module' );
+		esc_html_e( 'De layouts hierboven worden automatisch herkend op basis van de gekozen field group. De generator kiest per blog zelf welke en hoeveel layouts het meest passen bij het onderwerp. Vink je alles uit? Dan vallen we terug op alle beschikbare layouts.', 'digitale-bazen-ai-module' );
 		echo '</p>';
 	}
 
@@ -1011,7 +1011,7 @@ class DB_AI_Settings {
 		$groups  = DB_AI_ACF_Discovery::find_flex_field_groups();
 
 		if ( empty( $groups ) ) {
-			echo '<p class="description"><strong>' . esc_html__( 'Geen ACF field groups met flex content gevonden op deze site.', 'digitale-bazen-ai-module' ) . '</strong></p>';
+			echo '<p class="description"><strong>' . esc_html__( 'Geen ACF field groups met een flex content veld gevonden op deze site. Maak er één aan of importeer een bestaande veldgroep.', 'digitale-bazen-ai-module' ) . '</strong></p>';
 			return;
 		}
 
@@ -1031,7 +1031,7 @@ class DB_AI_Settings {
 			);
 		}
 		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'ACF field group die het flex content veld bevat voor blog-generatie.', 'digitale-bazen-ai-module' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'De field group waarin de blog-content wordt opgebouwd. De generator gebruikt het flex content veld hieruit om blokken te plaatsen.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
 	public function render_acf_flex_field_field(): void {
@@ -1066,7 +1066,7 @@ class DB_AI_Settings {
 			);
 		}
 		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'Het specifieke flex content veld binnen de gekozen field group. Meestal is er maar één — alleen relevant als de field group meerdere heeft.', 'digitale-bazen-ai-module' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Het flex content veld binnen de gekozen field group. Meestal is er maar één; alleen relevant als jullie field group er meerdere heeft.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
 	public function render_internal_link_post_types_field(): void {
@@ -1093,7 +1093,7 @@ class DB_AI_Settings {
 			);
 		}
 		echo '</fieldset>';
-		echo '<p class="description">' . esc_html__( 'Vink aan welke post types als bron voor interne links mogen dienen. Standaard alleen pages en blogs (de meest waardevolle landingsmateriaal).', 'digitale-bazen-ai-module' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Kies welke pagina’s de generator mag gebruiken voor automatische interne links. Standaard worden alleen pagina\'s en blogs gebruikt.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
 	public function render_kwo_manager_field(): void {
@@ -1122,7 +1122,7 @@ class DB_AI_Settings {
 					</button>
 				</p>
 				<p class="description">
-					<?php esc_html_e( 'Accepteert .xlsx, .xls, .csv en .ods. Headers worden automatisch herkend (Zoekwoord verplicht; Maandelijks volume / Pagina / Onderwerp / Concurrentie / CPC optioneel).', 'digitale-bazen-ai-module' ); ?>
+					<?php esc_html_e( 'Accepteert Excel (.xlsx, .xls), CSV en OpenDocument (.ods). De wizard herkent de kolommen automatisch — alleen "Zoekwoord" is verplicht. Optioneel: maandelijks volume, pagina, onderwerp, concurrentie en CPC.', 'digitale-bazen-ai-module' ); ?>
 				</p>
 				<div id="db-ai-kwo-status" class="db-ai-status" role="status" aria-live="polite"></div>
 			</div>
@@ -1195,7 +1195,7 @@ class DB_AI_Settings {
 		echo '<p class="description">';
 		printf(
 			/* translators: %d = max aantal */
-			esc_html__( 'Cmd/Ctrl + klik om meerdere te selecteren. Max %d posts worden gebruikt als schrijfvoorbeelden in de AI-prompt. Toont laatste 80 gepubliceerde pages, posts en blogs.', 'digitale-bazen-ai-module' ),
+			esc_html__( 'Cmd/Ctrl + klik om meerdere te selecteren. Max %d posts worden gebruikt als schrijfvoorbeelden in de prompt.', 'digitale-bazen-ai-module' ),
 			DB_AI_Style_Profile::MAX_REFERENCE_POSTS
 		);
 		echo '</p>';
@@ -1285,70 +1285,70 @@ class DB_AI_Settings {
 				'id'       => 'company',
 				'label'    => __( 'Bedrijf', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Bedrijfsinformatie', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Wat is jouw bedrijf en wat maakt je uniek. AI gebruikt dit om context te krijgen voor elke gegenereerde blog.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Wat is jouw bedrijf en wat maakt je uniek.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_company_section' ],
 			],
 			[
 				'id'       => 'audience',
 				'label'    => __( 'Doelgroep', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Doelgroep', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Beschrijf je hoofddoelgroep diep — bezwaren en frustraties zijn de sterkste hefbomen voor content die echt aansluit.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Beschrijf je doelgroep zo concreet mogelijk. Hoe beter je hun situatie, frustraties en twijfels omschrijft, hoe beter de content aansluit.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_audience_section' ],
 			],
 			[
 				'id'       => 'style',
 				'label'    => __( 'Tone of voice', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Tone of voice & content', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Beschrijf je merkstem, stijlregels en referentie-posts. Alles optioneel — leeg laten = generieke output.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Beschrijf hoe jullie merk communiceert, schrijft en overkomt. Laat leeg voor een standaard schrijfstijl.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_style_section' ],
 			],
 			[
 				'id'       => 'antigeneric',
 				'label'    => __( 'Anti-generiek', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Anti-generieke content', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Vink aan wat je expliciet wél wilt — dat is het verschil tussen "duidelijk AI" en authentieke content.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Kies welke schrijfstijl en aanpak de generator bewust mag gebruiken om de content persoonlijker en sterker te maken.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_antigeneric_section' ],
 			],
 			[
 				'id'       => 'links',
 				'label'    => __( 'Interne links', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Interne links', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'AI plaatst automatisch interne links naar relevante pagina\'s op je site bij elke blog-generatie. Goed voor SEO en doorklik-gedrag.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'De generator plaatst automatisch interne links naar relevante pagina\'s op je website. Dit helpt bezoekers sneller verder én ondersteunt je SEO.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_internal_links_section' ],
 			],
 			[
 				'id'       => 'externallinks',
 				'label'    => __( 'Externe bronnen', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Externe bronnen', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'AI suggereert externe link-bronnen (Wikipedia, overheid, brancheorganisaties) bij elke blog. Redacteur kiest welke ingevoegd worden via een metabox op de post-edit-screen.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'De generator stelt automatisch externe bronnen voor, zoals branchewebsites, overheidspagina’s of Wikipedia. Je kiest zelf welke links je toevoegt aan de blog.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_external_links_section' ],
 			],
 			[
 				'id'       => 'kwo',
 				'label'    => __( 'Zoekwoorden', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Zoekwoordenonderzoeken', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Upload één of meer onderzoeken; in de generator kies je welke je wilt gebruiken zonder opnieuw te uploaden.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Hier beheer je je zoekwoordenonderzoeken. Upload ze één keer en kies in de generator per blog welke je wilt gebruiken.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_kwo_section' ],
 			],
 			[
 				'id'       => 'layouts',
-				'label'    => __( 'Block-layouts', 'digitale-bazen-ai-module' ),
-				'title'    => __( 'Beschikbare block-layouts', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Welke ACF flex-layouts mag de AI gebruiken in gegenereerde blogs. Standaard staat alles aan.', 'digitale-bazen-ai-module' ),
+				'label'    => __( 'Layouts', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Beschikbare layouts', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Bepaal welke blokken (layouts) de generator mag gebruiken om blogs op te bouwen. Standaard staan alle layouts aan.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_layouts_section' ],
 			],
 			[
 				'id'       => 'acf',
 				'label'    => __( 'ACF integratie', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'ACF integratie', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Kies welke ACF field group + welk flex content veld de plugin gebruikt voor AI-generatie.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Kies de ACF field group en het flex content veld waarop de generator werkt. Meestal stel je dit één keer in.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_acf_section' ],
 			],
 			[
 				'id'       => 'ai',
 				'label'    => __( 'AI setup', 'digitale-bazen-ai-module' ),
-				'title'    => __( 'AI provider + API keys', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Welke AI provider gebruikt de plugin en welke keys horen daarbij. Constants in wp-config.php winnen altijd van waarden hier.', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'AI-dienst & API-keys', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Welke AI-dienst de generator gebruikt en welke API-keys daarbij horen.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_provider_section', 'db_ai_keys_section' ],
 			],
 		];
@@ -1363,7 +1363,7 @@ class DB_AI_Settings {
 		?>
 		<div class="wrap db-ai-tabs">
 			<h1>
-				<?php esc_html_e( 'Digitale Bazen AI Module — Instellingen', 'digitale-bazen-ai-module' ); ?>
+				<?php esc_html_e( 'Digitale Bazen Generator — Instellingen', 'digitale-bazen-ai-module' ); ?>
 				<span class="db-ai-dirty-badge"><?php esc_html_e( 'Niet opgeslagen', 'digitale-bazen-ai-module' ); ?></span>
 			</h1>
 			<p>

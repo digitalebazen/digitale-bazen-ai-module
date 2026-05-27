@@ -1,5 +1,5 @@
 .db-ai-wrap {
-	max-width: 720px;
+	/* max-width: 720px; */
 }
 
 /* ─── Wizard ─────────────────────────────────────────────────────────────
@@ -400,4 +400,101 @@
 .db-ai-preview-table th {
 	background: #f0f0f1;
 	font-weight: 600;
+}
+
+/* ─── Progress bar voor blog-generatie (stap 5) ──────────────────────────
+ * Generatie duurt 30-60s, server geeft geen tussenstand.
+ * We tonen een asymptotische voortgang met stage-labels per zone. */
+
+.db-ai-progress {
+	margin: 14px 0 8px;
+	max-width: 520px;
+}
+
+.db-ai-progress__bar {
+	height: 14px;
+	background: #e5e7eb;
+	border-radius: 7px;
+	overflow: hidden;
+	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.db-ai-progress__fill {
+	height: 100%;
+	width: 0%;
+	background: linear-gradient(90deg, #2271b1 0%, #3582c4 100%);
+	transition: width 0.35s ease;
+	border-radius: 7px;
+}
+
+.db-ai-progress.is-done .db-ai-progress__fill {
+	background: linear-gradient(90deg, #00a32a 0%, #2cb84e 100%);
+}
+
+.db-ai-progress.is-error .db-ai-progress__fill {
+	background: linear-gradient(90deg, #d63638 0%, #e34a4c 100%);
+}
+
+.db-ai-progress__label {
+	margin-top: 8px;
+	font-size: 13px;
+	color: #1d2327;
+	font-style: italic;
+}
+
+/* ─── Geavanceerde opties toggle in stap 3 ─────────────────────────────── */
+
+.db-ai-advanced-toggle {
+	margin: 18px 0 20px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #f6f7f7;
+	max-width: 700px;
+}
+
+.db-ai-advanced-toggle > summary {
+	padding: 10px 14px;
+	cursor: pointer;
+	font-weight: 500;
+	color: #1d2327;
+	user-select: none;
+	list-style: none;
+	position: relative;
+}
+
+.db-ai-advanced-toggle > summary::-webkit-details-marker { display: none; }
+
+.db-ai-advanced-toggle > summary::before {
+	content: '▸';
+	display: inline-block;
+	margin-right: 8px;
+	color: #50575e;
+	transition: transform 0.15s ease;
+	width: 12px;
+}
+
+.db-ai-advanced-toggle[open] > summary::before {
+	content: '▾';
+}
+
+.db-ai-advanced-toggle > summary:hover {
+	background: #f0f0f1;
+}
+
+.db-ai-advanced-toggle[open] > summary {
+	border-bottom: 1px solid #c3c4c7;
+	background: #f0f0f1;
+}
+
+.db-ai-advanced-content {
+	padding: 16px 14px;
+	background: #fff;
+}
+
+.db-ai-advanced-content .db-ai-field-wrap {
+	margin-bottom: 16px;
+}
+
+.db-ai-advanced-content .db-ai-field-wrap:last-child {
+	margin-bottom: 0;
 }

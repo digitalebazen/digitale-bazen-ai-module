@@ -61,16 +61,6 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 				<span class="step-connector"></span>
 				<li data-step="3">
 					<span class="step-circle"><span class="step-number">3</span></span>
-					<?php esc_html_e( 'Basisinfo', 'digitale-bazen-ai-module' ); ?>
-				</li>
-				<span class="step-connector"></span>
-				<li data-step="4">
-					<span class="step-circle"><span class="step-number">4</span></span>
-					<?php esc_html_e( 'Specifiek', 'digitale-bazen-ai-module' ); ?>
-				</li>
-				<span class="step-connector"></span>
-				<li data-step="5">
-					<span class="step-circle"><span class="step-number">5</span></span>
 					<?php esc_html_e( 'Genereer', 'digitale-bazen-ai-module' ); ?>
 				</li>
 			</ol>
@@ -174,141 +164,114 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 			</section>
 
 			<section class="db-ai-wizard-pane" data-step="3">
-				<h2><?php esc_html_e( '3. Basisinformatie voor deze blog', 'digitale-bazen-ai-module' ); ?></h2>
+				<h2><?php esc_html_e( '3. Genereer blogpost', 'digitale-bazen-ai-module' ); ?></h2>
 				<p class="description">
-					<?php esc_html_e( 'Wat voor type content + voor welke funnel-fase. Allemaal optioneel — leeg laten = AI bepaalt op basis van het zoekwoord.', 'digitale-bazen-ai-module' ); ?>
+					<?php esc_html_e( 'Klaar om te genereren? Klik de knop en de generator schrijft je blog. Duurt 30-60 seconden. Wil je extra sturing geven? Klap "Geavanceerd" open.', 'digitale-bazen-ai-module' ); ?>
 				</p>
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-type-content"><?php esc_html_e( 'Type content', 'digitale-bazen-ai-module' ); ?></label>
-					<select id="db-ai-type-content">
-						<option value=""><?php esc_html_e( '— Auto (op basis van zoekwoord) —', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="blog"><?php esc_html_e( 'Blogartikel', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="landing"><?php esc_html_e( 'Landingspagina', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="faq"><?php esc_html_e( 'FAQ-pagina', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="comparison"><?php esc_html_e( 'Vergelijkingspagina', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="case"><?php esc_html_e( 'Case / praktijkvoorbeeld', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="service"><?php esc_html_e( 'Dienstpagina', 'digitale-bazen-ai-module' ); ?></option>
-					</select>
-				</div>
+				<details class="db-ai-advanced-toggle">
+					<summary><?php esc_html_e( 'Geavanceerd (optioneel)', 'digitale-bazen-ai-module' ); ?></summary>
+					<div class="db-ai-advanced-content">
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-funnel-phase"><?php esc_html_e( 'Funnel-fase', 'digitale-bazen-ai-module' ); ?></label>
-					<select id="db-ai-funnel-phase">
-						<option value=""><?php esc_html_e( '— Auto —', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="tofu"><?php esc_html_e( 'Top of funnel (lezer ontdekt probleem)', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="mofu"><?php esc_html_e( 'Middle of funnel (lezer overweegt oplossingen)', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="bofu"><?php esc_html_e( 'Bottom of funnel (lezer kiest aanbieder)', 'digitale-bazen-ai-module' ); ?></option>
-					</select>
-				</div>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-funnel-phase"><?php esc_html_e( 'Funnel-fase', 'digitale-bazen-ai-module' ); ?></label>
+							<select id="db-ai-funnel-phase">
+								<option value=""><?php esc_html_e( '— Auto —', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="tofu"><?php esc_html_e( 'Top of funnel (lezer ontdekt probleem)', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="mofu"><?php esc_html_e( 'Middle of funnel (lezer overweegt oplossingen)', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="bofu"><?php esc_html_e( 'Bottom of funnel (lezer kiest aanbieder)', 'digitale-bazen-ai-module' ); ?></option>
+							</select>
+						</div>
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-awareness-level"><?php esc_html_e( 'Awareness-niveau', 'digitale-bazen-ai-module' ); ?></label>
-					<select id="db-ai-awareness-level">
-						<option value=""><?php esc_html_e( '— Auto —', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="unaware"><?php esc_html_e( 'Onbekend met probleem', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="problem"><?php esc_html_e( 'Kent probleem, geen oplossing', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="solution"><?php esc_html_e( 'Kent oplossingen, vergelijkt', 'digitale-bazen-ai-module' ); ?></option>
-						<option value="product"><?php esc_html_e( 'Kent jouw aanbod, twijfelt nog', 'digitale-bazen-ai-module' ); ?></option>
-					</select>
-				</div>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-awareness-level"><?php esc_html_e( 'Awareness-niveau', 'digitale-bazen-ai-module' ); ?></label>
+							<select id="db-ai-awareness-level">
+								<option value=""><?php esc_html_e( '— Auto —', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="unaware"><?php esc_html_e( 'Onbekend met probleem', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="problem"><?php esc_html_e( 'Kent probleem, geen oplossing', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="solution"><?php esc_html_e( 'Kent oplossingen, vergelijkt', 'digitale-bazen-ai-module' ); ?></option>
+								<option value="product"><?php esc_html_e( 'Kent jouw aanbod, twijfelt nog', 'digitale-bazen-ai-module' ); ?></option>
+							</select>
+						</div>
 
-				<p>
-					<button type="button" class="button button-primary" data-wizard-next="4">
-						<?php esc_html_e( 'Volgende →', 'digitale-bazen-ai-module' ); ?>
-					</button>
-					<button type="button" class="button button-link" data-wizard-skip="5">
-						<?php esc_html_e( 'Sla over en genereer direct', 'digitale-bazen-ai-module' ); ?>
-					</button>
-				</p>
-			</section>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-must-include"><?php esc_html_e( 'Belangrijke punten die benoemd moeten worden', 'digitale-bazen-ai-module' ); ?></label>
+							<textarea
+								id="db-ai-must-include"
+								rows="3"
+								class="large-text"
+								placeholder="<?php echo esc_attr__( "Bv:\n- Wij doen alleen WordPress, geen Shopify\n- Wij hebben een vaste prijs per maand\n- 24/7 support inbegrepen", 'digitale-bazen-ai-module' ); ?>"
+							></textarea>
+						</div>
 
-			<section class="db-ai-wizard-pane" data-step="4">
-				<h2><?php esc_html_e( '4. Specifieke input voor deze blog', 'digitale-bazen-ai-module' ); ?></h2>
-				<p class="description">
-					<?php esc_html_e( 'Per-blog details die boven de algemene instellingen uit Settings gaan. Allemaal optioneel.', 'digitale-bazen-ai-module' ); ?>
-				</p>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-must-avoid"><?php esc_html_e( 'Onderwerpen / claims die vermeden moeten worden', 'digitale-bazen-ai-module' ); ?></label>
+							<textarea
+								id="db-ai-must-avoid"
+								rows="3"
+								class="large-text"
+								placeholder="<?php echo esc_attr__( "Bv:\n- Geen prijsindicaties\n- Geen vergelijkingen met specifieke concurrenten\n- Geen beloften over leadtimes", 'digitale-bazen-ai-module' ); ?>"
+							></textarea>
+						</div>
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-must-include"><?php esc_html_e( 'Belangrijke punten die benoemd moeten worden', 'digitale-bazen-ai-module' ); ?></label>
-					<textarea
-						id="db-ai-must-include"
-						rows="3"
-						class="large-text"
-						placeholder="<?php echo esc_attr__( "Bv:\n- Wij doen alleen WordPress, geen Shopify\n- Wij hebben een vaste prijs per maand\n- 24/7 support inbegrepen", 'digitale-bazen-ai-module' ); ?>"
-					></textarea>
-				</div>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-beat-competition"><?php esc_html_e( 'Wat moet deze blog beter doen dan concurrenten?', 'digitale-bazen-ai-module' ); ?></label>
+							<textarea
+								id="db-ai-beat-competition"
+								rows="3"
+								class="large-text"
+								placeholder="<?php echo esc_attr__( "Bv:\n- Duidelijker uitleggen, minder vakjargon\n- Praktijkgerichter, met concrete checklist\n- Sneller tot de kern, geen lange inleidingen", 'digitale-bazen-ai-module' ); ?>"
+							></textarea>
+							<p class="description"><?php esc_html_e( 'Bestaande top-3 in Google voor dit zoekwoord doet meestal iets standaards. Wat is jouw edge?', 'digitale-bazen-ai-module' ); ?></p>
+						</div>
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-must-avoid"><?php esc_html_e( 'Onderwerpen / claims die vermeden moeten worden', 'digitale-bazen-ai-module' ); ?></label>
-					<textarea
-						id="db-ai-must-avoid"
-						rows="3"
-						class="large-text"
-						placeholder="<?php echo esc_attr__( "Bv:\n- Geen prijsindicaties\n- Geen vergelijkingen met specifieke concurrenten\n- Geen beloften over leadtimes", 'digitale-bazen-ai-module' ); ?>"
-					></textarea>
-				</div>
+						<?php if ( $internal_links_enabled && ! empty( $link_candidates ) ) : ?>
+							<div class="db-ai-field-wrap">
+								<label for="db-ai-forced-links"><?php esc_html_e( 'Verplicht linken naar', 'digitale-bazen-ai-module' ); ?></label>
+								<select
+									id="db-ai-forced-links"
+									multiple
+									size="8"
+									style="width:100%;max-width:560px;"
+								>
+									<?php foreach ( $link_candidates as $candidate ) : ?>
+										<option value="<?php echo (int) $candidate->ID; ?>">
+											[<?php echo esc_html( $candidate->post_type ); ?>] <?php echo esc_html( $candidate->post_title ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">
+									<?php esc_html_e( 'Cmd/Ctrl + klik om meerdere te selecteren. Deze pagina\'s krijgen voorrang — de generator probeert ze te plaatsen waar ze passen, boven de automatische pool.', 'digitale-bazen-ai-module' ); ?>
+								</p>
+							</div>
+						<?php endif; ?>
 
-				<div class="db-ai-field-wrap">
-					<label for="db-ai-beat-competition"><?php esc_html_e( 'Wat moet deze blog beter doen dan concurrenten?', 'digitale-bazen-ai-module' ); ?></label>
-					<textarea
-						id="db-ai-beat-competition"
-						rows="3"
-						class="large-text"
-						placeholder="<?php echo esc_attr__( "Bv:\n- Duidelijker uitleggen, minder vakjargon\n- Praktijkgerichter, met concrete checklist\n- Sneller tot de kern, geen lange inleidingen", 'digitale-bazen-ai-module' ); ?>"
-					></textarea>
-					<p class="description"><?php esc_html_e( 'Bestaande top-3 in Google voor dit zoekwoord doet meestal iets standaards. Wat is jouw edge?', 'digitale-bazen-ai-module' ); ?></p>
-				</div>
+						<div class="db-ai-field-wrap">
+							<label for="db-ai-extra-instructions"><?php esc_html_e( 'Extra instructies voor deze blog', 'digitale-bazen-ai-module' ); ?></label>
+							<textarea
+								id="db-ai-extra-instructions"
+								rows="4"
+								class="large-text"
+								placeholder="<?php echo esc_attr__( "Bv: focus op praktische voorbeelden, vermijd technische termen, benoem onze 24/7 support, sluit af met een vergelijking met DIY-aanpak.", 'digitale-bazen-ai-module' ); ?>"
+							></textarea>
+							<p class="description"><?php esc_html_e( 'Aanwijzingen voor deze ene blog die je niet kwijt wilt in de algemene instellingen. Wordt aan de prompt toegevoegd.', 'digitale-bazen-ai-module' ); ?></p>
+						</div>
 
-				<?php if ( $internal_links_enabled && ! empty( $link_candidates ) ) : ?>
-					<div class="db-ai-field-wrap">
-						<label for="db-ai-forced-links"><?php esc_html_e( 'Verplicht linken naar (optioneel)', 'digitale-bazen-ai-module' ); ?></label>
-						<select
-							id="db-ai-forced-links"
-							multiple
-							size="8"
-							style="width:100%;max-width:560px;"
-						>
-							<?php foreach ( $link_candidates as $candidate ) : ?>
-								<option value="<?php echo (int) $candidate->ID; ?>">
-									[<?php echo esc_html( $candidate->post_type ); ?>] <?php echo esc_html( $candidate->post_title ); ?>
-								</option>
-							<?php endforeach; ?>
-						</select>
-						<p class="description">
-							<?php esc_html_e( 'Cmd/Ctrl + klik om meerdere te selecteren. Deze pagina\'s krijgen PRIORITEIT in de prompt — AI zal ze proberen te plaatsen waar ze passen. Boven de algemene relevance-pool die automatisch wordt opgebouwd.', 'digitale-bazen-ai-module' ); ?>
-						</p>
 					</div>
-				<?php endif; ?>
-
-				<p>
-					<button type="button" class="button button-primary" data-wizard-next="5">
-						<?php esc_html_e( 'Volgende →', 'digitale-bazen-ai-module' ); ?>
-					</button>
-				</p>
-			</section>
-
-			<section class="db-ai-wizard-pane" data-step="5">
-				<h2><?php esc_html_e( '5. Genereer blogpost', 'digitale-bazen-ai-module' ); ?></h2>
-				<p class="description">
-					<?php esc_html_e( 'Roept de AI aan, downloadt afbeeldingen, maakt een draft aan onder Blogs. Duurt 30-60 seconden.', 'digitale-bazen-ai-module' ); ?>
-				</p>
-
-				<div class="db-ai-extra-instructions-wrap">
-					<label for="db-ai-extra-instructions"><?php esc_html_e( 'Extra instructies voor deze blog (optioneel)', 'digitale-bazen-ai-module' ); ?></label>
-					<textarea
-						id="db-ai-extra-instructions"
-						rows="4"
-						class="large-text"
-						placeholder="<?php echo esc_attr__( "Bv: focus op praktische voorbeelden, vermijd technische termen, benoem onze 24/7 support, sluit af met een vergelijking met DIY-aanpak.", 'digitale-bazen-ai-module' ); ?>"
-					></textarea>
-					<p class="description"><?php esc_html_e( 'Specifieke aanwijzingen voor deze ene blog die je niet kwijt wilt in de globale instellingen. Wordt aan de AI-prompt toegevoegd. Leeg laten = gebruik alleen je standaard tone-of-voice instellingen.', 'digitale-bazen-ai-module' ); ?></p>
-				</div>
+				</details>
 
 				<button type="button" id="db-ai-generate-btn" class="button button-primary" disabled>
 					<?php esc_html_e( 'Genereer blogpost', 'digitale-bazen-ai-module' ); ?>
 				</button>
 				<span id="db-ai-quota" class="db-ai-quota"></span>
+
+				<div id="db-ai-generate-progress" class="db-ai-progress" hidden aria-live="polite" aria-atomic="true">
+					<div class="db-ai-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+						<div class="db-ai-progress__fill"></div>
+					</div>
+					<div class="db-ai-progress__label"><?php esc_html_e( 'Voorbereiden…', 'digitale-bazen-ai-module' ); ?></div>
+				</div>
+
 				<div id="db-ai-generate-status" class="db-ai-status" role="status" aria-live="polite"></div>
 				<div id="db-ai-generate-result" class="db-ai-result"></div>
 			</section>

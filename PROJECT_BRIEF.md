@@ -113,6 +113,96 @@ Start met **site_context** — dat heeft de grootste merkbare impact omdat het z
 
 ---
 
+## 0D. v1.3.0 Iteratie — RankMath bridge + externe link advisor + power-words gefixt (2026-05-27)
+
+User-feedback na productiegebruik: RankMath klaagde over "Focus keyword niet in subkop(pen)" terwijl het wél in de ACF block-titels stond, en over ontbrekende uitgaande links + ontbrekende power-words in de SEO-titel.
+
+### Wat is toegevoegd
+
+**RankMath content-bridge** (`includes/class-db-ai-rankmath-bridge.php` + `assets/rankmath-bridge.js`):
+
+- Root cause: dit theme rendert `paginacontent` via een directe template-include zonder `the_content()`-filter. RankMath's content-analyzer scant alleen `post_content` (leeg) — ziet daardoor geen H2/H3, body-tekst of outbound links uit ACF.
+- Fix: bridge hookt via `wp.hooks.addFilter('rank_math_content', ...)` op RankMath's editor-side analyzer en feedt een gerenderde HTML-versie van de ACF flex.
+- Mirrort frontend heading-niveaus: `banner` → h1, `tekst_met_afbeelding`/`tekst_weergaves`/`usps`/`veelgestelde_vragen` → h2, `onderwerp_titel` → h4.
+- Alleen actief op admin post-edit screens. Frontend rendering blijft ongewijzigd.
+
+**Externe link advisor** (`includes/class-db-ai-external-links.php` + `class-db-ai-external-links-metabox.php` + `assets/external-links-metabox.js`):
+
+- Nieuwe Settings-tab "Externe bronnen" met toggle (default aan) + max 2-5 suggesties.
+- AI genereert tijdens elke generatie 3-5 link-suggesties naar autoritaire bronnen (bias naar Wikipedia, rijksoverheid.nl, branche-organisaties). Opgeslagen in `_db_ai_external_link_suggestions` post-meta.
+- Nieuwe metabox "AI — Externe bronnen" op de post-edit screen toont suggesties met HEAD-check status (✓ ok / ↪ redirect / ⏱ timeout / ✗ dead / ? blocked, 24u gecached).
+- AJAX-insert injecteert anchor-tag in het beste body-text veld via heuristische detectie (ACF veld-type + veld-naam + content-detectie). Werkt ook met field-key-keyed ACF storage. Fallback-append als anchor niet inline gevonden.
+
+**Power-words gevalideerd tegen RankMath NL lijst**:
+
+- Eerdere prompt gebruikte verbogen vormen (`essentiële`, `ultieme`, `slimme`) die NIET in RankMath's `nl.php` staan — daardoor faalde de power-word check ondanks correcte titels.
+- Nieuwe prompt-lijst van ~35 power-words gecureerd tegen `seo-by-rank-math/assets/vendor/powerwords/nl.php` + B2B-filter. Gegroepeerd per topic-toon (autoriteit, kracht, efficient, waardevol, boeiend, praktisch).
+- Default-aanbeveling: `bewezen` (past participle, inflecteert niet, werkt overal).
+- Expliciete verboden-lijst voor inflected varianten die NIET worden gedetecteerd.
+
+**Prompt aangescherpt**:
+
+- Power-word + getal werden vroeger "bij voorkeur" — nu MOET-bevatten in zowel post-titel als meta_title.
+- Schrap-volgorde voor krap meta_titles: vulwoorden → getal → en pas als allerlaatste het power-word weglaten.
+
+### Filters toegevoegd
+
+```php
+apply_filters( 'db_ai_external_links_post_types', [ 'blog', 'post', 'page' ] ); // metabox post types
+apply_filters( 'db_ai_debug_external_links_insert', false ); // log AJAX inserts naar apache_error.log
+```
+
+---
+
+## 0E. v1.4.0 Iteratie — Wizard-redesign + progress bar (2026-05-27)
+
+User-feedback: wizard met 5 stappen werd onoverzichtelijk door alle optionele velden, en de spinner-tekst tijdens generatie gaf geen idee van progressie.
+
+### Wat is veranderd
+
+**Wizard van 5 → 3 stappen** (`templates/admin-page.php` + `assets/admin.js`):
+
+- Was: Upload → Kies zoekwoord → Basisinfo → Specifiek → Genereer
+- Is: Upload → Kies zoekwoord → Genereer
+- Alle optionele velden gegroepeerd onder één `<details>` collapsible "Geavanceerd (optioneel)" in stap 3. Default dicht. Custom ▸/▾ marker via `::before`-pseudo zonder browser-default driehoek.
+- JS-stap-constanten: `STEP_BASIC`, `STEP_SPECIFIC` weg. `STEP_GENERATE = 3`. Na keyword-selectie wordt direct naar stap 3 gesprongen.
+- Field-IDs (`db-ai-funnel-phase`, `db-ai-must-include`, etc.) ongewijzigd — bestaande JS-bindings + AJAX-collect blijven werken.
+
+**Progress bar tijdens generatie**:
+
+- Vervangt de eerdere `setStatus('is-loading')`-spinner met een echte progress bar.
+- Asymptotische curve `1 - exp(-1.2 * elapsed / 45000)`, capped op 95% tot AJAX terugkomt. Voorkomt dat hij te vroeg op 100% staat.
+- Vier stage-labels per zone: 8% "Zoekwoord-context verzamelen" → 55% "Generator schrijft je blog" → 80% "Afbeeldingen ophalen" → 95% "Blog aanmaken en blokken vullen" → 100% "Bijna klaar".
+- Resolve-states: groen + "Klaar!" bij succes, rood + "Mislukt — zie melding hieronder" bij fout. Verdwijnt na 1,2s.
+- Geen server-side polling — dit is een fake-but-realistic schatting. Voor echte voortgang zou een transient-poll endpoint nodig zijn dat post-creator bij elke van de 11 stappen update.
+
+**"Type content"-keuze verwijderd uit UI**:
+
+- Generator was multi-purpose (blog/landing/faq/comparison/case/service) maar werd in praktijk alleen voor blogs gebruikt — keuze leverde onnodig complexiteit op.
+- Select-element verwijderd uit de template. Server-side wordt `type_content = 'blog'` geforceerd in `DB_AI_Ajax::collect_blog_input()` zodat de CONTENTTYPE-hint nog steeds in de AI-prompt landt via `DB_AI_Blog_Input::TYPE_CONTENT_HINTS`.
+- `TYPE_CONTENT_HINTS` array blijft staan in de codebase — kost niets, en blijft beschikbaar als de keuze ooit weer terug komt.
+
+**Cache-buster met `filemtime()`**:
+
+- `DB_AI_Admin_Page::register_assets()` gebruikt nu `DB_AI_VERSION . '.' . filemtime( $css_path )` als asset-version.
+- Voorkomt dat browsers oude `admin.css`/`admin.js` serveren na een code-tweak binnen dezelfde plugin-versie. Vooral relevant tijdens development en patch-releases.
+- Voor productie-releases verandert `DB_AI_VERSION` toch — geen impact.
+
+**Settings copy systematisch gepolijst**:
+
+- Alle tab-intros, section-intros en field-descriptions consistent in "de generator"-idioom. Was een mix van "AI", "de plugin", "system prompt", "business".
+- Menu-label "AI Module" → "Generator". Page-titel idem.
+- Tabs Block-layouts/ACF/AI setup gekregen volledige herschrijving naar gebruikersvriendelijke toon.
+- ACF veld-label "Flex field binnen field group" → "Flex content veld".
+- Sectie "AI provider" → "AI-dienst". Sectie "API keys" → "API-keys".
+
+### Bekende beperkingen
+
+- Progress bar is een **simulatie**, niet echte server-side stappen. Werkelijke generation duurt 25-70s, asymptote nadert maar haalt 95% niet. Bij snel klaar (<20s) wordt de bar geforceerd naar 100% — visueel OK.
+- `data-wizard-next` en `data-wizard-skip` JS-handlers blijven staan voor backwards-compat maar matchen geen DOM-elementen meer (de "Volgende →"/"Sla over" knoppen zaten in de verwijderde stappen 3+4).
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
