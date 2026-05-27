@@ -257,7 +257,7 @@ class DB_AI_ACF_Mapper {
 	 * Mirrors PROJECT_BRIEF section 8.
 	 */
 	public function get_output_schema_example(): array {
-		return [
+		$schema = [
 			'post' => [
 				'title'   => 'string, 40-70 chars, bevat hoofdzoekwoord',
 				'slug'    => 'string, kebab-case, NL, max 70 chars',
@@ -276,6 +276,16 @@ class DB_AI_ACF_Mapper {
 				'array van block-objecten met "acf_fc_layout" key, zie layout spec hierboven voor exacte veldspec',
 			],
 		];
+
+		// Externe link-suggesties — alleen tonen als de feature aanstaat zodat de
+		// AI niet onnodig dit veld vult (en tokens verspilt) bij uitgeschakelde feature.
+		if ( class_exists( 'DB_AI_External_Links' ) && DB_AI_External_Links::is_enabled() ) {
+			$schema['external_link_suggestions'] = [
+				'array van { anchor, url, why, block_index } — zie EXTERNE BRONNEN-blok onder de user-prompt',
+			];
+		}
+
+		return $schema;
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,36 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 1.3.0 =
+* **RankMath bridge** (`includes/class-db-ai-rankmath-bridge.php` + `assets/rankmath-bridge.js`):
+  hookt via `wp.hooks.addFilter('rank_math_content', ...)` op RankMath's
+  content-analyzer en feedt hem een gerenderde HTML-versie van de ACF flex.
+  Lost de "Focus keyword in subkop(pen)" en density-check op voor sites die
+  `paginacontent` via directe template-include renderen (geen `the_content`-
+  filter). Mirrort frontend heading-niveaus: banner→h1, tekst_met_afbeelding/
+  tekst_weergaves/usps/veelgestelde_vragen→h2, onderwerp_titel→h4.
+* **Externe link advisor**: nieuwe Settings-tab "Externe bronnen" met aan/uit
+  toggle (default aan) en max-aantal (2-5). AI genereert tijdens elke blog
+  3-5 link-suggesties naar autoritaire bronnen (Wikipedia, overheid, branche-
+  organisaties), opgeslagen als `_db_ai_external_link_suggestions` post-meta.
+  Nieuwe metabox "AI — Externe bronnen" op de post-edit-screen toont
+  suggesties met HEAD-check status (✓ ok / ↪ redirect / ⏱ timeout / ✗ dead),
+  redacteur kiest welke ingevoegd worden. AJAX-insert injecteert anchor-tag
+  in het beste body-text veld via heuristische detectie (ACF type +
+  veld-naam + content-detectie), met fallback-append als anchor niet
+  inline gevonden.
+* **Power-word prompt aangescherpt op RankMath NL-detected vormen**: de
+  Anthropic + OpenAI system prompt gebruikt nu een gecureerde lijst van
+  ~35 power-words die letterlijk in `seo-by-rank-math/assets/vendor/
+  powerwords/nl.php` staan én B2B-veilig zijn. Verbogen varianten als
+  `essentiële`, `ultieme`, `slimme` (die RankMath NIET detecteert) zijn
+  expliciet verboden. Power-words zijn gegroepeerd per topic-toon zodat
+  AI een passende keuze maakt per onderwerp.
+* **Power-word + getal verplicht in meta_title én post-titel**: prompt-regel
+  van "bij voorkeur" naar "MOET bevatten (beide)", met expliciete schrap-
+  volgorde voor korte meta_titles (vulwoorden → getal → power-word als
+  allerlaatste).
 
 = 1.2.0 =
 * **Interne links feature**: nieuwe Settings-tab "Interne links" met aan/uit

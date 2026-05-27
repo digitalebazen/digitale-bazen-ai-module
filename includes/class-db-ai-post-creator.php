@@ -61,6 +61,8 @@ class DB_AI_Post_Creator {
 			$internal_link_forced = $merged['forced_count'];
 		}
 
+		$external_links_max = DB_AI_External_Links::is_enabled() ? DB_AI_External_Links::get_max_suggestions() : 0;
+
 		// 1. AI call
 		$ai_output = $this->ai_provider->generate_blog(
 			$main_keyword,
@@ -72,6 +74,7 @@ class DB_AI_Post_Creator {
 				'internal_link_pool'   => $internal_link_pool,
 				'internal_link_max'    => $internal_link_max,
 				'internal_link_forced' => $internal_link_forced,
+				'external_links_max'   => $external_links_max,
 			]
 		);
 		if ( is_wp_error( $ai_output ) ) {
@@ -178,6 +181,17 @@ class DB_AI_Post_Creator {
 		update_post_meta( $post_id, '_db_ai_tokens_used', $tokens );
 		if ( ! empty( $warnings ) ) {
 			update_post_meta( $post_id, '_db_ai_warnings', $warnings );
+		}
+
+		// Externe link-suggesties — opslaan als post meta, metabox toont ze later.
+		if ( $external_links_max > 0 ) {
+			$suggestions = DB_AI_External_Links::sanitize_suggestions(
+				$ai_output['external_link_suggestions'] ?? [],
+				$external_links_max
+			);
+			if ( ! empty( $suggestions ) ) {
+				update_post_meta( $post_id, DB_AI_External_Links::META_KEY, $suggestions );
+			}
 		}
 
 		// 9. Log

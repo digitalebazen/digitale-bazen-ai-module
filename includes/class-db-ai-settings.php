@@ -140,6 +140,27 @@ class DB_AI_Settings {
 		return defined( 'DB_AI_PROVIDER' ) && '' !== trim( (string) DB_AI_PROVIDER );
 	}
 
+	public static function is_external_links_enabled(): bool {
+		$opts = self::get_options();
+		// Default ON: niet aanwezig in opties = aan. Pas op false als expliciet '0' is opgeslagen.
+		if ( ! array_key_exists( 'external_links_enabled', $opts ) ) {
+			return true;
+		}
+		return ! empty( $opts['external_links_enabled'] );
+	}
+
+	public static function get_external_links_max(): int {
+		$opts = self::get_options();
+		$val  = (int) ( $opts['external_links_max'] ?? 4 );
+		if ( $val < 2 ) {
+			return 2;
+		}
+		if ( $val > 5 ) {
+			return 5;
+		}
+		return $val;
+	}
+
 	// ─── Instance: menu + Settings API ─────────────────────────────────────
 
 	private $page_hook = '';
@@ -643,6 +664,46 @@ class DB_AI_Settings {
 			'db_ai_internal_links_section'
 		);
 
+		// ─── Externe bronnen sectie ───────────────────────────────────────
+		add_settings_section(
+			'db_ai_external_links_section',
+			__( 'Externe bronnen', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'AI stelt na elke generatie 3-5 externe link-suggesties voor naar autoritaire bronnen (Wikipedia, overheid, brancheorganisaties). Suggesties verschijnen in een metabox op de post-edit-screen — geen automatische invoeging. Redacteur ziet eerst groen/oranje per URL (HEAD-check) en kiest welke ingevoegd worden.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'external_links_enabled',
+			__( 'Externe link-suggesties', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_checkbox_field' ],
+			self::PAGE_SLUG,
+			'db_ai_external_links_section',
+			[
+				'key'   => 'external_links_enabled',
+				'label' => __( 'Genereer externe link-suggesties bij elke blog', 'digitale-bazen-ai-module' ),
+				'help'  => __( 'Bij uit: geen suggesties, geen tokens-overhead, geen metabox. Bij aan: ~200 extra output-tokens per blog (~$0.005).', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'external_links_max',
+			__( 'Max aantal suggesties per blog', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_select_field' ],
+			self::PAGE_SLUG,
+			'db_ai_external_links_section',
+			[
+				'key'     => 'external_links_max',
+				'options' => [
+					'2' => __( '2 suggesties', 'digitale-bazen-ai-module' ),
+					'3' => __( '3 suggesties', 'digitale-bazen-ai-module' ),
+					'4' => __( '4 suggesties (aanbevolen)', 'digitale-bazen-ai-module' ),
+					'5' => __( '5 suggesties', 'digitale-bazen-ai-module' ),
+				],
+			]
+		);
+
 		// ─── Zoekwoordenonderzoek sectie ──────────────────────────────────
 		add_settings_section(
 			'db_ai_kwo_section',
@@ -759,7 +820,7 @@ class DB_AI_Settings {
 		// Anti-generiek + interne links toggles — unchecked checkboxes komen niet in
 		// $input. Form bevat alle tabs in één submit, dus we resetten ze altijd
 		// unconditioneel.
-		foreach ( [ 'anti_opinion', 'anti_examples', 'anti_downsides', 'internal_links_enabled' ] as $bool_key ) {
+		foreach ( [ 'anti_opinion', 'anti_examples', 'anti_downsides', 'internal_links_enabled', 'external_links_enabled' ] as $bool_key ) {
 			$out[ $bool_key ] = ! empty( $input[ $bool_key ] ) ? 1 : 0;
 		}
 
@@ -767,6 +828,12 @@ class DB_AI_Settings {
 		if ( array_key_exists( 'internal_links_max', $input ) ) {
 			$val = (int) $input['internal_links_max'];
 			$out['internal_links_max'] = ( $val >= 2 && $val <= 5 ) ? $val : 3;
+		}
+
+		// External links max — select, alleen 2..5
+		if ( array_key_exists( 'external_links_max', $input ) ) {
+			$val = (int) $input['external_links_max'];
+			$out['external_links_max'] = ( $val >= 2 && $val <= 5 ) ? $val : 4;
 		}
 
 		// Internal links post types — array van post type names, intersect met public ones
@@ -1248,6 +1315,13 @@ class DB_AI_Settings {
 				'title'    => __( 'Interne links', 'digitale-bazen-ai-module' ),
 				'intro'    => __( 'AI plaatst automatisch interne links naar relevante pagina\'s op je site bij elke blog-generatie. Goed voor SEO en doorklik-gedrag.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_internal_links_section' ],
+			],
+			[
+				'id'       => 'externallinks',
+				'label'    => __( 'Externe bronnen', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Externe bronnen', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'AI suggereert externe link-bronnen (Wikipedia, overheid, brancheorganisaties) bij elke blog. Redacteur kiest welke ingevoegd worden via een metabox op de post-edit-screen.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_external_links_section' ],
 			],
 			[
 				'id'       => 'kwo',

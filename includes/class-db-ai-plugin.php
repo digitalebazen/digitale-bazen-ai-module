@@ -12,6 +12,8 @@ final class DB_AI_Plugin {
 	private $ajax;
 	private $faq_schema;
 	private $settings;
+	private $rankmath_bridge;
+	private $external_links_metabox;
 
 	public static function instance(): self {
 		if ( null === self::$instance ) {
@@ -39,6 +41,12 @@ final class DB_AI_Plugin {
 
 			$this->settings = new DB_AI_Settings();
 			$this->settings->register();
+
+			$this->rankmath_bridge = new DB_AI_Rankmath_Bridge();
+			$this->rankmath_bridge->register();
+
+			$this->external_links_metabox = new DB_AI_External_Links_Metabox();
+			$this->external_links_metabox->register();
 		}
 
 		if ( wp_doing_ajax() || is_admin() ) {

@@ -186,9 +186,37 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
   * MINIMAAL 2 verschillende `titel`-velden van blocks (deze worden gerenderd als H2/H3)
   * meta_title — als allereerste woord(en), niet in het midden
   * meta_description — minstens één keer, liefst vooraan
-- post-titel BEVAT bij voorkeur:
-  * Eén power-word, kies uit: essentiële, ultieme, complete, krachtige, slimme, praktische, bewezen, beste, handige, simpele, snelle, definitieve, gegarandeerde
-  * Een getal waar logisch passend ("5 manieren", "7 stappen", jaartal "2026" als jaar-context relevant is). Skip alleen als een getal er geforceerd uitziet.
+- post-titel MOET bevatten (beide, tenzij echt onnatuurlijk):
+  * Eén power-word — kies UITSLUITEND uit onderstaande lijst. Elk woord staat letterlijk in RankMath's NL power-word lijst (`seo-by-rank-math/assets/vendor/powerwords/nl.php`) én is gefilterd op B2B/MKB-toon (geen sensatie/clickbait varianten). Plaats het direct na het focus keyword waar grammaticaal mogelijk. Voorkeur voor `bewezen` als veilige default — past participle inflecteert nooit.
+
+    Autoriteit / vakkundig:
+      `bewezen`, `beste`, `effectief`/`effectieve`, `professioneel`, `betrouwbaar`/`betrouwbare`,
+      `ervaren`, `gezaghebbende`, `gedetailleerde`, `informatieve`, `expert`, `intelligent`
+
+    Kracht / impact:
+      `krachtige`, `baanbrekende`, `revolutionair`, `innovatief`, `succesvol`, `winstgevende`,
+      `lucratief`
+
+    Helder / efficient:
+      `handige`/`handig`, `praktische`, `efficient`, `eenvoud`, `helder`, `duidelijk`,
+      `gerichte`, `solide`
+
+    Aantrekkelijk / waardevol:
+      `aantrekkelijke`, `aanzienlijke`, `waardevolle`, `indrukwekkende`, `opmerkelijk`,
+      `kostbaar`
+
+    Energiek / boeiend:
+      `boeiend`, `dynamisch`, `inspirerend`, `fascinerend`, `intrigerende`
+
+    Praktisch / haalbaar:
+      `moeiteloos`, `kipsimpel`, `comfortabel`, `kickstart`, `stap-voor-stap`
+
+  KIES op basis van topic-toon: een resultaat/strategie-blog past bij `bewezen`/`effectief`/`succesvol`; een hoe-doe-je-blog bij `handige`/`praktische`/`moeiteloos`; een uitleg-blog bij `gedetailleerde`/`informatieve`/`helder`; een trend-blog bij `baanbrekende`/`innovatief`/`fascinerend`.
+
+  VERBODEN (lijken op power words maar staan NIET in RankMath's NL lijst — worden NIET gedetecteerd): `essentiële`, `ultieme`, `slimme`, `simpele`, `snelle`, `definitieve`, `gegarandeerde`, `volledige`, `complete`. Gebruik deze NOOIT, kies een variant uit de lijst hierboven.
+
+  * Een concreet getal — bv. "5 manieren", "7 stappen", "10 tips", "in 3 stappen", of het huidige jaartal (2026) als dat redactioneel klopt. Geforceerd klinkende cijfers vermijden, maar een natuurlijke variant kan vrijwel altijd bedacht worden.
+- meta_title MOET hetzelfde power-word EN het getal van de post-titel bevatten — kort herformuleren mag, maar laat NOOIT het power-word weg om ruimte te maken. Schrap eerst bijvoeglijke vulwoorden, dan eventueel het getal, en pas als allerlaatste het power-word.
 - Secundaire keywords natuurlijk verweven (max 1× per zin, geen stuffing)
 - FAQ-vragen formuleren als echte gebruikersvragen (long-tail keywords)
 - Meta_title: focus keyword vooraan, max 60 chars, bevat indien mogelijk power-word
@@ -206,6 +234,7 @@ TXT;
 		$link_pool     = (array) ( $context['internal_link_pool'] ?? [] );
 		$max_links     = (int) ( $context['internal_link_max'] ?? 0 );
 		$forced_count  = (int) ( $context['internal_link_forced'] ?? 0 );
+		$external_max  = (int) ( $context['external_links_max'] ?? 0 );
 
 		$secondary_list = empty( $secondary_keywords )
 			? __( '(geen secundaire keywords beschikbaar)', 'digitale-bazen-ai-module' )
@@ -246,6 +275,13 @@ TXT;
 			$links_block = DB_AI_Internal_Links::get_prompt_addition( $link_pool, $max_links, $forced_count );
 			if ( '' !== $links_block ) {
 				$prompt .= "\n\n" . $links_block;
+			}
+		}
+
+		if ( $external_max > 0 ) {
+			$ext_block = DB_AI_External_Links::get_prompt_addition( $external_max );
+			if ( '' !== $ext_block ) {
+				$prompt .= "\n\n" . $ext_block;
 			}
 		}
 
