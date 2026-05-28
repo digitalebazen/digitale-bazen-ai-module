@@ -512,14 +512,13 @@
 	}
 
 	/**
-	 * Fake-progress voor de blog-generatie. Server geeft geen tussenstand
-	 * dus we tonen een asymptotische curve die 95% nadert maar nooit haalt;
-	 * AJAX-resolve zet hem op 100%. Stage-label wisselt per zone zodat de
-	 * gebruiker weet wat er ruwweg gebeurt.
+	 * Progress-bar controller. Leest sinds v2.0.0 ECHTE server-voortgang via het
+	 * poll-endpoint (geen fake curve meer). update() zet percentage + label,
+	 * finish() sluit af in groen/rood.
 	 *
-	 * @returns {{ finish: (success: boolean) => void } | null}
+	 * @returns {{ update: (pct:number,label:string)=>void, finish:(success:boolean)=>void } | null}
 	 */
-	function startGenerateProgress() {
+	function showGenerateProgress() {
 		const wrap = $('#db-ai-generate-progress');
 		if (!wrap) return null;
 		const bar   = wrap.querySelector('.db-ai-progress__bar');
@@ -527,55 +526,27 @@
 		const label = wrap.querySelector('.db-ai-progress__label');
 		if (!bar || !fill || !label) return null;
 
-		const stages = [
-			{ upTo:  8, text: (config.i18n.progressPrepare    || 'Zoekwoord-context verzamelen…') },
-			{ upTo: 55, text: (config.i18n.progressWriting    || 'Generator schrijft je blog…') },
-			{ upTo: 80, text: (config.i18n.progressImages     || 'Afbeeldingen ophalen…') },
-			{ upTo: 95, text: (config.i18n.progressAssembling || 'Blog aanmaken en blokken vullen…') },
-			{ upTo: 100, text: (config.i18n.progressAlmost    || 'Bijna klaar…') },
-		];
-
 		wrap.hidden = false;
 		wrap.classList.remove('is-done', 'is-error');
 		fill.style.width = '0%';
 		bar.setAttribute('aria-valuenow', '0');
-		label.textContent = stages[0].text;
-
-		const startTime         = Date.now();
-		const estimatedDuration = 45000; // 45s — midden van het 30-60s bereik
-
-		const intervalId = setInterval(function () {
-			const elapsed = Date.now() - startTime;
-			const t       = elapsed / estimatedDuration;
-			// Asymptotic: y = 1 - e^(-1.2t), schaal naar 95% max.
-			let pct = (1 - Math.exp(-t * 1.2)) * 100;
-			if (pct > 95) pct = 95;
-
-			fill.style.width = pct.toFixed(1) + '%';
-			bar.setAttribute('aria-valuenow', String(Math.round(pct)));
-
-			for (let i = 0; i < stages.length; i++) {
-				if (pct <= stages[i].upTo) {
-					if (label.textContent !== stages[i].text) {
-						label.textContent = stages[i].text;
-					}
-					break;
-				}
-			}
-		}, 250);
+		label.textContent = config.i18n.progressQueued || 'In wachtrij…';
 
 		return {
+			update: function (pct, text) {
+				const p = Math.max(0, Math.min(100, parseInt(pct, 10) || 0));
+				fill.style.width = p + '%';
+				bar.setAttribute('aria-valuenow', String(p));
+				if (text) label.textContent = text;
+			},
 			finish: function (success) {
-				clearInterval(intervalId);
 				fill.style.width = '100%';
 				bar.setAttribute('aria-valuenow', '100');
 				wrap.classList.add(success ? 'is-done' : 'is-error');
 				label.textContent = success
 					? (config.i18n.progressDone   || 'Klaar!')
 					: (config.i18n.progressFailed || 'Mislukt — zie melding hieronder.');
-				setTimeout(function () {
-					wrap.hidden = true;
-				}, 1200);
+				setTimeout(function () { wrap.hidden = true; }, 1200);
 			},
 		};
 	}
@@ -592,7 +563,7 @@
 		if (statusEl) { statusEl.textContent = ''; statusEl.className = 'db-ai-status'; }
 		if (btn) btn.disabled = true;
 
-		const progress = startGenerateProgress();
+		const progress = showGenerateProgress();
 
 		const formData = new FormData();
 		formData.append('action', 'db_ai_generate');
@@ -607,7 +578,7 @@
 			formData.append('extra_instructions', extraEl.value);
 		}
 
-		// Stap 3 + 4 input velden — alleen meesturen als ze gevuld zijn.
+		// Stap 3 input velden — alleen meesturen als ze gevuld zijn.
 		// type_content is verwijderd uit de UI; server-side wordt 'blog' altijd geforceerd.
 		const fieldMap = {
 			'db-ai-funnel-phase':     'funnel_phase',
@@ -634,6 +605,7 @@
 			});
 		}
 
+		// Stap 1: dispatch de job → krijg job_key terug.
 		fetch(config.ajaxUrl, {
 			method: 'POST',
 			credentials: 'same-origin',
@@ -641,28 +613,90 @@
 		})
 			.then(function (res) { return res.json(); })
 			.then(function (json) {
-				if (btn) btn.disabled = false;
 				const ok = !!(json && json.success);
-				if (progress) progress.finish(ok);
 				if (!ok) {
+					if (btn) btn.disabled = false;
+					if (progress) progress.finish(false);
 					const data = (json && json.data) || {};
-					const msg = data.message || (config.i18n.generateFailed || 'Generatie mislukt.');
-					setStatus('#db-ai-generate-status', msg, 'error');
-					if (resultEl && Array.isArray(data.validation_errors) && data.validation_errors.length) {
-						let html = '<div class="db-ai-errors"><h3>' + escapeHtml(config.i18n.errorsLabel || 'Validatiefouten') + '</h3><ul>';
-						data.validation_errors.forEach(function (e) { html += '<li>' + escapeHtml(e) + '</li>'; });
-						html += '</ul></div>';
-						resultEl.innerHTML = html;
-					}
+					setStatus('#db-ai-generate-status', data.message || (config.i18n.generateFailed || 'Generatie mislukt.'), 'error');
 					return;
 				}
-				renderGenerateResult(json.data);
+				// Stap 2: poll de job-status tot done/failed.
+				pollJobStatus(json.data.job_key, progress, btn, resultEl);
 			})
 			.catch(function () {
 				if (btn) btn.disabled = false;
 				if (progress) progress.finish(false);
 				setStatus('#db-ai-generate-status', config.i18n.networkError || 'Netwerkfout.', 'error');
 			});
+	}
+
+	/**
+	 * Polled het job-status endpoint tot de job done of failed is. Werkt de
+	 * progress-bar bij met de echte server-stand. Stopt bij done/failed of na
+	 * een harde max-duur (vangnet tegen oneindig pollen).
+	 */
+	function pollJobStatus(jobKey, progress, btn, resultEl) {
+		if (!jobKey) {
+			if (btn) btn.disabled = false;
+			if (progress) progress.finish(false);
+			setStatus('#db-ai-generate-status', config.i18n.generateFailed || 'Generatie mislukt.', 'error');
+			return;
+		}
+
+		const POLL_INTERVAL = 2500;
+		const MAX_DURATION  = 10 * 60 * 1000; // 10 min vangnet
+		const startedAt     = Date.now();
+
+		const statusUrl = config.ajaxUrl
+			+ '?action=db_ai_job_status'
+			+ '&nonce=' + encodeURIComponent(config.nonce)
+			+ '&job_key=' + encodeURIComponent(jobKey);
+
+		const intervalId = setInterval(function () {
+			if (Date.now() - startedAt > MAX_DURATION) {
+				clearInterval(intervalId);
+				if (btn) btn.disabled = false;
+				if (progress) progress.finish(false);
+				setStatus('#db-ai-generate-status', config.i18n.jobTimeout || 'Duurt onverwacht lang. Controleer je Blogs — de draft kan alsnog verschijnen.', 'error');
+				return;
+			}
+
+			fetch(statusUrl, { method: 'GET', credentials: 'same-origin' })
+				.then(function (res) { return res.json(); })
+				.then(function (json) {
+					if (!json || !json.success) return; // transient hiccup — volgende tick probeert opnieuw
+					const data = json.data || {};
+
+					if (data.status === 'running' || data.status === 'queued') {
+						if (progress) progress.update(data.progress || 0, data.stage_label || '');
+						return;
+					}
+
+					if (data.status === 'done') {
+						clearInterval(intervalId);
+						if (btn) btn.disabled = false;
+						if (progress) progress.finish(true);
+						renderGenerateResult(data.result || {});
+						return;
+					}
+
+					if (data.status === 'failed') {
+						clearInterval(intervalId);
+						if (btn) btn.disabled = false;
+						if (progress) progress.finish(false);
+						setStatus('#db-ai-generate-status', data.error_msg || (config.i18n.generateFailed || 'Generatie mislukt.'), 'error');
+						if (resultEl && Array.isArray(data.validation_errors) && data.validation_errors.length) {
+							let html = '<div class="db-ai-errors"><h3>' + escapeHtml(config.i18n.errorsLabel || 'Validatiefouten') + '</h3><ul>';
+							data.validation_errors.forEach(function (e) { html += '<li>' + escapeHtml(e) + '</li>'; });
+							html += '</ul></div>';
+							resultEl.innerHTML = html;
+						}
+						return;
+					}
+				})
+				.catch(function () { /* netwerk-hiccup — volgende tick probeert opnieuw */ });
+		}, POLL_INTERVAL);
 	}
 
 	function renderGenerateResult(data) {

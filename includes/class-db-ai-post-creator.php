@@ -14,6 +14,9 @@ class DB_AI_Post_Creator {
 	private $seo_mapper;
 	private $logger;
 
+	/** @var callable|null  Optionele progress-callback: fn( int $pct, string $label ): void */
+	private $progress_reporter = null;
+
 	public function __construct(
 		DB_AI_Provider $ai_provider,
 		DB_AI_ACF_Mapper $acf_mapper,
@@ -29,6 +32,21 @@ class DB_AI_Post_Creator {
 	}
 
 	/**
+	 * Optioneel: koppel een progress-callback (gebruikt door de async job-runner).
+	 * Zonder reporter gedraagt de generatie zich exact als voorheen — de
+	 * report()-calls zijn no-ops. Houdt Post_Creator ontkoppeld van DB_AI_Job_Queue.
+	 */
+	public function set_progress_reporter( callable $reporter ): void {
+		$this->progress_reporter = $reporter;
+	}
+
+	private function report( int $pct, string $label ): void {
+		if ( null !== $this->progress_reporter ) {
+			call_user_func( $this->progress_reporter, $pct, $label );
+		}
+	}
+
+	/**
 	 * @param array $blog_input  Per-blog input: type_content, funnel_phase,
 	 *                           awareness_level, must_include, must_avoid,
 	 *                           beat_competition, extra_instructions.
@@ -38,6 +56,8 @@ class DB_AI_Post_Creator {
 	 */
 	public function create_from_keyword( string $main_keyword, array $secondary_keywords, int $user_id, array $blog_input = [] ) {
 		do_action( 'db_ai_before_generate', $main_keyword, $secondary_keywords, $user_id );
+
+		$this->report( 2, __( 'Zoekwoord-context verzamelen', 'digitale-bazen-ai-module' ) );
 
 		$layout_spec = $this->acf_mapper->get_layout_spec_for_prompt();
 		if ( is_wp_error( $layout_spec ) ) {
@@ -62,6 +82,8 @@ class DB_AI_Post_Creator {
 		}
 
 		$external_links_max = DB_AI_External_Links::is_enabled() ? DB_AI_External_Links::get_max_suggestions() : 0;
+
+		$this->report( 12, __( 'Generator schrijft je blog', 'digitale-bazen-ai-module' ) );
 
 		// 1. AI call
 		$ai_output = $this->ai_provider->generate_blog(
@@ -97,6 +119,8 @@ class DB_AI_Post_Creator {
 			}
 		}
 
+		$this->report( 50, __( 'Output valideren', 'digitale-bazen-ai-module' ) );
+
 		// 2. Validate
 		$validation = $this->acf_mapper->validate_ai_output( $ai_output, $main_keyword );
 		if ( ! $validation['valid'] ) {
@@ -130,16 +154,31 @@ class DB_AI_Post_Creator {
 			return $post_id;
 		}
 
+		$this->report( 60, __( 'Blog aanmaken', 'digitale-bazen-ai-module' ) );
+
 		// 4. Walk blocks, replace image objects with attachment IDs
 		$transformed_blocks   = [];
 		$first_block_image_id = 0;
+		$block_total          = max( 1, count( $ai_output['blocks'] ) );
 		foreach ( $ai_output['blocks'] as $i => $block ) {
+			// Afbeeldingen ophalen is de traagste stap — laat de bar meebewegen van 60→88%.
+			$this->report(
+				60 + (int) round( ( $i / $block_total ) * 28 ),
+				sprintf(
+					/* translators: 1 = huidig block, 2 = totaal */
+					__( 'Afbeeldingen ophalen (%1$d/%2$d)', 'digitale-bazen-ai-module' ),
+					$i + 1,
+					$block_total
+				)
+			);
 			$transformed         = $this->process_block_images( $block, $post_id, $warnings, $i );
 			$transformed_blocks[] = $transformed;
 			if ( 0 === $first_block_image_id && ! empty( $transformed['afbeelding'] ) && is_int( $transformed['afbeelding'] ) ) {
 				$first_block_image_id = (int) $transformed['afbeelding'];
 			}
 		}
+
+		$this->report( 90, __( 'Coverfoto kiezen', 'digitale-bazen-ai-module' ) );
 
 		// 5. Featured image
 		$featured = $this->image_service->find_and_import(
@@ -164,11 +203,15 @@ class DB_AI_Post_Creator {
 			set_post_thumbnail( $post_id, $featured );
 		}
 
+		$this->report( 95, __( 'Blocks invullen', 'digitale-bazen-ai-module' ) );
+
 		// 6. ACF write
 		$this->acf_mapper->write_blocks_to_post( $post_id, $transformed_blocks );
 
 		// 7. SEO mapper
 		$this->seo_mapper->apply( $post_id, (array) ( $ai_output['seo'] ?? [] ) );
+
+		$this->report( 98, __( 'Afronden', 'digitale-bazen-ai-module' ) );
 
 		// 8. Meta
 		$model  = $this->ai_provider->get_model_identifier();

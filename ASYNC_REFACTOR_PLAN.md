@@ -260,21 +260,21 @@ Image-fetching procentages incrementeel zodat de bar daadwerkelijk meebeweegt ov
 - ✅ Wiring in bootstrap + activation + deactivation (cron-cleanup) + maybe_upgrade
 - ⏳ Nog niet gewired in de generate-flow — dat is fase 2. Geen user-zichtbare wijziging, nul regressie-risico.
 
-### Fase 2 — Async generate flow
-- Refactor `db_ai_generate` AJAX naar dispatch-only
-- Nieuwe `db_ai_job_status` AJAX
-- Hook `db_ai_run_job` action → calls into `DB_AI_Job_Queue::run()` → calls into refactored Post_Creator
-- Refactor `DB_AI_Post_Creator::create_from_keyword()` om progress te reporten
+### Fase 2 — Async generate flow ✅ AFGEROND + GETEST 2026-05-28
+- ✅ `db_ai_generate` AJAX → dispatch-only (returnt job_key)
+- ✅ Nieuwe `db_ai_job_status` AJAX poll-endpoint (capability + ownership check)
+- ✅ Worker-handler `run_generate_blog_job` geregistreerd op job-type `generate_blog`
+- ✅ `DB_AI_Post_Creator` voorzien van optionele progress-reporter (setter) + 8 checkpoint-calls; generatie-logica volledig onveranderd
+- ✅ `mark_failed` uitgebreid met data-param zodat validation_errors naar de UI bubbelen
+- ✅ Bugfix: DB_AI_Ajax wordt nu altijd geïnstantieerd (niet admin-gated) zodat de worker-handler óók in de Action Scheduler / WP-Cron request beschikbaar is
 
-**Geschatte effort**: 1-1.5 dag
+### Fase 3 — JS rewrite + UI ✅ AFGEROND + GETEST 2026-05-28
+- ✅ `generateBlog()` → POST dispatch + `pollJobStatus()` elke 2,5s
+- ✅ Progress bar leest echte server-progress (fake curve vervangen door `showGenerateProgress()`)
+- ✅ Failure-states tonen `error_msg` + validation_errors; 10-min poll-vangnet
+- ✅ Nieuwe i18n-keys (progressQueued/Done/Failed, jobTimeout)
 
-### Fase 3 — JS rewrite + UI
-- `generateBlog()` → POST + polling
-- Progress bar leest echte server-progress (vervangt fake curve)
-- Failure-states: tonen `error_code` + `error_msg` netjes
-- Cleanup oude sync-fail-pad code
-
-**Geschatte effort**: 0.5 dag
+**Getest door user**: volledige flow werkt, behavior-parity bevestigd (blocks, images, SEO, FAQ, links, quota allemaal correct).
 
 ### Fase 4 — Cleanup + admin
 - Job-cleanup cron: `done` > 30 dagen weg, `failed` > 7 dagen weg

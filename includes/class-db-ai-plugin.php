@@ -53,10 +53,13 @@ final class DB_AI_Plugin {
 			$this->external_links_metabox->register();
 		}
 
-		if ( wp_doing_ajax() || is_admin() ) {
-			$this->ajax = new DB_AI_Ajax();
-			$this->ajax->register();
-		}
+		// DB_AI_Ajax registreert óók de async worker-handler ('generate_blog').
+		// Die moet beschikbaar zijn in de worker-request (Action Scheduler / WP-Cron),
+		// welke noch admin noch ajax is — daarom altijd instantiëren. De wp_ajax_*
+		// hooks die hij toevoegt vuren alleen op admin-ajax.php, dus geen overhead
+		// of gedragswijziging op frontend-requests.
+		$this->ajax = new DB_AI_Ajax();
+		$this->ajax->register();
 	}
 
 	public static function on_activate(): void {

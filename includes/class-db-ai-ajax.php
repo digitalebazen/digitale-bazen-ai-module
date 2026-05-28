@@ -21,9 +21,14 @@ class DB_AI_Ajax {
 	public function register(): void {
 		add_action( 'wp_ajax_db_ai_parse_csv', [ $this, 'parse_csv' ] );
 		add_action( 'wp_ajax_db_ai_generate', [ $this, 'generate' ] );
+		add_action( 'wp_ajax_db_ai_job_status', [ $this, 'job_status' ] );
 		add_action( 'wp_ajax_db_ai_save_kwo', [ $this, 'save_kwo' ] );
 		add_action( 'wp_ajax_db_ai_load_kwo', [ $this, 'load_kwo' ] );
 		add_action( 'wp_ajax_db_ai_delete_kwo', [ $this, 'delete_kwo' ] );
+
+		// Async runner-handler voor het 'generate_blog' job-type. Draait in de
+		// worker-context (Action Scheduler of WP-Cron), buiten de browser-request.
+		DB_AI_Job_Queue::register_handler( 'generate_blog', [ $this, 'run_generate_blog_job' ] );
 	}
 
 	/**
@@ -135,6 +140,11 @@ class DB_AI_Ajax {
 		wp_send_json_success( [ 'all' => DB_AI_Keyword_Research::get_all() ] );
 	}
 
+	/**
+	 * Dispatcht een async generate-job. Returnt direct een job_key; de browser
+	 * polled daarna `db_ai_job_status`. De zware operatie draait in een worker
+	 * (Action Scheduler / WP-Cron) zodat host-timeouts geen rol meer spelen.
+	 */
 	public function generate(): void {
 		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
 			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
@@ -160,28 +170,60 @@ class DB_AI_Ajax {
 
 		$blog_input = $this->collect_blog_input();
 
+		// Fail-fast: valideer dat er überhaupt een provider beschikbaar is (keys
+		// aanwezig) vóór we een job aanmaken. Het object zelf gaat niet mee — de
+		// worker resolved 'm opnieuw in zijn eigen context.
 		$provider = $this->resolve_provider();
 		if ( is_wp_error( $provider ) ) {
 			wp_send_json_error( [ 'message' => $provider->get_error_message() ], 400 );
 		}
 
-		$logger        = new DB_AI_Logger();
-		$rate_limiter  = new DB_AI_Rate_Limiter( $logger );
-		$user_id       = get_current_user_id();
+		$user_id = get_current_user_id();
 
-		if ( ! $rate_limiter->can_generate( $user_id ) ) {
-			wp_send_json_error(
-				[
-					'message' => sprintf(
-						/* translators: %d = limit per dag */
-						__( 'Dagelijkse limiet (%d generaties) bereikt. Probeer morgen opnieuw.', 'digitale-bazen-ai-module' ),
-						$rate_limiter->limit_per_day()
-					),
-				],
-				429
-			);
+		$job_key = DB_AI_Job_Queue::dispatch(
+			'generate_blog',
+			[
+				'main_keyword' => $main_keyword,
+				'secondary'    => $secondary,
+				'blog_input'   => $blog_input,
+			],
+			$user_id
+		);
+
+		if ( is_wp_error( $job_key ) ) {
+			$status = 'db_ai_job_rate_limited' === $job_key->get_error_code() ? 429 : 400;
+			wp_send_json_error( [ 'message' => $job_key->get_error_message() ], $status );
 		}
 
+		wp_send_json_success(
+			[
+				'job_key' => $job_key,
+				'status'  => 'queued',
+			]
+		);
+	}
+
+	/**
+	 * Worker-handler voor het 'generate_blog' job-type. Draait buiten de
+	 * browser-request. Bevat exact dezelfde generatie-logica als voorheen —
+	 * alleen ingepakt met progress-reporting + job-status-mutaties.
+	 *
+	 * @param string $job_key
+	 * @param array  $payload  { main_keyword, secondary, blog_input }
+	 * @param int    $user_id
+	 */
+	public function run_generate_blog_job( string $job_key, array $payload, int $user_id ): void {
+		$main_keyword = (string) ( $payload['main_keyword'] ?? '' );
+		$secondary    = (array) ( $payload['secondary'] ?? [] );
+		$blog_input   = (array) ( $payload['blog_input'] ?? [] );
+
+		$provider = $this->resolve_provider();
+		if ( is_wp_error( $provider ) ) {
+			DB_AI_Job_Queue::mark_failed( $job_key, (string) $provider->get_error_code(), $provider->get_error_message() );
+			return;
+		}
+
+		$logger  = new DB_AI_Logger();
 		$creator = new DB_AI_Post_Creator(
 			$provider,
 			new DB_AI_ACF_Mapper(),
@@ -190,26 +232,54 @@ class DB_AI_Ajax {
 			$logger
 		);
 
+		$creator->set_progress_reporter(
+			static function ( $pct, $label ) use ( $job_key ) {
+				DB_AI_Job_Queue::report_progress( $job_key, (int) $pct, (string) $label );
+			}
+		);
+
 		$result = $creator->create_from_keyword( $main_keyword, $secondary, $user_id, $blog_input );
 
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error(
-				[
-					'message'           => $result->get_error_message(),
-					'validation_errors' => $result->get_error_data()['validation_errors'] ?? null,
-				],
-				502
+			$validation = $result->get_error_data()['validation_errors'] ?? null;
+			DB_AI_Job_Queue::mark_failed(
+				$job_key,
+				(string) $result->get_error_code(),
+				$result->get_error_message(),
+				$validation ? [ 'validation_errors' => $validation ] : []
 			);
+			return;
 		}
 
-		wp_send_json_success(
-			array_merge(
-				$result,
-				[
-					'remaining_today' => $rate_limiter->remaining( $user_id ),
-				]
-			)
-		);
+		// Quota-teller voor de UI meegeven, net als de oude synchrone respons deed.
+		$rate_limiter           = new DB_AI_Rate_Limiter( $logger );
+		$result['remaining_today'] = $rate_limiter->remaining( $user_id );
+
+		DB_AI_Job_Queue::mark_done( $job_key, $result );
+	}
+
+	/**
+	 * Poll-endpoint: geeft de huidige status van een job terug.
+	 */
+	public function job_status(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'publish_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$job_key = isset( $_GET['job_key'] ) ? sanitize_text_field( wp_unslash( $_GET['job_key'] ) ) : '';
+		if ( '' === $job_key ) {
+			wp_send_json_error( [ 'message' => __( 'Geen job opgegeven.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$status = DB_AI_Job_Queue::get_status( $job_key, get_current_user_id() );
+		if ( is_wp_error( $status ) ) {
+			wp_send_json_error( [ 'message' => $status->get_error_message() ], 404 );
+		}
+
+		wp_send_json_success( $status );
 	}
 
 	/**

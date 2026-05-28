@@ -290,7 +290,11 @@ final class DB_AI_Job_Queue {
 		);
 	}
 
-	public static function mark_failed( string $job_key, string $error_code, string $error_msg ): void {
+	/**
+	 * @param array $data  Optionele extra data (bv. validation_errors) — komt in
+	 *                     de result-kolom en wordt door get_status() teruggegeven.
+	 */
+	public static function mark_failed( string $job_key, string $error_code, string $error_msg, array $data = [] ): void {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
 		$wpdb->update(
@@ -299,11 +303,12 @@ final class DB_AI_Job_Queue {
 				'status'       => 'failed',
 				'error_code'   => mb_substr( $error_code, 0, 80 ),
 				'error_msg'    => $error_msg,
+				'result'       => empty( $data ) ? null : wp_json_encode( $data ),
 				'heartbeat'    => $now,
 				'completed_at' => $now,
 			],
 			[ 'job_key' => $job_key ],
-			[ '%s', '%s', '%s', '%s', '%s' ],
+			[ '%s', '%s', '%s', '%s', '%s', '%s' ],
 			[ '%s' ]
 		);
 	}
@@ -355,6 +360,10 @@ final class DB_AI_Job_Queue {
 		if ( 'failed' === $job['status'] ) {
 			$out['error_code'] = (string) $job['error_code'];
 			$out['error_msg']  = (string) $job['error_msg'];
+			$extra             = json_decode( (string) $job['result'], true );
+			if ( is_array( $extra ) && ! empty( $extra ) ) {
+				$out = array_merge( $extra, $out );
+			}
 		}
 
 		return $out;
