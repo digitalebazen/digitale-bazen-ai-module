@@ -44,6 +44,7 @@ require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-image-service.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-seo-mapper.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-faq-schema.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-logger.php';
+require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-job-queue.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-rate-limiter.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-post-creator.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/providers/interface-db-ai-provider.php';
@@ -54,6 +55,7 @@ require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-rankmath-bridge.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-updater.php';
 
 register_activation_hook( __FILE__, [ 'DB_AI_Plugin', 'on_activate' ] );
+register_deactivation_hook( __FILE__, [ 'DB_AI_Plugin', 'on_deactivate' ] );
 
 add_action( 'plugins_loaded', [ 'DB_AI_Plugin', 'instance' ] );
 

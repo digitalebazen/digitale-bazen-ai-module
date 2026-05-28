@@ -96,13 +96,15 @@ Monotonic. Geen resurrectie. Job-row wordt nooit herstart vanuit `done`/`failed`
 
 ## 3. Sleutel-beslissingen
 
-### 3.1 Job-runner: **Action Scheduler**, niet eigen WP-Cron
+### 3.1 Job-runner: **Action Scheduler indien aanwezig + WP-Cron fallback**
 
-**Waarom**: WP-Cron draait alleen wanneer er traffic is. MKB-sites met lage traffic hebben tot 12u latency. Onaccceptabel voor een "klik-en-zie-resultaat" tool. Action Scheduler heeft een eigen loopback-loop die continu draait, plus admin UI voor monitoring, retries en deduplicatie.
+**Waarom**: WP-Cron draait alleen wanneer er traffic is. MKB-sites met lage traffic hebben tot 12u latency. Action Scheduler heeft een eigen loopback-loop die continu draait, plus admin UI, retries en deduplicatie.
 
-**Wat we bundelen**: AS via Composer-vrije vendor-include (zoals WooCommerce doet). +~1MB plugin-size, acceptabel. Als een andere plugin op de site al AS laadt: AS detecteert vanzelf de hoogste versie en gebruikt die ene. Geen conflict.
+**Bevinding tijdens fase 1 (2026-05-28)**: Action Scheduler is **al aanwezig op deze site** — RankMath bundelt 'm (`seo-by-rank-math/vendor/woocommerce/action-scheduler/`), en RankMath is de SEO-integratie van deze plugin. We hoeven dus **niets te bundelen** (geen +1MB). Aanpak: AS gebruiken als `function_exists('as_enqueue_async_action')` true is, anders terugvallen op `wp_schedule_single_event()` + `spawn_cron()`. Beide triggeren dezelfde `db_ai_run_job` action → één code-pad voor uitvoering.
 
-**Fallback**: als bundling problemen geeft, kunnen we per-site `define( 'DB_AI_USE_ACTION_SCHEDULER', false )` aanbieden die terugvalt op direct loopback-spawning. Niet onze default.
+Dit is robuuster dan hard-bundelen: werkt op elke site, geen versie-conflicten, geen plugin-bloat. Als een site géén AS heeft (geen RankMath/WooCommerce), draait de fallback prima voor het lage volume van een blog-generator.
+
+**Janitor + cleanup**: aparte WP-Cron events (`db_ai_sweep_jobs` hourly, `db_ai_cleanup_jobs` daily) — onafhankelijk van AS, want die moeten ook draaien op sites zonder AS. Opgeruimd bij plugin-deactivatie.
 
 ### 3.2 Job-store: **eigen tabel** `wp_db_ai_jobs`, niet `wp_options`
 
@@ -248,13 +250,15 @@ Image-fetching procentages incrementeel zodat de bar daadwerkelijk meebeweegt ov
 
 ## 7. Implementatie-fases
 
-### Fase 1 — Job-infrastructure (foundation)
-- DB-schema + migration via `DB_AI_Logger`-style dbDelta
-- `DB_AI_Job_Queue` class met dispatch/get_status/run/report_progress
-- Action Scheduler vendor-include + hook-registratie
-- Unit: kan een job aanmaken, status uitlezen, progress updaten
-
-**Geschatte effort**: 0.5-1 dag
+### Fase 1 — Job-infrastructure (foundation) ✅ AFGEROND 2026-05-28
+- ✅ DB-schema `wp_db_ai_jobs` + migration via `DB_AI_Logger`-style dbDelta (eigen versie-optie `db_ai_jobs_db_version`)
+- ✅ `DB_AI_Job_Queue` class: dispatch / get_status / run / report_progress / mark_done / mark_failed
+- ✅ Runner-abstractie: AS indien aanwezig, anders WP-Cron single-event fallback
+- ✅ Rate-limit reservering bij dispatch (in-flight jobs tellen mee via `can_dispatch()`)
+- ✅ Janitor (`sweep_stuck_jobs` — running zonder heartbeat > 5 min → failed) + cleanup-cron (done > 30d, failed > 7d)
+- ✅ Handler-registry (`register_handler()`) zodat fase 2 het `generate_blog`-type kan inpluggen
+- ✅ Wiring in bootstrap + activation + deactivation (cron-cleanup) + maybe_upgrade
+- ⏳ Nog niet gewired in de generate-flow — dat is fase 2. Geen user-zichtbare wijziging, nul regressie-risico.
 
 ### Fase 2 — Async generate flow
 - Refactor `db_ai_generate` AJAX naar dispatch-only

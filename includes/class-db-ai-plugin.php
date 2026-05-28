@@ -35,6 +35,10 @@ final class DB_AI_Plugin {
 		// REST/AJAX queries werken. Geen aparte instance nodig; static method.
 		DB_AI_Keyword_Research::register();
 
+		// Async job-queue — runner-hook + onderhoud-cron registreren ongeacht
+		// context (worker draait buiten admin). Zie ASYNC_REFACTOR_PLAN.md.
+		DB_AI_Job_Queue::register();
+
 		if ( is_admin() ) {
 			$this->admin_page = new DB_AI_Admin_Page();
 			$this->admin_page->register();
@@ -76,6 +80,13 @@ final class DB_AI_Plugin {
 
 		DB_AI_Logger::create_table();
 		update_option( 'db_ai_db_version', DB_AI_Logger::DB_VERSION );
+
+		DB_AI_Job_Queue::maybe_upgrade_table();
+	}
+
+	public static function on_deactivate(): void {
+		// Ruim onderhoud-cron-events op zodat er geen orphan-schedules achterblijven.
+		DB_AI_Job_Queue::clear_scheduled_events();
 	}
 
 	/**
@@ -89,6 +100,9 @@ final class DB_AI_Plugin {
 			DB_AI_Logger::create_table();
 			update_option( 'db_ai_db_version', DB_AI_Logger::DB_VERSION );
 		}
+
+		// Jobs-tabel heeft een eigen versie-optie zodat beide onafhankelijk migreren.
+		DB_AI_Job_Queue::maybe_upgrade_table();
 	}
 
 	public function check_dependencies(): void {
