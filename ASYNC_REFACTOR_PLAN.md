@@ -20,6 +20,39 @@
 
 ---
 
+## 1B. Harde eis: behavior-parity (NIET-onderhandelbaar)
+
+**Alle bestaande functionaliteit blijft 1-op-1 werken.** De user is expliciet zeer tevreden over de huidige flow en wil geen enkele regressie. Dit is een harde acceptatie-eis, geen nice-to-have.
+
+### Waarom dit haalbaar is
+De refactor zit op de **transport/orchestratie-laag**, niet op de business-logic:
+- `DB_AI_Post_Creator::create_from_keyword()` behoudt z'n exacte logica. We voegen alleen `report_progress()`-calls toe en roepen 'm aan vanuit een job-worker ipv direct vanuit de AJAX-handler.
+- `DB_AI_ACF_Mapper`, validators, providers, `DB_AI_Image_Service`, `DB_AI_SEO_Mapper`, `DB_AI_FAQ_Schema`, `DB_AI_Internal_Links`, `DB_AI_External_Links`, `DB_AI_Rankmath_Bridge` — **volledig onaangeraakt**. Die kennen de generatie-mechaniek niet eens.
+- Settings, wizard-UI, power-word lijst, prompts — onaangeraakt.
+
+### Regressie-checklist (aflopen vóór "klaar" gemeld wordt)
+Een via de async-flow gegenereerde blog moet identiek zijn aan de huidige sync-output:
+
+- [ ] Draft aangemaakt onder CPT `blog`, status `draft`
+- [ ] Alle ACF flex-blocks correct gevuld (titel/tekst/images per layout)
+- [ ] Featured image + per-block afbeeldingen gedownload + gesideload
+- [ ] RankMath velden (`rank_math_focus_keyword`, `_title`, `_description`)
+- [ ] FAQ JSON-LD injectie werkt op posts met `veelgestelde_vragen` block
+- [ ] Interne links geplaatst (indien aan) + orphan-cleanup
+- [ ] Externe link-suggesties opgeslagen in `_db_ai_external_link_suggestions`
+- [ ] RankMath bridge feedt nog steeds de analyzer (subkop/density/links checks groen)
+- [ ] Power-word + getal in titel + meta_title
+- [ ] Alle `_db_ai_*` audit-meta keys aanwezig
+- [ ] Rate limiting blokkeert na de dag-limiet
+- [ ] Logger-entry in `wp_db_ai_generations`
+- [ ] 3-staps wizard + "Geavanceerd" toggle ongewijzigd
+- [ ] Quota-teller klopt na generatie
+- [ ] Settings-pagina volledig ongewijzigd
+
+Pas als élk vinkje door een echte test in de browser gehaald is (niet alleen lint/type-check), is de fase af.
+
+---
+
 ## 2. Architectuur
 
 ### Componenten
