@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 2.0.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,32 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.0 =
+* **Async generatie (architectuur-wijziging)** — de blog-generatie draait nu in
+  een achtergrond-job in plaats van een synchrone AJAX-request. Lost de
+  productie-timeouts op (504 / FastCGI idle / Cloudflare / PHP max_execution_time):
+  de browser krijgt direct een job-id en polled de status, terwijl een worker
+  de generatie afhandelt zonder browser-connectie. Geen "Netwerkfout" meer bij
+  blogs die 30-60s duren.
+  - Nieuw `wp_db_ai_jobs` tabel + `DB_AI_Job_Queue` (dispatch / status / run /
+    progress / janitor / cleanup), eigen migratie-versie.
+  - Runner: gebruikt Action Scheduler indien aanwezig (RankMath bundelt 'm),
+    anders WP-Cron single-event als fallback. Beide via dezelfde `db_ai_run_job`.
+  - `db_ai_generate` returnt nu een `job_key`; nieuw `db_ai_job_status`
+    poll-endpoint. JS polled elke 2,5s.
+  - Rate-limit reservering bij dispatch (in-flight jobs tellen mee tegen de
+    daglimiet) zodat queue-stacking de limiet niet omzeilt.
+  - Janitor-cron markeert vastgelopen jobs (> 5 min zonder voortgang) als failed;
+    cleanup-cron ruimt afgeronde (> 30d) en gefaalde (> 7d) jobs op.
+* **Echte progress-bar** — vervangt de geschatte curve van v1.4.0. De bar leest
+  nu de werkelijke server-voortgang (8 checkpoints: context → schrijven →
+  valideren → aanmaken → afbeeldingen → blocks → afronden) met live stage-labels.
+* **Behavior-parity** — alle bestaande functionaliteit werkt identiek: ACF
+  blocks, featured + block-afbeeldingen, RankMath SEO, FAQ JSON-LD, interne +
+  externe links, `_db_ai_*` meta, quota-teller. De generatie-logica in
+  `DB_AI_Post_Creator` is ongewijzigd; alleen de aanroep-context (worker) en
+  progress-reporting zijn toegevoegd.
 
 = 1.4.0 =
 * **Wizard van 5 → 3 stappen** — de generator-page heeft nu alleen Upload →

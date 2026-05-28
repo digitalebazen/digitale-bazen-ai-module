@@ -203,6 +203,45 @@ User-feedback: wizard met 5 stappen werd onoverzichtelijk door alle optionele ve
 
 ---
 
+## 0F. v2.0.0 Iteratie — Async generatie (job-queue) (2026-05-28)
+
+Productie kreeg timeouts op lange blog-generaties (Sonnet 4.6 = 25-50s vs host-limieten van 30s). Quick-fixes (Haiku, server-timeout) hadden een plafond; async is de structurele oplossing én de fundering voor het hele V3-backlog. Volledig ontwerp + open-vragen-besluiten staan in `ASYNC_REFACTOR_PLAN.md`.
+
+### Architectuur
+
+Synchrone `db_ai_generate` is vervangen door een job-queue:
+
+```
+Browser → db_ai_generate (dispatch) → job_key
+        → polled db_ai_job_status elke 2,5s
+Worker (Action Scheduler / WP-Cron) → DB_AI_Job_Queue::run() → DB_AI_Post_Creator
+        → report_progress() per stap → wp_db_ai_jobs
+```
+
+- **`DB_AI_Job_Queue`** (`includes/class-db-ai-job-queue.php`): eigen tabel `wp_db_ai_jobs` + migratie-versie. API: `dispatch / get_status / run / report_progress / mark_done / mark_failed / register_handler`. Lifecycle queued → running → done | failed (monotoon).
+- **Runner**: Action Scheduler indien aanwezig (RankMath bundelt 'm — geen eigen bundling nodig), anders WP-Cron single-event + `spawn_cron()`. Eén `db_ai_run_job` action voor beide.
+- **Rate-limit bij dispatch**: in-flight jobs (queued/running vandaag) + vandaag succesvol tellen samen tegen de daglimiet. Voorkomt queue-stacking.
+- **Janitor** (`db_ai_sweep_jobs`, hourly): running-jobs zonder heartbeat > 5 min → failed. **Cleanup** (`db_ai_cleanup_jobs`, daily): done > 30d, failed > 7d verwijderd. Cron opgeruimd bij deactivatie.
+- **Worker-handler altijd registreren**: `DB_AI_Ajax` wordt nu ongeacht context geïnstantieerd (niet meer admin-gated), want de worker-request is noch admin noch ajax. De wp_ajax_* hooks vuren alleen op admin-ajax, dus geen frontend-overhead.
+
+### Progress-reporting
+
+`DB_AI_Post_Creator` kreeg een optionele progress-reporter (setter) + 8 checkpoint-calls. **De generatie-logica zelf is volledig ongewijzigd** — de report()-calls zijn no-ops zonder reporter. De async worker koppelt een reporter die naar `wp_db_ai_jobs` schrijft; de JS-progressbar leest die echte stand (vervangt de geschatte curve van v1.4.0).
+
+### Behavior-parity (harde eis)
+
+Alle bestaande functionaliteit werkt identiek — getest end-to-end op 2026-05-28: ACF blocks, featured + block-afbeeldingen, RankMath SEO, FAQ JSON-LD, interne + externe links, `_db_ai_*` meta, quota-teller. Zie regressie-checklist in `ASYNC_REFACTOR_PLAN.md` sectie 1B.
+
+### Belangrijke nuance (niet opgelost door async)
+
+Async dwingt PHP niet door host-timeouts: één AI-call die alleen al langer duurt dan de host-PHP-limiet blijft een risico in de worker. Mitigaties (streaming+flush, Haiku-fallback) zijn follow-ups, geen onderdeel van deze refactor.
+
+### Wat dit ontgrendelt (V3)
+
+Bulk-generatie, per-block regeneratie, outline-first flow en update-bestaande-blog kunnen nu allemaal als nieuwe `job_type` op deze infra bouwen zonder opnieuw architectuur-werk.
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
