@@ -39,12 +39,16 @@ final class DB_AI_Plugin {
 		// context (worker draait buiten admin). Zie ASYNC_REFACTOR_PLAN.md.
 		DB_AI_Job_Queue::register();
 
+		// DB_AI_Settings registreert de `db_ai_allowed_layouts` filter die de
+		// generatie beïnvloedt — altijd instantiëren zodat die filter óók in de
+		// async worker (non-admin) actief is. De admin-UI hooks erin zijn intern
+		// achter is_admin() gegated, dus geen frontend-overhead.
+		$this->settings = new DB_AI_Settings();
+		$this->settings->register();
+
 		if ( is_admin() ) {
 			$this->admin_page = new DB_AI_Admin_Page();
 			$this->admin_page->register();
-
-			$this->settings = new DB_AI_Settings();
-			$this->settings->register();
 
 			$this->rankmath_bridge = new DB_AI_Rankmath_Bridge();
 			$this->rankmath_bridge->register();

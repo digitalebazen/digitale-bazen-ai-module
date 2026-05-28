@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -66,6 +66,19 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.1 =
+* **Fix: layout-voorkeur werd genegeerd in de async-worker** — de
+  `db_ai_allowed_layouts` filter werd alleen in admin-context geregistreerd,
+  maar de v2.0.0 worker draait buiten admin (Action Scheduler / WP-Cron). Daardoor
+  viel de generatie terug op álle layouts ongeacht de Settings-keuze. `DB_AI_Settings`
+  wordt nu altijd geïnstantieerd zodat de filter ook in de worker actief is; de
+  admin-UI hooks blijven intern achter `is_admin()` gegated (geen frontend-overhead).
+* **Prompt-hardening: AI gebruikt nooit meer een uitgesloten layout** — de
+  structuur-instructie kreeg een harde regel ("gebruik UITSLUITEND de beschikbare
+  layouts, een layout die er niet bij staat mag NOOIT in de output") en noemt niet
+  langer specifiek "banner/hero" als voorbeeld. Voorkomt validatiefouten wanneer je
+  een layout (zoals banner) bewust uitsluit. Beide providers.
 
 = 2.0.0 =
 * **Async generatie (architectuur-wijziging)** — de blog-generatie draait nu in

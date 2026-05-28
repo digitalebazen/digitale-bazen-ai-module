@@ -166,10 +166,18 @@ class DB_AI_Settings {
 	private $page_hook = '';
 
 	public function register(): void {
+		// Generation-beïnvloedende filter — MOET ook in de async worker (non-admin
+		// context: Action Scheduler / WP-Cron) geregistreerd zijn, anders valt de
+		// layout-keuze terug op alle layouts. Daarom buiten de admin-gate.
+		add_filter( 'db_ai_allowed_layouts', [ $this, 'filter_allowed_layouts' ] );
+
+		// Admin-UI hooks vuren alleen in admin-context — niet nodig in de worker.
+		if ( ! is_admin() ) {
+			return;
+		}
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_assets' ] );
-		add_filter( 'db_ai_allowed_layouts', [ $this, 'filter_allowed_layouts' ] );
 	}
 
 	public function maybe_enqueue_assets( $hook_suffix ): void {
