@@ -83,27 +83,88 @@ class DB_AI_Post_Creator {
 
 		$external_links_max = DB_AI_External_Links::is_enabled() ? DB_AI_External_Links::get_max_suggestions() : 0;
 
+		$ai_context = [
+			'layout_spec'          => $layout_spec,
+			'output_schema'        => $this->acf_mapper->get_output_schema_example(),
+			'blog_input'           => $blog_input,
+			'internal_link_pool'   => $internal_link_pool,
+			'internal_link_max'    => $internal_link_max,
+			'internal_link_forced' => $internal_link_forced,
+			'external_links_max'   => $external_links_max,
+		];
+
 		$this->report( 12, __( 'Generator schrijft je blog', 'digitale-bazen-ai-module' ) );
 
 		// 1. AI call
-		$ai_output = $this->ai_provider->generate_blog(
-			$main_keyword,
-			$secondary_keywords,
-			[
-				'layout_spec'          => $layout_spec,
-				'output_schema'        => $this->acf_mapper->get_output_schema_example(),
-				'blog_input'           => $blog_input,
-				'internal_link_pool'   => $internal_link_pool,
-				'internal_link_max'    => $internal_link_max,
-				'internal_link_forced' => $internal_link_forced,
-				'external_links_max'   => $external_links_max,
-			]
-		);
+		$ai_output = $this->ai_provider->generate_blog( $main_keyword, $secondary_keywords, $ai_context );
+
+		return $this->build_post_from_ai_output( $ai_output, $main_keyword, $secondary_keywords, $user_id, $internal_link_pool, $external_links_max );
+	}
+
+	/**
+	 * Outline-first fase 2: schrijf de volledige blog volgens een goedgekeurde
+	 * outline. Hergebruikt exact dezelfde context-opbouw + post-creatie pipeline
+	 * als create_from_keyword; alleen de AI-call verschilt (expand_outline).
+	 *
+	 * @return array|WP_Error
+	 */
+	public function create_from_outline( string $main_keyword, array $secondary_keywords, int $user_id, array $approved_outline, array $blog_input = [] ) {
+		do_action( 'db_ai_before_generate', $main_keyword, $secondary_keywords, $user_id );
+
+		$this->report( 2, __( 'Structuur voorbereiden', 'digitale-bazen-ai-module' ) );
+
+		$layout_spec = $this->acf_mapper->get_layout_spec_for_prompt();
+		if ( is_wp_error( $layout_spec ) ) {
+			return $layout_spec;
+		}
+
+		$internal_link_pool   = [];
+		$internal_link_max    = 0;
+		$internal_link_forced = 0;
+		if ( DB_AI_Internal_Links::is_enabled() ) {
+			$internal_link_max = DB_AI_Internal_Links::get_max_links();
+			$forced_ids        = (array) ( $blog_input['forced_link_ids'] ?? [] );
+			$forced            = DB_AI_Internal_Links::get_forced_links( $forced_ids );
+			$auto_pool         = DB_AI_Internal_Links::get_link_pool( $main_keyword, $secondary_keywords );
+			$merged            = DB_AI_Internal_Links::merge_pools( $forced, $auto_pool, $internal_link_max );
+			$internal_link_pool   = $merged['pool'];
+			$internal_link_forced = $merged['forced_count'];
+		}
+
+		$external_links_max = DB_AI_External_Links::is_enabled() ? DB_AI_External_Links::get_max_suggestions() : 0;
+
+		$ai_context = [
+			'layout_spec'          => $layout_spec,
+			'output_schema'        => $this->acf_mapper->get_output_schema_example(),
+			'blog_input'           => $blog_input,
+			'internal_link_pool'   => $internal_link_pool,
+			'internal_link_max'    => $internal_link_max,
+			'internal_link_forced' => $internal_link_forced,
+			'external_links_max'   => $external_links_max,
+		];
+
+		$this->report( 12, __( 'Generator schrijft je blog', 'digitale-bazen-ai-module' ) );
+
+		$ai_output = $this->ai_provider->expand_outline( $main_keyword, $secondary_keywords, $approved_outline, $ai_context );
+
+		return $this->build_post_from_ai_output( $ai_output, $main_keyword, $secondary_keywords, $user_id, $internal_link_pool, $external_links_max );
+	}
+
+	/**
+	 * Gedeelde post-creatie pipeline (orphan-cleanup → log). Door zowel
+	 * create_from_keyword als create_from_outline gebruikt. Identieke logica als
+	 * voorheen — alleen geëxtraheerd zodat beide flows 'm delen.
+	 *
+	 * @return array|WP_Error
+	 */
+	private function build_post_from_ai_output( $ai_output, string $main_keyword, array $secondary_keywords, int $user_id, array $internal_link_pool, int $external_links_max ) {
 		if ( is_wp_error( $ai_output ) ) {
 			$this->log_failure( 0, $user_id, $main_keyword, 'ai_error', $ai_output->get_error_message() );
 			do_action( 'db_ai_generation_failed', $ai_output, $main_keyword, $user_id );
 			return $ai_output;
 		}
+
+		$preprocess_warnings = [];
 
 		// Cleanup: strip <a>-tags die naar niet-bestaande interne URLs wijzen.
 		// AI kan ondanks expliciete instructie alsnog een URL verzinnen — die

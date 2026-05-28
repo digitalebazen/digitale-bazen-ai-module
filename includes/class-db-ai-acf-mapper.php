@@ -164,6 +164,65 @@ class DB_AI_ACF_Mapper {
 	}
 
 	/**
+	 * Valideer + saneer een outline-output (fase 1 van outline-first).
+	 * Verwacht { outline: [ { acf_fc_layout, titel, summary } ], ... }.
+	 *
+	 * @return array { valid: bool, errors: string[], outline: array, post_title_suggestion: string, focus_keyword: string }
+	 */
+	public function validate_outline_output( $output, string $main_keyword ): array {
+		$errors = [];
+
+		if ( ! is_array( $output ) || empty( $output['outline'] ) || ! is_array( $output['outline'] ) ) {
+			return [
+				'valid'  => false,
+				'errors' => [ __( 'Outline-output mist een geldige "outline" array.', 'digitale-bazen-ai-module' ) ],
+				'outline' => [],
+				'post_title_suggestion' => '',
+				'focus_keyword' => $main_keyword,
+			];
+		}
+
+		$allowed   = $this->get_allowed_layouts();
+		$sanitized = [];
+
+		foreach ( $output['outline'] as $i => $section ) {
+			if ( ! is_array( $section ) ) {
+				continue;
+			}
+			$layout = (string) ( $section['acf_fc_layout'] ?? '' );
+			$titel  = trim( (string) ( $section['titel'] ?? '' ) );
+
+			if ( ! in_array( $layout, $allowed, true ) ) {
+				$errors[] = sprintf(
+					/* translators: 1 = index, 2 = layout */
+					__( 'Sectie %1$d: layout "%2$s" niet toegestaan.', 'digitale-bazen-ai-module' ),
+					$i,
+					$layout
+				);
+				continue;
+			}
+
+			$sanitized[] = [
+				'acf_fc_layout' => $layout,
+				'titel'         => sanitize_text_field( $titel ),
+				'summary'       => sanitize_text_field( (string) ( $section['summary'] ?? '' ) ),
+			];
+		}
+
+		if ( empty( $sanitized ) ) {
+			$errors[] = __( 'Geen geldige secties in de outline.', 'digitale-bazen-ai-module' );
+		}
+
+		return [
+			'valid'                 => empty( $errors ),
+			'errors'                => $errors,
+			'outline'               => $sanitized,
+			'post_title_suggestion' => sanitize_text_field( (string) ( $output['post_title_suggestion'] ?? '' ) ),
+			'focus_keyword'         => sanitize_text_field( (string) ( $output['focus_keyword'] ?? $main_keyword ) ),
+		];
+	}
+
+	/**
 	 * Layout fields keyed by layout name -> field name (for quick lookups).
 	 *
 	 * @return array|WP_Error

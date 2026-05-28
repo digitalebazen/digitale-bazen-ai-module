@@ -21,14 +21,18 @@ class DB_AI_Ajax {
 	public function register(): void {
 		add_action( 'wp_ajax_db_ai_parse_csv', [ $this, 'parse_csv' ] );
 		add_action( 'wp_ajax_db_ai_generate', [ $this, 'generate' ] );
+		add_action( 'wp_ajax_db_ai_generate_outline', [ $this, 'generate_outline' ] );
+		add_action( 'wp_ajax_db_ai_expand_outline', [ $this, 'expand_outline' ] );
 		add_action( 'wp_ajax_db_ai_job_status', [ $this, 'job_status' ] );
 		add_action( 'wp_ajax_db_ai_save_kwo', [ $this, 'save_kwo' ] );
 		add_action( 'wp_ajax_db_ai_load_kwo', [ $this, 'load_kwo' ] );
 		add_action( 'wp_ajax_db_ai_delete_kwo', [ $this, 'delete_kwo' ] );
 
-		// Async runner-handler voor het 'generate_blog' job-type. Draait in de
-		// worker-context (Action Scheduler of WP-Cron), buiten de browser-request.
+		// Async runner-handlers. Draaien in de worker-context (Action Scheduler /
+		// WP-Cron), buiten de browser-request.
 		DB_AI_Job_Queue::register_handler( 'generate_blog', [ $this, 'run_generate_blog_job' ] );
+		DB_AI_Job_Queue::register_handler( 'generate_outline', [ $this, 'run_generate_outline_job' ] );
+		DB_AI_Job_Queue::register_handler( 'expand_outline', [ $this, 'run_expand_outline_job' ] );
 	}
 
 	/**
@@ -280,6 +284,243 @@ class DB_AI_Ajax {
 		}
 
 		wp_send_json_success( $status );
+	}
+
+	// ─── Outline-first ───────────────────────────────────────────────────────
+
+	/**
+	 * Fase 1: dispatch een outline-job (structuurvoorstel). Gratis — telt niet
+	 * tegen de daglimiet.
+	 */
+	public function generate_outline(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'publish_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$main_keyword = isset( $_POST['main_keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['main_keyword'] ) ) : '';
+		if ( '' === $main_keyword ) {
+			wp_send_json_error( [ 'message' => __( 'Hoofdzoekwoord ontbreekt.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$provider = $this->resolve_provider();
+		if ( is_wp_error( $provider ) ) {
+			wp_send_json_error( [ 'message' => $provider->get_error_message() ], 400 );
+		}
+
+		$job_key = DB_AI_Job_Queue::dispatch(
+			'generate_outline',
+			[
+				'main_keyword' => $main_keyword,
+				'secondary'    => $this->collect_secondary_keywords(),
+				'blog_input'   => $this->collect_blog_input(),
+			],
+			get_current_user_id()
+		);
+
+		if ( is_wp_error( $job_key ) ) {
+			wp_send_json_error( [ 'message' => $job_key->get_error_message() ], 400 );
+		}
+
+		wp_send_json_success( [ 'job_key' => $job_key, 'status' => 'queued' ] );
+	}
+
+	/**
+	 * Fase 2: dispatch een expand-job met de door de redacteur goedgekeurde outline.
+	 * Telt wél tegen de daglimiet (produceert een post).
+	 */
+	public function expand_outline(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'publish_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$main_keyword = isset( $_POST['main_keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['main_keyword'] ) ) : '';
+		if ( '' === $main_keyword ) {
+			wp_send_json_error( [ 'message' => __( 'Hoofdzoekwoord ontbreekt.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$approved_outline = $this->collect_approved_outline();
+		if ( empty( $approved_outline ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen geldige outline ontvangen.', 'digitale-bazen-ai-module' ) ], 400 );
+		}
+
+		$provider = $this->resolve_provider();
+		if ( is_wp_error( $provider ) ) {
+			wp_send_json_error( [ 'message' => $provider->get_error_message() ], 400 );
+		}
+
+		$job_key = DB_AI_Job_Queue::dispatch(
+			'expand_outline',
+			[
+				'main_keyword'     => $main_keyword,
+				'secondary'        => $this->collect_secondary_keywords(),
+				'blog_input'       => $this->collect_blog_input(),
+				'approved_outline' => $approved_outline,
+			],
+			get_current_user_id()
+		);
+
+		if ( is_wp_error( $job_key ) ) {
+			$status = 'db_ai_job_rate_limited' === $job_key->get_error_code() ? 429 : 400;
+			wp_send_json_error( [ 'message' => $job_key->get_error_message() ], $status );
+		}
+
+		wp_send_json_success( [ 'job_key' => $job_key, 'status' => 'queued' ] );
+	}
+
+	/**
+	 * Worker: genereer de outline. Slaat het resultaat op als job-result (geen post).
+	 */
+	public function run_generate_outline_job( string $job_key, array $payload, int $user_id ): void {
+		$main_keyword = (string) ( $payload['main_keyword'] ?? '' );
+		$secondary    = (array) ( $payload['secondary'] ?? [] );
+		$blog_input   = (array) ( $payload['blog_input'] ?? [] );
+
+		$provider = $this->resolve_provider();
+		if ( is_wp_error( $provider ) ) {
+			DB_AI_Job_Queue::mark_failed( $job_key, (string) $provider->get_error_code(), $provider->get_error_message() );
+			return;
+		}
+
+		$acf_mapper  = new DB_AI_ACF_Mapper();
+		$layout_spec = $acf_mapper->get_layout_spec_for_prompt();
+		if ( is_wp_error( $layout_spec ) ) {
+			DB_AI_Job_Queue::mark_failed( $job_key, (string) $layout_spec->get_error_code(), $layout_spec->get_error_message() );
+			return;
+		}
+
+		DB_AI_Job_Queue::report_progress( $job_key, 25, __( 'Structuur bedenken', 'digitale-bazen-ai-module' ) );
+
+		$outline = $provider->generate_outline(
+			$main_keyword,
+			$secondary,
+			[ 'layout_spec' => $layout_spec, 'blog_input' => $blog_input ]
+		);
+		if ( is_wp_error( $outline ) ) {
+			DB_AI_Job_Queue::mark_failed( $job_key, (string) $outline->get_error_code(), $outline->get_error_message() );
+			return;
+		}
+
+		$validation = $acf_mapper->validate_outline_output( $outline, $main_keyword );
+		if ( ! $validation['valid'] ) {
+			DB_AI_Job_Queue::mark_failed(
+				$job_key,
+				'outline_invalid',
+				__( 'Outline is niet valide.', 'digitale-bazen-ai-module' ),
+				[ 'validation_errors' => $validation['errors'] ]
+			);
+			return;
+		}
+
+		DB_AI_Job_Queue::mark_done(
+			$job_key,
+			[
+				'kind'                  => 'outline',
+				'outline'               => $validation['outline'],
+				'post_title_suggestion' => $validation['post_title_suggestion'],
+				'focus_keyword'         => $validation['focus_keyword'],
+			]
+		);
+	}
+
+	/**
+	 * Worker: schrijf de volledige blog volgens de goedgekeurde outline. Hergebruikt
+	 * exact dezelfde post-creatie pipeline als de gewone generatie.
+	 */
+	public function run_expand_outline_job( string $job_key, array $payload, int $user_id ): void {
+		$main_keyword     = (string) ( $payload['main_keyword'] ?? '' );
+		$secondary        = (array) ( $payload['secondary'] ?? [] );
+		$blog_input       = (array) ( $payload['blog_input'] ?? [] );
+		$approved_outline = (array) ( $payload['approved_outline'] ?? [] );
+
+		$provider = $this->resolve_provider();
+		if ( is_wp_error( $provider ) ) {
+			DB_AI_Job_Queue::mark_failed( $job_key, (string) $provider->get_error_code(), $provider->get_error_message() );
+			return;
+		}
+
+		$logger  = new DB_AI_Logger();
+		$creator = new DB_AI_Post_Creator(
+			$provider,
+			new DB_AI_ACF_Mapper(),
+			new DB_AI_Image_Service(),
+			new DB_AI_SEO_Mapper(),
+			$logger
+		);
+		$creator->set_progress_reporter(
+			static function ( $pct, $label ) use ( $job_key ) {
+				DB_AI_Job_Queue::report_progress( $job_key, (int) $pct, (string) $label );
+			}
+		);
+
+		$result = $creator->create_from_outline( $main_keyword, $secondary, $user_id, $approved_outline, $blog_input );
+
+		if ( is_wp_error( $result ) ) {
+			$validation = $result->get_error_data()['validation_errors'] ?? null;
+			DB_AI_Job_Queue::mark_failed(
+				$job_key,
+				(string) $result->get_error_code(),
+				$result->get_error_message(),
+				$validation ? [ 'validation_errors' => $validation ] : []
+			);
+			return;
+		}
+
+		$rate_limiter              = new DB_AI_Rate_Limiter( $logger );
+		$result['remaining_today'] = $rate_limiter->remaining( $user_id );
+
+		DB_AI_Job_Queue::mark_done( $job_key, $result );
+	}
+
+	/**
+	 * Secundaire keywords uit POST (gedeeld door generate/outline/expand).
+	 *
+	 * @return string[]
+	 */
+	private function collect_secondary_keywords(): array {
+		$secondary = [];
+		if ( ! empty( $_POST['secondary_keywords'] ) && is_array( $_POST['secondary_keywords'] ) ) {
+			foreach ( wp_unslash( $_POST['secondary_keywords'] ) as $kw ) {
+				$kw = sanitize_text_field( (string) $kw );
+				if ( '' !== $kw ) {
+					$secondary[] = $kw;
+				}
+			}
+		}
+		return $secondary;
+	}
+
+	/**
+	 * De door de redacteur bewerkte outline uit POST, gesaneerd.
+	 *
+	 * @return array<int, array{acf_fc_layout:string,titel:string,summary:string}>
+	 */
+	private function collect_approved_outline(): array {
+		if ( empty( $_POST['outline'] ) || ! is_array( $_POST['outline'] ) ) {
+			return [];
+		}
+		$out = [];
+		foreach ( wp_unslash( $_POST['outline'] ) as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$layout = sanitize_text_field( (string) ( $row['acf_fc_layout'] ?? '' ) );
+			$titel  = sanitize_text_field( (string) ( $row['titel'] ?? '' ) );
+			if ( '' === $layout ) {
+				continue;
+			}
+			$out[] = [
+				'acf_fc_layout' => $layout,
+				'titel'         => $titel,
+				'summary'       => sanitize_text_field( (string) ( $row['summary'] ?? '' ) ),
+			];
+		}
+		return $out;
 	}
 
 	/**

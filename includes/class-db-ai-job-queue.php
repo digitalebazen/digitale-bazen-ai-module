@@ -39,6 +39,13 @@ final class DB_AI_Job_Queue {
 	/** @var array<string, callable> job_type => handler( string $job_key, array $payload, int $user_id ) */
 	private static $handlers = [];
 
+	/**
+	 * Job-types die een post produceren en dus tegen de daglimiet tellen.
+	 * `generate_outline` staat hier bewust NIET in — een outline kost geen
+	 * generatie-slot; pas de expand-fase telt mee.
+	 */
+	private const BILLABLE_TYPES = [ 'generate_blog', 'expand_outline' ];
+
 	// ─── Bootstrap ─────────────────────────────────────────────────────────
 
 	public static function register(): void {
@@ -137,7 +144,8 @@ final class DB_AI_Job_Queue {
 			return new WP_Error( 'db_ai_job_no_user', __( 'Geen geldige gebruiker.', 'digitale-bazen-ai-module' ) );
 		}
 
-		if ( ! self::can_dispatch( $user_id ) ) {
+		// Alleen post-producerende jobs tellen tegen de daglimiet. Een outline is gratis.
+		if ( in_array( $job_type, self::BILLABLE_TYPES, true ) && ! self::can_dispatch( $user_id ) ) {
 			return new WP_Error(
 				'db_ai_job_rate_limited',
 				__( 'Je hebt je dagelijkse generatie-limiet bereikt (lopende jobs tellen mee).', 'digitale-bazen-ai-module' )
@@ -187,11 +195,13 @@ final class DB_AI_Job_Queue {
 		global $wpdb;
 		$table = self::table_name();
 		$start = gmdate( 'Y-m-d 00:00:00' );
+		// Alleen billable job-types tellen mee — outline-jobs verbruiken geen slot.
+		$placeholders = implode( ',', array_fill( 0, count( self::BILLABLE_TYPES ), '%s' ) );
+		$params       = array_merge( [ $user_id ], self::BILLABLE_TYPES, [ $start ] );
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND status IN ('queued','running') AND created_at >= %s",
-				$user_id,
-				$start
+				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND job_type IN ({$placeholders}) AND status IN ('queued','running') AND created_at >= %s",
+				$params
 			)
 		);
 	}
