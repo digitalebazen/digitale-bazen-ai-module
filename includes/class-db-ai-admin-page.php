@@ -16,7 +16,6 @@ class DB_AI_Admin_Page {
 	 */
 	private function get_menu_parents(): array {
 		$parents = [
-			'edit.php',                  // Berichten
 			'edit.php?post_type=blog',   // Blogs CPT
 		];
 		return apply_filters( 'db_ai_admin_menu_parents', $parents );

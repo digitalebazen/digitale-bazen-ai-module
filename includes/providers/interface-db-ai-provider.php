@@ -17,7 +17,7 @@ interface DB_AI_Provider {
 	public function generate_blog( string $main_keyword, array $secondary_keywords, array $context );
 
 	/**
-	 * Stable identifier of the model used (e.g. 'openai:gpt-4o').
+	 * Stable identifier of the model used (e.g. 'anthropic:claude-sonnet-4-6').
 	 */
 	public function get_model_identifier(): string;
 

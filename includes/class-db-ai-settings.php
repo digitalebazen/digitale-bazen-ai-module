@@ -14,9 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Schema voor option `db_ai_settings`:
  *   [
- *     'provider'      => ''|'anthropic'|'openai',
  *     'anthropic_key' => '...',
- *     'openai_key'    => '...',
  *     'pexels_key'    => '...',
  *     'unsplash_key'  => '...',
  *   ]
@@ -29,7 +27,6 @@ class DB_AI_Settings {
 
 	private const KEY_TO_CONSTANT = [
 		'anthropic' => 'DB_AI_ANTHROPIC_API_KEY',
-		'openai'    => 'DB_AI_OPENAI_API_KEY',
 		'pexels'    => 'DB_AI_PEXELS_API_KEY',
 		'unsplash'  => 'DB_AI_UNSPLASH_API_KEY',
 	];
@@ -120,24 +117,6 @@ class DB_AI_Settings {
 			}
 		}
 		return '';
-	}
-
-	/**
-	 * '' = auto (default), 'anthropic', 'openai'.
-	 */
-	public static function get_provider(): string {
-		if ( defined( 'DB_AI_PROVIDER' ) ) {
-			$val = strtolower( trim( (string) DB_AI_PROVIDER ) );
-			if ( '' !== $val ) {
-				return $val;
-			}
-		}
-		$opts = self::get_options();
-		return strtolower( (string) ( $opts['provider'] ?? '' ) );
-	}
-
-	public static function is_provider_constant_defined(): bool {
-		return defined( 'DB_AI_PROVIDER' ) && '' !== trim( (string) DB_AI_PROVIDER );
 	}
 
 	public static function is_external_links_enabled(): bool {
@@ -303,23 +282,6 @@ class DB_AI_Settings {
 		);
 
 		add_settings_section(
-			'db_ai_provider_section',
-			__( 'AI-dienst', 'digitale-bazen-ai-module' ),
-			function () {
-				echo '<p>' . esc_html__( 'Kies welke AI-dienst de generator gebruikt om blogs te schrijven. Bij "Automatisch" pakken we Anthropic Claude als die key is ingesteld, en anders OpenAI als fallback.', 'digitale-bazen-ai-module' ) . '</p>';
-			},
-			self::PAGE_SLUG
-		);
-
-		add_settings_field(
-			'provider',
-			__( 'AI-dienst', 'digitale-bazen-ai-module' ),
-			[ $this, 'render_provider_field' ],
-			self::PAGE_SLUG,
-			'db_ai_provider_section'
-		);
-
-		add_settings_section(
 			'db_ai_keys_section',
 			__( 'API-keys', 'digitale-bazen-ai-module' ),
 			function () {
@@ -330,7 +292,6 @@ class DB_AI_Settings {
 
 		$fields = [
 			'anthropic' => __( 'Anthropic API key', 'digitale-bazen-ai-module' ),
-			'openai'    => __( 'OpenAI API key', 'digitale-bazen-ai-module' ),
 			'pexels'    => __( 'Pexels API key', 'digitale-bazen-ai-module' ),
 			'unsplash'  => __( 'Unsplash API key', 'digitale-bazen-ai-module' ),
 		];
@@ -739,18 +700,9 @@ class DB_AI_Settings {
 			return $out;
 		}
 
-		// Provider — alleen accepteren als nog niet gelocked via constant.
-		if ( ! self::is_provider_constant_defined() && isset( $input['provider'] ) ) {
-			$allowed = [ '', 'anthropic', 'openai' ];
-			$val     = strtolower( trim( (string) $input['provider'] ) );
-			if ( in_array( $val, $allowed, true ) ) {
-				$out['provider'] = $val;
-			}
-		}
-
 		// Keys: lege submission = bestaande waarde behouden (we tonen ze niet terug,
 		// dus user kan niet "weten" of er iets staat — we updaten alleen bij niet-lege input).
-		foreach ( [ 'anthropic', 'openai', 'pexels', 'unsplash' ] as $name ) {
+		foreach ( [ 'anthropic', 'pexels', 'unsplash' ] as $name ) {
 			$field = $name . '_key';
 			if ( self::is_constant_defined( $name ) ) {
 				continue; // Constant wint, optie negeren.
@@ -1209,40 +1161,6 @@ class DB_AI_Settings {
 		echo '</p>';
 	}
 
-	public function render_provider_field(): void {
-		$locked  = self::is_provider_constant_defined();
-		$current = self::get_provider();
-		$options = [
-			''          => __( 'Automatisch (Anthropic > OpenAI op basis van aanwezige keys)', 'digitale-bazen-ai-module' ),
-			'anthropic' => __( 'Anthropic Claude', 'digitale-bazen-ai-module' ),
-			'openai'    => __( 'OpenAI', 'digitale-bazen-ai-module' ),
-		];
-
-		if ( $locked ) {
-			printf(
-				'<input type="text" class="regular-text" value="%s" disabled>',
-				esc_attr( $options[ $current ] ?? $current )
-			);
-			echo '<p class="description">'
-				. esc_html__( 'Ingesteld via', 'digitale-bazen-ai-module' )
-				. ' <code>DB_AI_PROVIDER</code> '
-				. esc_html__( 'in wp-config.php — verwijder de constant om hier te kunnen kiezen.', 'digitale-bazen-ai-module' )
-				. '</p>';
-			return;
-		}
-
-		echo '<select name="' . esc_attr( self::OPTION_NAME ) . '[provider]">';
-		foreach ( $options as $value => $label ) {
-			printf(
-				'<option value="%s"%s>%s</option>',
-				esc_attr( $value ),
-				selected( $current, $value, false ),
-				esc_html( $label )
-			);
-		}
-		echo '</select>';
-	}
-
 	public function render_api_key_field( array $args ): void {
 		$name           = (string) ( $args['name'] ?? '' );
 		$constant       = self::KEY_TO_CONSTANT[ $name ] ?? '';
@@ -1354,10 +1272,10 @@ class DB_AI_Settings {
 			],
 			[
 				'id'       => 'ai',
-				'label'    => __( 'AI setup', 'digitale-bazen-ai-module' ),
-				'title'    => __( 'AI-dienst & API-keys', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'Welke AI-dienst de generator gebruikt en welke API-keys daarbij horen.', 'digitale-bazen-ai-module' ),
-				'sections' => [ 'db_ai_provider_section', 'db_ai_keys_section' ],
+				'label'    => __( 'API-keys', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'API-keys', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'De API-keys die de generator gebruikt: Anthropic Claude voor de tekst en Pexels (met Unsplash als fallback) voor de afbeeldingen.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_keys_section' ],
 			],
 		];
 	}

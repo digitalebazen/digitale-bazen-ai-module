@@ -384,38 +384,21 @@ class DB_AI_Ajax {
 	}
 
 	/**
-	 * Kies provider. Voorrangsorde (via DB_AI_Settings, dat wp-config constants laat winnen):
-	 *  - Provider expliciet gekozen ('anthropic' | 'openai')
-	 *  - Anders Anthropic als anthropic-key beschikbaar
-	 *  - Anders OpenAI als openai-key beschikbaar
+	 * Maak de Anthropic-provider aan. Key komt uit DB_AI_Settings, dat wp-config
+	 * constants laat winnen van DB-waarden.
 	 *
 	 * @return DB_AI_Provider|WP_Error
 	 */
 	private function resolve_provider() {
-		$forced        = DB_AI_Settings::get_provider();
 		$anthropic_key = DB_AI_Settings::get_api_key( 'anthropic' );
-		$openai_key    = DB_AI_Settings::get_api_key( 'openai' );
 
-		$prefer_anthropic = ( 'anthropic' === $forced )
-			|| ( '' === $forced && '' !== trim( $anthropic_key ) );
-
-		if ( $prefer_anthropic ) {
-			if ( '' === trim( $anthropic_key ) ) {
-				return new WP_Error(
-					'db_ai_missing_anthropic_key',
-					__( 'Anthropic API-sleutel ontbreekt. Stel hem in onder Instellingen → AI Module, of definieer DB_AI_ANTHROPIC_API_KEY in wp-config.php.', 'digitale-bazen-ai-module' )
-				);
-			}
-			return new DB_AI_Anthropic_Provider( $anthropic_key );
-		}
-
-		if ( '' === trim( $openai_key ) ) {
+		if ( '' === trim( $anthropic_key ) ) {
 			return new WP_Error(
-				'db_ai_missing_openai_key',
-				__( 'OpenAI API-sleutel ontbreekt en geen Anthropic-key beschikbaar. Stel een key in onder Instellingen → AI Module.', 'digitale-bazen-ai-module' )
+				'db_ai_missing_anthropic_key',
+				__( 'Anthropic API-sleutel ontbreekt. Stel hem in onder Instellingen → Generator, of definieer DB_AI_ANTHROPIC_API_KEY in wp-config.php.', 'digitale-bazen-ai-module' )
 			);
 		}
-		return new DB_AI_OpenAI_Provider( $openai_key );
+		return new DB_AI_Anthropic_Provider( $anthropic_key );
 	}
 
 	private function upload_error_message( int $code ): string {

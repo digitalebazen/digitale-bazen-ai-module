@@ -4,20 +4,20 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
 
 == Description ==
 
-Onder **Berichten → AI Blog Genereren** (en onder Blogs CPT) krijgen redacteuren
+Onder **Blogs → AI Blog Genereren** krijgen redacteuren
 een 1-klik flow:
 
 1. Upload xlsx/xls/csv/ods met zoekwoordenonderzoek (verplichte kolom-mapping
    naar `Zoekwoord` via een wizard met auto-suggesties).
 2. Kies een hoofdzoekwoord.
-3. De plugin roept een AI provider aan (Anthropic Claude of OpenAI), valideert
+3. De plugin roept Anthropic Claude aan, valideert
    de output tegen het bestaande ACF flexible-content schema (`paginacontent`),
    downloadt featured + block-afbeeldingen via Pexels (fallback Unsplash),
    schrijft RankMath SEO velden en injecteert FAQPage JSON-LD voor élke post
@@ -37,13 +37,12 @@ Daglimiet per gebruiker: 10 generaties (filterbaar).
 * ACF Pro (met minstens één field group die een flexible content veld bevat — kiesbaar in Instellingen → AI Module)
 * RankMath SEO (free of Pro)
 * API keys via Settings-page of `wp-config.php` constants:
-    * `DB_AI_ANTHROPIC_API_KEY` of `DB_AI_OPENAI_API_KEY`
+    * `DB_AI_ANTHROPIC_API_KEY` (verplicht)
     * `DB_AI_PEXELS_API_KEY` (verplicht)
     * `DB_AI_UNSPLASH_API_KEY` (optioneel — fallback)
 
 Optionele constants:
 
-* `DB_AI_PROVIDER` — `anthropic` of `openai`
 * `DB_AI_GITHUB_REPO_URL` — voor auto-update vanuit een eigen GitHub repo
 * `DB_AI_GITHUB_TOKEN` — Personal Access Token voor private GitHub repo
 
@@ -51,7 +50,6 @@ Optionele constants:
 
 * `db_ai_post_type`, `db_ai_admin_menu_parents`
 * `db_ai_anthropic_model`, `db_ai_anthropic_max_tokens`
-* `db_ai_openai_model`, `db_ai_openai_temperature`, `db_ai_openai_max_tokens`
 * `db_ai_system_prompt`, `db_ai_user_prompt`
 * `db_ai_image_orientation`, `db_ai_rate_limit_per_day`, `db_ai_allowed_layouts`
 * `db_ai_reference_post_types`
@@ -66,6 +64,18 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.2 =
+* **OpenAI-provider verwijderd** — de generator gebruikte in de praktijk alleen
+  Anthropic Claude; OpenAI stond er nog als tweede provider + fallback en is nu
+  volledig weg. De "AI-dienst"-keuze in Instellingen is verdwenen (de tab heet
+  nu "API-keys"), net als het OpenAI-key-veld, de `DB_AI_PROVIDER` constant en de
+  `db_ai_openai_*` filters. De `DB_AI_Provider` interface blijft als basis voor
+  een eventuele toekomstige provider. Let op: een site zonder Anthropic-key valt
+  hierdoor stil — stel `DB_AI_ANTHROPIC_API_KEY` in.
+* **Generator-submenu alleen nog onder Blogs** — stond eerder zowel onder
+  Berichten als Blogs; nu alleen onder Blogs. Blijft filterbaar via
+  `db_ai_admin_menu_parents` als je hem ergens anders wilt.
 
 = 2.0.1 =
 * **Fix: layout-voorkeur werd genegeerd in de async-worker** — de

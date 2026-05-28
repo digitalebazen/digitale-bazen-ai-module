@@ -15,8 +15,8 @@ Alle 7 bouwstappen uit sectie 14 zijn gerealiseerd. Per stap acceptatiecriteria 
 | # | Onderwerp | Origineel | Werkelijk | Reden |
 |---|---|---|---|---|
 | 1 | post_type voor gegenereerde drafts | `post` | `blog` (CPT) | Site draait redactioneel op `blog` CPT (geregistreerd via ACF post-types UI, slug `blog`, label "Blogs"). Bevestigd 2026-05-19. |
-| 2 | Admin menu locatie | Berichten | Berichten **én** Blogs | User wilde submenu op beide plekken zichtbaar. Filterbaar via `db_ai_admin_menu_parents`. |
-| 3 | AI provider (V1) | OpenAI gpt-4o | Anthropic `claude-sonnet-4-6` | User had geen OpenAI billing maar wel Anthropic. OpenAI-provider staat nog in codebase; switch via `DB_AI_PROVIDER` constant. Bevestigd 2026-05-19. |
+| 2 | Admin menu locatie | Berichten | Alleen Blogs | Stond tot 2026-05-28 op Berichten **én** Blogs; op verzoek teruggebracht naar alleen Blogs. Filterbaar via `db_ai_admin_menu_parents`. |
+| 3 | AI provider (V1) | OpenAI gpt-4o | Anthropic `claude-sonnet-4-6` | User had geen OpenAI billing maar wel Anthropic. Bevestigd 2026-05-19. OpenAI-provider op 2026-05-28 volledig verwijderd (zie sectie 0G). |
 | 4 | ACF field group toepassingen | `page`, `post`, `project` | + `blog` | Field group bleek in DB ook aan `blog` gekoppeld. Code leest dynamisch dus geen aanpassing nodig — alleen sectie 5 inhoudelijk gecorrigeerd. |
 
 ### Operationele gotcha's (gedocumenteerd voor toekomstige debugging)
@@ -242,11 +242,33 @@ Bulk-generatie, per-block regeneratie en update-bestaande-blog kunnen als nieuwe
 
 ---
 
+## 0G. v2.0.2 — OpenAI verwijderd + submenu alleen bij Blogs (2026-05-28)
+
+De plugin gebruikte in de praktijk uitsluitend Anthropic Claude; OpenAI stond er nog als tweede provider + fallback. Op verzoek is OpenAI volledig verwijderd zodat er één duidelijk pad is. Tegelijk is het generator-submenu teruggebracht naar alleen Blogs (stond eerder ook onder Berichten — zie sectie 0/18).
+
+### Wat is weg
+
+- `includes/providers/class-db-ai-openai-provider.php` (verwijderd) + de require in de bootstrap.
+- De provider-keuze in Settings: de hele **"AI-dienst"** sectie + dropdown is weg. De tab "AI setup" heet nu **"API-keys"** en toont alleen nog de keys (Anthropic + Pexels/Unsplash).
+- De `DB_AI_PROVIDER` constant + `DB_AI_Settings::get_provider()` / `is_provider_constant_defined()` — niet langer nodig met één provider.
+- Het OpenAI API-key-veld + de `db_ai_openai_*` filters (`_model`, `_temperature`, `_max_tokens`).
+
+### Wat blijft
+
+- De `DB_AI_Provider` interface blijft — Anthropic implementeert hem, en het is de schone basis als er ooit een tweede provider (bv. Gemini) bij komt.
+- `DB_AI_Ajax::resolve_provider()` maakt nu rechtstreeks een `DB_AI_Anthropic_Provider` aan; faalt met een duidelijke melding als de Anthropic-key ontbreekt.
+
+### Migratie-impact
+
+Strikt genomen een breaking change voor een site die alleen een OpenAI-key had of `DB_AI_PROVIDER='openai'` zette: die valt nu zonder Anthropic-key stil met "Anthropic API-sleutel ontbreekt". Op deze (enige) site draait Anthropic, dus in de praktijk geen impact — daarom bewust als **patch v2.0.2** uitgebracht i.p.v. een MAJOR bump.
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
 
-Een WordPress plugin (`digitale-bazen-ai-module`) die in het admin paneel onder **Berichten → AI Blog Genereren** een interface aanbiedt waarmee redacteuren in één klik een complete, SEO-geoptimaliseerde blogpost-draft kunnen genereren op basis van een hoofdzoekwoord uit een zoekwoordenonderzoek (CSV).
+Een WordPress plugin (`digitale-bazen-ai-module`) die in het admin paneel onder **Blogs → AI Blog Genereren** een interface aanbiedt waarmee redacteuren in één klik een complete, SEO-geoptimaliseerde blogpost-draft kunnen genereren op basis van een hoofdzoekwoord uit een zoekwoordenonderzoek (CSV).
 
 De gegenereerde post:
 - Wordt opgeslagen als **draft** (nooit direct gepubliceerd)
@@ -333,7 +355,7 @@ digitale-bazen-ai-module/
 ├── uninstall.php                               # Drop tabel + cleanup options (incl. db_ai_settings)
 ├── includes/
 │   ├── class-db-ai-plugin.php                  # Singleton, init, activation, db-version check
-│   ├── class-db-ai-admin-page.php              # Submenu (Berichten + Blogs) + asset enqueue + nonce localize
+│   ├── class-db-ai-admin-page.php              # Submenu (alleen Blogs) + asset enqueue + nonce localize
 │   ├── class-db-ai-settings.php                # V2: Settings API page onder Instellingen + helpers voor keys
 │   ├── class-db-ai-style-profile.php           # V2.1: TOV/context/rules + referentie-post text extractie
 │   ├── class-db-ai-ajax.php                    # AJAX endpoints (parse_csv, generate)
@@ -347,8 +369,7 @@ digitale-bazen-ai-module/
 │   ├── class-db-ai-rate-limiter.php            # 10/dag/user, telt uit logger tabel
 │   └── providers/
 │       ├── interface-db-ai-provider.php        # DB_AI_Provider interface
-│       ├── class-db-ai-openai-provider.php     # OpenAI gpt-4o (configureerbaar via Settings)
-│       └── class-db-ai-anthropic-provider.php  # Anthropic claude-sonnet-4-6 (default)
+│       └── class-db-ai-anthropic-provider.php  # Anthropic claude-sonnet-4-6 (enige provider; OpenAI verwijderd 2026-05-28)
 ├── assets/
 │   ├── admin.js                                # Vanilla JS — Excel/CSV wizard + mapping + generate
 │   ├── admin.css                               # Plain CSS, spinner, status, mapping-table, generate-card
@@ -549,7 +570,9 @@ interface DB_AI_Provider {
 }
 ```
 
-### OpenAI implementatie
+### OpenAI implementatie — VERWIJDERD (2026-05-28, zie sectie 0G)
+
+> De OpenAI-provider is verwijderd. Onderstaande spec is historisch bewaard. Anthropic (sectie 7B) is de enige provider.
 
 **Model**: `gpt-4o` (vast in V1, configureerbaar via filter `db_ai_openai_model` in latere versies)
 
@@ -1238,10 +1261,7 @@ CREATE TABLE {$wpdb->prefix}db_ai_generations (
 Filters en actions die V1 daadwerkelijk biedt:
 
 ```php
-// Filters — providers
-apply_filters( 'db_ai_openai_model', 'gpt-4o' );
-apply_filters( 'db_ai_openai_temperature', 0.7 );
-apply_filters( 'db_ai_openai_max_tokens', 8000 );
+// Filters — provider (Anthropic; OpenAI verwijderd 2026-05-28, zie sectie 0G)
 apply_filters( 'db_ai_anthropic_model', 'claude-sonnet-4-6' );
 apply_filters( 'db_ai_anthropic_max_tokens', 8000 );
 
@@ -1305,9 +1325,9 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 - Pexels primair, Unsplash fallback
 - Draft mode altijd
 - Post type: `blog` (CPT) — bevestigd 2026-05-19, wijkt af van origineel `post`
-- Admin submenu: zichtbaar onder Berichten én Blogs
+- Admin submenu: alleen onder Blogs (was Berichten én Blogs tot 2026-05-28). Filterbaar via `db_ai_admin_menu_parents`.
 - Capability: `publish_posts`
-- Provider (tijdelijk): Anthropic Claude (`claude-sonnet-4-6`) — bevestigd 2026-05-19. Opus 4.7 startte ook werkend maar liep tegen MAMP's 30s FastCGI idle-timeout. Sonnet 4.6 is sneller (~15-25s), goedkoper (~$0.05-0.10/blog) en ruim voldoende voor blogs. OpenAI is geen optie tot user billing aan heeft op platform.openai.com. OpenAI-provider blijft in codebase, selectie via `DB_AI_PROVIDER` constant of fallback op aanwezige API-key. MAMP `FastCgiServer -idle-timeout 180` toegevoegd in `/Applications/MAMP/conf/apache/httpd.conf` zodat ook zwaardere modellen passen.
+- Provider: Anthropic Claude (`claude-sonnet-4-6`) — bevestigd 2026-05-19, enige provider sinds 2026-05-28 (OpenAI verwijderd, zie sectie 0G). Opus 4.7 startte ook werkend maar liep tegen MAMP's 30s FastCGI idle-timeout. Sonnet 4.6 is sneller (~15-25s), goedkoper (~$0.05-0.10/blog) en ruim voldoende voor blogs. MAMP `FastCgiServer -idle-timeout 180` toegevoegd in `/Applications/MAMP/conf/apache/httpd.conf` zodat ook zwaardere modellen passen.
 - API keys in `wp-config.php`
 - Auteur = huidige user
 - ACF layouts dynamisch ingelezen
