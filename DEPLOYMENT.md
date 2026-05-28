@@ -79,7 +79,7 @@ Voeg toe tussen regel 84 en 88 van `wp-config.php`:
 define( 'DB_AI_GITHUB_REPO_URL', 'https://github.com/DigitaleBazen/digitale-bazen-ai-module/' );
 define( 'DB_AI_GITHUB_TOKEN',    'github_pat_xxxxxxxxxxxxxxxx' );
 
-// API keys (kunnen ook via Instellingen → AI Module)
+// API keys (kunnen ook via Instellingen → Generator)
 // define( 'DB_AI_ANTHROPIC_API_KEY', 'sk-ant-...' );
 // define( 'DB_AI_PEXELS_API_KEY',    '...' );
 ```

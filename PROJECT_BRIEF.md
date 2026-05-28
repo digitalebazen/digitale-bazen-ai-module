@@ -205,7 +205,7 @@ User-feedback: wizard met 5 stappen werd onoverzichtelijk door alle optionele ve
 
 ## 0F. v2.0.0 Iteratie — Async generatie (job-queue) (2026-05-28)
 
-Productie kreeg timeouts op lange blog-generaties (Sonnet 4.6 = 25-50s vs host-limieten van 30s). Quick-fixes (Haiku, server-timeout) hadden een plafond; async is de structurele oplossing én de fundering voor het hele V3-backlog. Volledig ontwerp + open-vragen-besluiten staan in `ASYNC_REFACTOR_PLAN.md`.
+Productie kreeg timeouts op lange blog-generaties (Sonnet 4.6 = 25-50s vs host-limieten van 30s). Quick-fixes (Haiku, server-timeout) hadden een plafond; async is de structurele oplossing én de fundering voor het hele V3-backlog.
 
 ### Architectuur
 
@@ -230,7 +230,7 @@ Worker (Action Scheduler / WP-Cron) → DB_AI_Job_Queue::run() → DB_AI_Post_Cr
 
 ### Behavior-parity (harde eis)
 
-Alle bestaande functionaliteit werkt identiek — getest end-to-end op 2026-05-28: ACF blocks, featured + block-afbeeldingen, RankMath SEO, FAQ JSON-LD, interne + externe links, `_db_ai_*` meta, quota-teller. Zie regressie-checklist in `ASYNC_REFACTOR_PLAN.md` sectie 1B.
+Alle bestaande functionaliteit werkt identiek — getest end-to-end op 2026-05-28: ACF blocks, featured + block-afbeeldingen, RankMath SEO, FAQ JSON-LD, interne + externe links, `_db_ai_*` meta, quota-teller. De generatie-logica in `DB_AI_Post_Creator` is ongewijzigd; alleen de aanroep-context (worker) + progress-reporting zijn toegevoegd.
 
 ### Belangrijke nuance (niet opgelost door async)
 
@@ -238,7 +238,7 @@ Async dwingt PHP niet door host-timeouts: één AI-call die alleen al langer duu
 
 ### Wat dit ontgrendelt (V3)
 
-Bulk-generatie, per-block regeneratie, outline-first flow en update-bestaande-blog kunnen nu allemaal als nieuwe `job_type` op deze infra bouwen zonder opnieuw architectuur-werk.
+Bulk-generatie, per-block regeneratie en update-bestaande-blog kunnen als nieuwe `job_type` op deze infra bouwen zonder opnieuw architectuur-werk. (Outline-first is op deze infra gebouwd én weer verwijderd — zie sectie 17.)
 
 ---
 
@@ -1279,8 +1279,10 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 ### V2.1 — afgerond (2026-05-20)
 - ✅ Tone of voice + site-context + style rules + referentie-posts in Settings → appended aan system prompt (zie sectie 0C)
 
+### Afgewezen
+- ~~Outline-first / multi-step generatie (outline → review → write)~~ — gebouwd op de async-infra (backend + wizard-review-UI) en op 2026-05-28 weer verwijderd: in de praktijk geen toegevoegde waarde. Niet opnieuw inplannen.
+
 ### V3 — backlog (nog niet ingepland)
-- Multi-step generatie (outline → approve → write)
 - Per-block regeneratie (alleen FAQ opnieuw als die zwak is)
 - Image preview met handmatige selectie (3-5 thumbnails per slot, redacteur kiest)
 - Categorie/tag automatisch via AI

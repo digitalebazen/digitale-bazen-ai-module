@@ -36,7 +36,7 @@ final class DB_AI_Plugin {
 		DB_AI_Keyword_Research::register();
 
 		// Async job-queue — runner-hook + onderhoud-cron registreren ongeacht
-		// context (worker draait buiten admin). Zie ASYNC_REFACTOR_PLAN.md.
+		// context (worker draait buiten admin). Zie PROJECT_BRIEF.md sectie 0F.
 		DB_AI_Job_Queue::register();
 
 		// DB_AI_Settings registreert de `db_ai_allowed_layouts` filter die de

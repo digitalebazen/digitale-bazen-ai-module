@@ -9,8 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Vervangt de synchrone `db_ai_generate` flow zodat host-timeouts (FastCGI /
  * Nginx / Cloudflare / PHP max_execution_time) geen langlopende AI-calls meer
- * killen, en legt de fundering voor bulk-generatie, per-block regeneratie en
- * outline-first flows (zie ASYNC_REFACTOR_PLAN.md).
+ * killen, en legt de fundering voor bulk-generatie en per-block regeneratie.
+ * Zie PROJECT_BRIEF.md sectie 0F voor de as-built beschrijving.
  *
  * Lifecycle: queued → running → done | failed (monotoon, geen resurrectie).
  *
