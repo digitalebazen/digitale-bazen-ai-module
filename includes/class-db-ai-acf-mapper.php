@@ -278,6 +278,16 @@ class DB_AI_ACF_Mapper {
 			}
 
 			if ( 'repeater' === $type ) {
+				// Min/max-items meegeven aan de AI — de validator leest dezelfde ACF
+				// `min`/`max` flags en kapt anders met "X items, minimaal Y vereist".
+				$min = (int) ( $field['min'] ?? 0 );
+				$max = (int) ( $field['max'] ?? 0 );
+				if ( $min > 0 ) {
+					$entry['min_items'] = $min;
+				}
+				if ( $max > 0 ) {
+					$entry['max_items'] = $max;
+				}
 				$entry['sub_fields'] = $this->describe_fields( $field['sub_fields'] ?? [], $layout_name . '.' . $name );
 			}
 

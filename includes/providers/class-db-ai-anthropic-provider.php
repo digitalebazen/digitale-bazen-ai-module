@@ -261,6 +261,12 @@ TXT;
 			. '`titel_content` of `tekst_content` zegt, gebruik die letterlijk (NIET `titel`/`tekst`).' . "\n"
 			. 'Velden voor repeater-items zoals `usps[]`, `vragen[]`, `onderwerpen[]` hebben vaak' . "\n"
 			. 'andere namen dan top-level block velden — vul ze in volgens de spec.' . "\n\n"
+			. 'KRITIEK — REPEATER-AANTAL:' . "\n"
+			. 'Heeft een repeater-veld in de spec een `min_items` of `max_items`? Dan MOET de' . "\n"
+			. 'repeater respectievelijk minstens / hoogstens dat aantal items bevatten. Een' . "\n"
+			. 'repeater met `min_items: 2` waar je maar 1 item invult faalt de validatie en de' . "\n"
+			. 'hele blog wordt afgekeurd. Heeft het content-onderwerp niet genoeg om het minimum' . "\n"
+			. 'natuurlijk te halen? Kies dan een andere layout voor dat blok.' . "\n\n"
 			. 'Geef antwoord als één JSON-object volgens deze exacte structuur:' . "\n"
 			. '%5$s',
 			$main_keyword,

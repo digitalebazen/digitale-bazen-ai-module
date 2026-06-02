@@ -121,19 +121,36 @@ class DB_AI_Post_Creator {
 
 		$this->report( 50, __( 'Output valideren', 'digitale-bazen-ai-module' ) );
 
-		// 2. Validate
+		// 2. Validate.
+		// Validatiefouten breken de hele generatie alleen af als er niks
+		// salveerbaars overblijft (geen titel, of geen enkel blok met een
+		// toegestane layout). Anders worden de fouten warnings en wordt de
+		// draft alsnog aangemaakt — scheelt een hele regeneratie aan tokens
+		// als er bv. één repeater te weinig items heeft; de redacteur kan dat
+		// veel sneller zelf in de editor aanvullen.
 		$validation = $this->acf_mapper->validate_ai_output( $ai_output, $main_keyword );
+		$warnings   = array_merge( $preprocess_warnings, $validation['warnings'] );
+
 		if ( ! $validation['valid'] ) {
-			$err = new WP_Error(
-				'db_ai_validation_failed',
-				__( 'AI output is niet valide volgens schema.', 'digitale-bazen-ai-module' ),
-				[ 'validation_errors' => $validation['errors'] ]
-			);
-			$this->log_failure( 0, $user_id, $main_keyword, 'validation_error', implode( '; ', $validation['errors'] ) );
-			do_action( 'db_ai_generation_failed', $err, $main_keyword, $user_id );
-			return $err;
+			if ( ! $this->is_salvageable_output( $ai_output ) ) {
+				$err = new WP_Error(
+					'db_ai_validation_failed',
+					__( 'AI-output is onbruikbaar: geen titel of geen enkel valide blok.', 'digitale-bazen-ai-module' ),
+					[ 'validation_errors' => $validation['errors'] ]
+				);
+				$this->log_failure( 0, $user_id, $main_keyword, 'validation_error', implode( '; ', $validation['errors'] ) );
+				do_action( 'db_ai_generation_failed', $err, $main_keyword, $user_id );
+				return $err;
+			}
+
+			foreach ( $validation['errors'] as $msg ) {
+				$warnings[] = sprintf(
+					/* translators: %s = validation error message */
+					__( 'Aanvullen in editor: %s', 'digitale-bazen-ai-module' ),
+					$msg
+				);
+			}
 		}
-		$warnings = array_merge( $preprocess_warnings, $validation['warnings'] );
 
 		// 3. Insert draft post
 		$post_type = (string) apply_filters( 'db_ai_post_type', self::DEFAULT_POST_TYPE );
@@ -265,6 +282,35 @@ class DB_AI_Post_Creator {
 	 *  - geen numerieke keys (om lists te onderscheiden van objecten)
 	 *  - maximaal 3 keys (defensief tegen rare AI-output)
 	 */
+	/**
+	 * Is er voldoende in de AI-output om er een bruikbare draft van te maken?
+	 * "Bruikbaar" = minimaal een post-titel + één blok met een toegestane layout.
+	 * Anders heeft het geen zin een leeg concept aan te maken en kan beter de
+	 * hele generatie als mislukt worden gemarkeerd.
+	 */
+	private function is_salvageable_output( array $ai_output ): bool {
+		$title = trim( (string) ( $ai_output['post']['title'] ?? '' ) );
+		if ( '' === $title ) {
+			return false;
+		}
+
+		$blocks = (array) ( $ai_output['blocks'] ?? [] );
+		if ( empty( $blocks ) ) {
+			return false;
+		}
+
+		$allowed = $this->acf_mapper->get_allowed_layouts();
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+			if ( in_array( (string) ( $block['acf_fc_layout'] ?? '' ), $allowed, true ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private function process_block_images( array $block, int $post_id, array &$warnings, int $block_index ): array {
 		$layout = $block['acf_fc_layout'] ?? '';
 		$this->walk_and_resolve_images( $block, $post_id, $warnings, $block_index, $layout, '' );

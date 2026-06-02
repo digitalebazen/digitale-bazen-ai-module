@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.4
+Stable tag: 2.0.5
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,29 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.5 =
+* **Validatiefouten verspillen geen volledige generatie meer** — voorheen
+  werd de hele blog afgekeurd zodra één blok niet aan het schema voldeed
+  (bv. een repeater met te weinig items), waardoor de redacteur opnieuw
+  moest laten genereren en alle tokens kwijt waren. Nu wordt de draft
+  alsnog aangemaakt zolang er minimaal een titel + één blok met toegestane
+  layout is; de overige validatiefouten verschijnen als warnings (prefix
+  *"Aanvullen in editor: …"*) zodat de redacteur ze in de editor met de
+  hand kan oplossen. Hard-fail blijft alleen over voor écht onbruikbare
+  output (geen titel of geen enkel valide blok).
+* **`min_items` / `max_items` per repeater meegegeven aan de AI** — de
+  validator las ACF's `min`/`max`-flag al sinds v1.2.0, maar gaf die
+  waarde niet door aan de AI. Daardoor wist de generator niet hoeveel
+  items een repeater minimaal moest hebben en faalde generaties op fouten
+  als *"repeater X heeft 1 items, minimaal 2 vereist"*. De layout-spec
+  bevat nu `min_items`/`max_items` per repeater en de prompt heeft een
+  KRITIEK-blokje dat uitlegt wat die keys betekenen.
+* **FAQ-heading-niveau wordt per blok bepaald i.p.v. per onderwerp** —
+  voorkomt mixed-case waarin vragen van een titelloos onderwerp op H3
+  stonden terwijl een later `onderwerp_titel` ook H3 was. Heeft het blok
+  ergens een onderwerp_titel? Dan zijn alle vragen H4, anders H3.
+  Spiegelt de theme-aanpassing in `paginablokken/veelgestelde_vragen.php`.
 
 = 2.0.4 =
 * **RankMath-bridge rendert nu de échte theme-templates** — voorheen bouwde de
