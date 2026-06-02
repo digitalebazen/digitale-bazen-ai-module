@@ -195,18 +195,21 @@ final class DB_AI_Rankmath_Bridge {
 					}
 					break;
 				case 'veelgestelde_vragen':
-					// Spiegelt de frontend-hiërarchie (zie themes/bazentemplate/
-					// paginablokken/veelgestelde_vragen.php + functions.php
-					// get_faq_item): block-titel H2 → onderwerp_titel H3 (indien
-					// gevuld) → vraag H4. Zonder onderwerp_titel is de vraag de
-					// eerstvolgende sub-laag onder H2 en dus H3.
+					// Spiegelt frontend (themes/bazentemplate/paginablokken/veelgestelde_vragen.php): één heading-niveau voor álle vragen in dit blok — H4 zodra er ergens een onderwerp_titel staat (gegroepeerd), anders H3 (plat).
 					$out[] = $this->render_simple_block( $row, 'h2' );
-					foreach ( (array) ( $row['onderwerpen'] ?? [] ) as $onderwerp ) {
-						$has_onderwerp_titel = ! empty( $onderwerp['onderwerp_titel'] );
-						if ( $has_onderwerp_titel ) {
+					$onderwerpen             = (array) ( $row['onderwerpen'] ?? [] );
+					$has_any_onderwerp_titel = false;
+					foreach ( $onderwerpen as $o ) {
+						if ( ! empty( $o['onderwerp_titel'] ) ) {
+							$has_any_onderwerp_titel = true;
+							break;
+						}
+					}
+					$vraag_tag = $has_any_onderwerp_titel ? 'h4' : 'h3';
+					foreach ( $onderwerpen as $onderwerp ) {
+						if ( ! empty( $onderwerp['onderwerp_titel'] ) ) {
 							$out[] = '<h3>' . esc_html( (string) $onderwerp['onderwerp_titel'] ) . '</h3>';
 						}
-						$vraag_tag = $has_onderwerp_titel ? 'h4' : 'h3';
 						foreach ( (array) ( $onderwerp['vragen'] ?? [] ) as $vraag ) {
 							if ( ! empty( $vraag['vraag'] ) ) {
 								$out[] = '<' . $vraag_tag . '>' . esc_html( (string) $vraag['vraag'] ) . '</' . $vraag_tag . '>';
