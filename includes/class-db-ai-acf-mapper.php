@@ -261,7 +261,11 @@ class DB_AI_ACF_Mapper {
 				'name' => $name,
 				'type' => $type,
 			];
-			if ( ! empty( $field['required'] ) ) {
+			// `required: true` alleen meegeven als het veld onvoorwaardelijk
+			// vereist is. Velden met conditional_logic zijn alleen vereist als
+			// hun regel matcht (bv. afhankelijk van een `weergave`-select); zonder
+			// die context kan de AI dat niet evalueren, dus we forceren het niet.
+			if ( ! empty( $field['required'] ) && empty( $field['conditional_logic'] ) ) {
 				$entry['required'] = true;
 			}
 
@@ -280,8 +284,11 @@ class DB_AI_ACF_Mapper {
 			if ( 'repeater' === $type ) {
 				// Min/max-items meegeven aan de AI — de validator leest dezelfde ACF
 				// `min`/`max` flags en kapt anders met "X items, minimaal Y vereist".
-				$min = (int) ( $field['min'] ?? 0 );
-				$max = (int) ( $field['max'] ?? 0 );
+				// Maar: bij een repeater met ACF conditional_logic geldt min/max
+				// alleen voor specifieke weergaves; de AI niet onnodig dwingen.
+				$has_conditional = ! empty( $field['conditional_logic'] );
+				$min             = $has_conditional ? 0 : (int) ( $field['min'] ?? 0 );
+				$max             = $has_conditional ? 0 : (int) ( $field['max'] ?? 0 );
 				if ( $min > 0 ) {
 					$entry['min_items'] = $min;
 				}
@@ -427,7 +434,16 @@ class DB_AI_ACF_Mapper {
 			$name = $field['name'] ?? '';
 			$type = $field['type'] ?? '';
 
-			if ( ! empty( $field['required'] ) ) {
+			// Required-check overslaan wanneer:
+			// - Type is repeater (wordt specifieker afgehandeld in
+			//   validate_repeaters_dynamic met "minstens X items vereist", anders
+			//   krijgt de gebruiker twee warnings voor dezelfde root-cause).
+			// - Het veld heeft ACF conditional_logic — dan is "required" alleen
+			//   van kracht als de regel matcht (bv. "alleen vereist als
+			//   weergave == alternatief"). De validator weet niet welke
+			//   weergave actief is, dus laten we ACF zelf dat in de editor
+			//   afhandelen i.p.v. een spookmelding te genereren.
+			if ( ! empty( $field['required'] ) && 'repeater' !== $type && empty( $field['conditional_logic'] ) ) {
 				$value = $block[ $name ] ?? null;
 				if ( $this->is_empty_value( $value ) ) {
 					$errors[] = sprintf(
@@ -490,6 +506,12 @@ class DB_AI_ACF_Mapper {
 				continue;
 			}
 
+			// Repeaters met ACF conditional_logic zijn pas "vereist" als hun regel
+			// matcht (bv. "alleen vereist als weergave == alternatief"). Zonder
+			// die context kan de validator dat niet betrouwbaar evalueren, dus
+			// behandelen we hem als optioneel; ACF zelf bewaakt 'm in de editor.
+			$has_conditional = ! empty( $field['conditional_logic'] );
+
 			$required_subs = [];
 			$image_subs    = [];
 			foreach ( $field['sub_fields'] ?? [] as $sub ) {
@@ -497,7 +519,9 @@ class DB_AI_ACF_Mapper {
 				if ( '' === $sub_name ) {
 					continue;
 				}
-				if ( ! empty( $sub['required'] ) ) {
+				// Sub-velden met conditional_logic óók overslaan voor de
+				// required-check binnen de repeater-items.
+				if ( ! empty( $sub['required'] ) && empty( $sub['conditional_logic'] ) ) {
 					$required_subs[] = $sub_name;
 				}
 				if ( 'image' === ( $sub['type'] ?? '' ) ) {
@@ -507,8 +531,8 @@ class DB_AI_ACF_Mapper {
 
 			$specs[] = [
 				'name'          => (string) ( $field['name'] ?? '' ),
-				'required'      => ! empty( $field['required'] ),
-				'min'           => (int) ( $field['min'] ?? 0 ),
+				'required'      => ! empty( $field['required'] ) && ! $has_conditional,
+				'min'           => $has_conditional ? 0 : (int) ( $field['min'] ?? 0 ),
 				'required_subs' => $required_subs,
 				'image_subs'    => $image_subs,
 			];

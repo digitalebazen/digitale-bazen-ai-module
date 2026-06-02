@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitale Bazen AI Module
  * Description: Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
- * Version:     2.0.5
+ * Version:     2.0.6
  * Author:      Digitale Bazen
  * Author URI:  https://digitalebazen.nl
  * Text Domain: digitale-bazen-ai-module
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DB_AI_VERSION', '2.0.5' );
+define( 'DB_AI_VERSION', '2.0.6' );
 define( 'DB_AI_PLUGIN_FILE', __FILE__ );
 define( 'DB_AI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DB_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -35,6 +35,7 @@ require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-style-profile.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-blog-input.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-internal-links.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-external-links.php';
+require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-past-blogs-context.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-external-links-metabox.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-admin-page.php';
 require_once DB_AI_PLUGIN_DIR . 'includes/class-db-ai-keyword-importer.php';

@@ -97,6 +97,7 @@ class DB_AI_Post_Creator {
 				'internal_link_max'    => $internal_link_max,
 				'internal_link_forced' => $internal_link_forced,
 				'external_links_max'   => $external_links_max,
+				'past_blogs'           => DB_AI_Past_Blogs_Context::get_recent(),
 			]
 		);
 		if ( is_wp_error( $ai_output ) ) {

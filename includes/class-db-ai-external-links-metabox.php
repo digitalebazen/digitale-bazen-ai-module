@@ -72,6 +72,7 @@ final class DB_AI_External_Links_Metabox {
 					'noSelection'  => __( 'Selecteer eerst minstens één suggestie.', 'digitale-bazen-ai-module' ),
 					'networkError' => __( 'Netwerkfout.', 'digitale-bazen-ai-module' ),
 					'confirmDismiss' => __( 'Deze suggestie verwijderen?', 'digitale-bazen-ai-module' ),
+					'reloading'    => __( 'Pagina wordt herladen om verlies te voorkomen…', 'digitale-bazen-ai-module' ),
 				],
 			]
 		);
@@ -219,9 +220,13 @@ final class DB_AI_External_Links_Metabox {
 			}
 		}
 
-		// Pre-TOC werkte de write zonder normalize-stap (rauwe field-key-keyed rows
-		// direct naar update_field). Houd dat pad — gebruiker bevestigde dat het toen
-		// werkte. Mijn post-TOC normalize_rows_to_names() was waarschijnlijk de regressie.
+		// Read via field-key levert sub-velden vaak gekeyed op field-key terug
+		// (bv. `field_abc123` i.p.v. `tekst`). ACF's `update_field` verwacht ze
+		// echter met field-NAMES als sleutel, anders schrijft hij stilletjes niets
+		// (op sommige sites) en zien wij groene "success"-melding zonder dat de
+		// link in de DB landt. Normaliseren vóór de write fixt dat. Repeaters
+		// recursen mee; link/select-velden (associatieve arrays) blijven ongemoeid.
+		$rows          = $this->normalize_rows_to_names( $rows );
 		$update_result = update_field( $write_target, $rows, $post_id );
 
 		// Bypass ACF's in-request cache: lees de RAUWE meta direct uit `wp_postmeta`.
@@ -245,6 +250,23 @@ final class DB_AI_External_Links_Metabox {
 			$t['raw_db_tail']          = is_string( $raw_value ) ? substr( $raw_value, -300 ) : '(non-string)';
 		}
 		unset( $t );
+
+		// Authoritative truth: rauwe DB-meta. Als de URL daar niet zit is de
+		// write feitelijk gefaald, ongeacht wat update_field zei. Downgrade het
+		// resultaat zodat de UI eerlijk rood toont in plaats van misleidend groen.
+		foreach ( $trace as $idx => $t ) {
+			if ( ! isset( $results[ $idx ] ) || 'ok' !== $results[ $idx ] ) {
+				continue;
+			}
+			if ( ! array_key_exists( 'raw_db_contains_url', $t ) || $t['raw_db_contains_url'] ) {
+				continue;
+			}
+			$results[ $idx ] = 'failed';
+			$diag[ $idx ]    = trim(
+				( $diag[ $idx ] ?? '' )
+				. ' ACF update_field rapporteerde succes, maar URL niet in DB teruggevonden — write is feitelijk niet doorgegaan.'
+			);
+		}
 
 		// Verificatie via ACF (kan cache-pollutie geven, alleen secundair signaal).
 		$verify_rows = get_field( $write_target, $post_id );
@@ -287,13 +309,7 @@ final class DB_AI_External_Links_Metabox {
 			$ok_count
 		);
 		if ( $fail_count > 0 && ! empty( $diag ) ) {
-			$message .= ' — ' . implode( '; ', $diag );
-		}
-
-		// Trace-warning als de write claimt succes maar de URL niet in de DB landde.
-		$missing_in_db = array_filter( $trace, fn( $t ) => ! empty( $t ) && empty( $t['persisted_in_db'] ?? true ) );
-		if ( $ok_count > 0 && ! empty( $missing_in_db ) ) {
-			$message .= ' ⚠ ACF write claimde succes maar URL niet teruggevonden in DB — zie diagnose.';
+			$message .= ' — ' . implode( '; ', array_filter( $diag ) );
 		}
 
 		wp_send_json_success(
@@ -518,6 +534,55 @@ final class DB_AI_External_Links_Metabox {
 	 *
 	 * @return array { name: string lowercase, type: string }
 	 */
+	/**
+	 * Zet sub-veld-keys van field-KEYS terug naar field-NAMES voor de hele
+	 * rows-structuur. ACF's `get_field($flex_key, $id, false)` levert vaak
+	 * field-key-gebaseerde keys, maar `update_field` verwacht field-NAMES.
+	 * Repeaters worden recursief meegenomen; link/select-velden (associatieve
+	 * arrays met string-keys) blijven ongemoeid. `acf_fc_layout` ook.
+	 */
+	private function normalize_rows_to_names( array $rows ): array {
+		$out = [];
+		foreach ( $rows as $i => $row ) {
+			if ( ! is_array( $row ) ) {
+				$out[ $i ] = $row;
+				continue;
+			}
+			$new_row = [];
+			foreach ( $row as $key => $value ) {
+				if ( 'acf_fc_layout' === $key ) {
+					$new_row[ $key ] = $value;
+					continue;
+				}
+				$new_key = is_string( $key ) && 0 === strpos( $key, 'field_' )
+					? ( $this->resolve_field_meta( $key )['name'] ?: $key )
+					: $key;
+				if ( is_array( $value ) && $this->is_repeater_value( $value ) ) {
+					$value = $this->normalize_rows_to_names( $value );
+				}
+				$new_row[ $new_key ] = $value;
+			}
+			$out[ $i ] = $new_row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Detect of een waarde een ACF-repeater-payload is (lijst van rij-objecten)
+	 * en GEEN link/select-veld (associatieve array met string-keys).
+	 */
+	private function is_repeater_value( array $value ): bool {
+		if ( empty( $value ) ) {
+			return false;
+		}
+		foreach ( $value as $k => $v ) {
+			if ( ! is_int( $k ) || ! is_array( $v ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private function resolve_field_meta( string $key ): array {
 		static $cache = [];
 		if ( isset( $cache[ $key ] ) ) {

@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,52 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.6 =
+* **FAQ-prompt is nu conditioneel op layout-beschikbaarheid** — als er geen
+  `veelgestelde_vragen`-achtige layout in de toegestane lijst staat, krijgt
+  de generator nu expliciet *"voeg GEEN FAQ-blok toe"* mee. Voorkomt dat de
+  AI nog FAQ-content bedenkt voor blogs waar je dat blok niet wilt.
+* **Validatie-warnings ontdubbeld** — voor een lege required repeater kreeg
+  je twee meldingen voor exact dezelfde root-cause (*"verplicht veld X
+  ontbreekt"* + *"repeater X moet minstens 1 item bevatten"*). Nu nog maar
+  één, de specifiekere "minstens X items vereist".
+* **ACF `conditional_logic` wordt gerespecteerd** — een veld dat ACF als
+  required markeert maar dat alleen geldt voor een specifieke weergave
+  (bv. `afbeeldingen_alternatief` bij `weergave == alternatief`) wordt
+  niet meer als spookmelding gerapporteerd wanneer een andere weergave
+  is gekozen. Validator, repeater-min-check en de spec naar de AI nemen de
+  conditional-flag nu mee.
+* **Banner-/hero-blok alleen als eerste blok** — nieuwe HARDE REGEL in de
+  prompt: een banner-/hero-/intro-layout mag UITSLUITEND op index 0 in de
+  blocks-array voorkomen. Voor body-content in het midden van een blog
+  worden andere layouts gebruikt.
+* **Externe-link insert: write daadwerkelijk persistent** — twee problemen
+  in het insert-pad zijn opgelost. (1) De rows worden voor `update_field`
+  genormaliseerd van field-key-keys naar field-name-keys, anders schreef
+  ACF op sommige sites stilletjes niets weg. (2) Na een succesvolle insert
+  wordt de pagina automatisch herladen (na 1.8s) zodat de editor-form-state
+  ververst en de volgende "Update"-klik de link niet meer overschrijft.
+  Plus eerlijker resultaat-melding: als de rauwe DB-check zegt dat de URL
+  er niet in staat, wordt de status van 'ok' gedowngrade naar 'failed' met
+  duidelijke uitleg — geen misleidend groen meer.
+* **Eerder gegenereerde blog-titels worden meegegeven aan de AI** — nieuwe
+  `DB_AI_Past_Blogs_Context`-helper haalt de 20 recentste blog-titels +
+  focus-keywords op en stopt ze in de user-prompt met de instructie om een
+  ander getal, andere structuur en niet-overlappende invalshoek te kiezen.
+  Voorkomt de "elke blog 7 stappen"-herhaling. Filterbaar via
+  `db_ai_past_blogs_limit`.
+* **Kortere blog-titels als default** — nieuwe regel in de SEO-richtlijnen:
+  post-titel max 60 tekens, mik op 40-55. Vulwoorden als *"voor MKB"*,
+  *"in 2026"*, *"voor meer resultaat"* horen in de meta-description, niet
+  in de titel. Voorkomt afkapping in Google en oogt minder log.
+* **Diversere externe-link-bronnen** — de externe-bronnen-prompt is grondig
+  herschreven. Wikipedia is geen default meer (max 1× per blog, alleen als
+  laatste redmiddel), domein-diversiteit is verplicht (geen 2 suggesties
+  van hetzelfde domein), en branche-specifieke autoriteiten (ahrefs, moz,
+  semrush, thuiswinkel.org, marketingfacts, bouwendnederland, etc.) staan
+  expliciet bovenaan de hiërarchie. Per onderwerp de meest specialistische
+  autoriteit kiezen i.p.v. altijd Wikipedia.
 
 = 2.0.5 =
 * **Validatiefouten verspillen geen volledige generatie meer** — voorheen

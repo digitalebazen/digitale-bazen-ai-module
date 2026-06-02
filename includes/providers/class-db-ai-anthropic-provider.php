@@ -217,6 +217,7 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
   VERBODEN (lijken op power words maar staan NIET in RankMath's NL lijst — worden NIET gedetecteerd): `essentiële`, `ultieme`, `slimme`, `simpele`, `snelle`, `definitieve`, `gegarandeerde`, `volledige`, `complete`. Gebruik deze NOOIT, kies een variant uit de lijst hierboven.
 
   * Een concreet getal — bv. "5 manieren", "7 stappen", "10 tips", "in 3 stappen", of het huidige jaartal (2026) als dat redactioneel klopt. Geforceerd klinkende cijfers vermijden, maar een natuurlijke variant kan vrijwel altijd bedacht worden.
+- post-titel LENGTE (belangrijk): max 60 tekens, mik op 40-55 tekens. Houd 'm BEKNOPT: focus-keyword + power-word + getal + minimale verbinding. Schrap aanhef- en sluit-woorden zoals "voor MKB", "voor jouw bedrijf", "in 2026", "stap voor stap", "voor meer resultaat" — die horen in de meta-description of het intro thuis, niet in de titel. Een te lange titel wordt door Google afgekapt en oogt log.
 - meta_title MOET hetzelfde power-word EN het getal van de post-titel bevatten — kort herformuleren mag, maar laat NOOIT het power-word weg om ruimte te maken. Schrap eerst bijvoeglijke vulwoorden, dan eventueel het getal, en pas als allerlaatste het power-word.
 - Secundaire keywords natuurlijk verweven (max 1× per zin, geen stuffing)
 - FAQ-vragen formuleren als echte gebruikersvragen (long-tail keywords)
@@ -295,6 +296,12 @@ TXT;
 			}
 		}
 
+		$past_blogs       = (array) ( $context['past_blogs'] ?? [] );
+		$past_blogs_block = DB_AI_Past_Blogs_Context::get_prompt_addition( $past_blogs );
+		if ( '' !== $past_blogs_block ) {
+			$prompt .= "\n\n" . $past_blogs_block;
+		}
+
 		$prompt .= "\n\n" . 'BELANGRIJK: antwoord met UITSLUITEND het JSON-object zelf. Geen markdown, geen ```json fences, geen toelichting ervoor of erna.';
 
 		return $prompt;
@@ -315,10 +322,27 @@ TXT;
 		$lines[] = '';
 		$lines[] = 'BESCHIKBARE LAYOUTS — gebruik UITSLUITEND deze: ' . ( empty( $names ) ? '(geen)' : implode( ', ', $names ) );
 		$lines[] = 'HARDE REGEL: een layout die NIET in bovenstaande lijst staat mag NOOIT in je output voorkomen — ook geen banner/hero/intro als die er niet bij staat. Elke `acf_fc_layout`-waarde moet exact één van de beschikbare namen zijn.';
+		$lines[] = 'HARDE REGEL: een banner-/hero-/intro-layout (een blok dat als opener fungeert) mag UITSLUITEND als allereerste blok (index 0) in de blocks-array voorkomen. Nooit later in de post — voor body-content gebruik je tekst-/USP-/FAQ-layouts.';
 		$lines[] = '';
 		$lines[] = 'RICHTLIJNEN VOOR JE KEUZE:';
 		$lines[] = '- Begin met het intro/hero-achtige blok ALS er zo\'n layout in de lijst hierboven staat (hoofdzoekwoord prominent in titel + eerste paragraaf). Houd de banner/hero-tekst KORT en wervend: één pakkende, uitnodigende alinea van 1-3 zinnen die nieuwsgierig maakt en de lezer het artikel in trekt, geen volledige uitleg (dat komt in de volgende blocks). Staat er geen intro-layout? Open dan met het eerste beschikbare tekst-blok.';
-		$lines[] = '- Eindig bij voorkeur met een FAQ-blok ALS er zo\'n layout beschikbaar is (5-8 vragen). Zo niet, sla het over.';
+
+		// FAQ-instructie alleen meegeven als er ook écht een FAQ-achtige layout
+		// beschikbaar is — anders verleidt de regel de AI om alsnog vraag-antwoord
+		// content te bedenken, terwijl het block daarna gewoon gedropt wordt.
+		$has_faq_layout = false;
+		foreach ( $names as $n ) {
+			if ( preg_match( '/faq|veelgestelde|vraag/i', $n ) ) {
+				$has_faq_layout = true;
+				break;
+			}
+		}
+		if ( $has_faq_layout ) {
+			$lines[] = '- Eindig bij voorkeur met een FAQ-blok (5-8 vragen).';
+		} else {
+			$lines[] = '- Er is geen FAQ-/veelgestelde-vragen-layout beschikbaar — voeg dus GEEN vraag-antwoord blok toe en bedenk er ook geen content voor.';
+		}
+
 		$lines[] = '- Voor de middelste blocks: kies aantal en mix op basis van topic-complexiteit en wat de inhoud écht nodig heeft.';
 		$lines[] = '- USP-achtige layouts: voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn. Sla over als het onderwerp daar niet om vraagt.';
 		$lines[] = '- Korte/eenvoudige onderwerpen → 4-5 blocks totaal';

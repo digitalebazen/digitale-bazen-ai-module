@@ -45,20 +45,32 @@ final class DB_AI_External_Links {
 			"  - url: VOLLEDIGE https:// URL\n" .
 			"  - why: 1 korte zin waarom deze bron relevant is\n" .
 			"  - block_index: integer, in welk blok van `blocks` deze link thematisch het best past (0-based)\n\n" .
-			"BRONNEN — kies BIJ VOORKEUR uit:\n" .
-			"  - nl.wikipedia.org (bij algemene definities / achtergrond)\n" .
-			"  - rijksoverheid.nl, belastingdienst.nl, kvk.nl, autoriteitconsumentenmarkt.nl (bij wet/regelgeving)\n" .
-			"  - cbs.nl (bij statistieken / cijfers — alleen pagina-URLs, geen specifieke rapport-PDFs)\n" .
-			"  - Bekende Nederlandse brancheorganisaties (.nl domein, herkenbare naam)\n" .
-			"  - europa.eu, eur-lex.europa.eu (bij EU-regelgeving)\n\n" .
+			"DIVERSITEIT (kritiek): de %d suggesties moeten van %d VERSCHILLENDE domeinen komen. NOOIT 2× hetzelfde domein. " .
+			"Wikipedia is GEEN default — gebruik 'm hoogstens 1× per blog, en alleen als er écht geen specialistischere bron past.\n\n" .
+			"BRONNEN — match per onderwerp, kies de meest specialistische autoriteit voor dat thema:\n" .
+			"  1. BRANCHE-SPECIFIEKE AUTORITEITEN EERST. Voorbeelden per domein:\n" .
+			"     - SEO/SEA/web: developers.google.com, search.google.com, ahrefs.com/blog, moz.com/learn, semrush.com/blog, web.dev, schema.org, w3.org\n" .
+			"     - E-commerce: thuiswinkel.org, retailtrends.nl, twinklemagazine.nl\n" .
+			"     - Marketing/communicatie: dmcc.nl, marketingfacts.nl, frankwatching.com, emerce.nl\n" .
+			"     - HR/recruitment: nvp-plaza.nl, intermediair.nl/over-werk, recruiternieuws.nl\n" .
+			"     - Bouw/installatie: bouwendnederland.nl, technieknederland.nl, isso.nl\n" .
+			"     - Zorg: nvz-ziekenhuizen.nl, knmg.nl, nictiz.nl\n" .
+			"     - Onderwijs: onderwijsraad.nl, kennisnet.nl, vo-raad.nl\n" .
+			"     (kies analoog voor jouw onderwerp — het meest gespecialiseerde domein dat ÉCHT op dit thema autoriteit is)\n" .
+			"  2. OFFICIËLE DOCUMENTATIE van producten/standaarden die in de blog genoemd worden (developers-portals, docs-sites).\n" .
+			"  3. OVERHEID/REGULATORS (rijksoverheid.nl, belastingdienst.nl, kvk.nl, autoriteitconsumentenmarkt.nl, acm.nl, ap.nl) — alleen bij wet/regelgeving.\n" .
+			"  4. STATISTIEKEN: cbs.nl, eurostat — alleen overzichtspagina-URLs, geen rapport-PDF-deep-links.\n" .
+			"  5. EU: europa.eu, eur-lex.europa.eu — alleen bij EU-regelgeving.\n" .
+			"  6. Wikipedia (nl/en) — LAATSTE redmiddel als 1-5 niets natuurlijks oplevert, max 1× per blog.\n\n" .
 			"VERMIJD:\n" .
-			"  - Concurrenten of commerciële partijen\n" .
+			"  - Concurrenten of commerciële partijen die jouw dienst aanbieden\n" .
 			"  - Specifieke nieuwsartikelen (datums veranderen, URLs verlopen)\n" .
 			"  - Deep-links naar tijdelijke landingpages\n" .
-			"  - Affiliate-links of trackers in de URL\n\n" .
-			"BELANGRIJK: verzin GEEN URLs. Als je niet 100%% zeker bent dat een URL bestaat, " .
-			"kies een algemenere variant (Wikipedia search-pagina mag, bv. https://nl.wikipedia.org/wiki/Onderwerp). " .
-			"Beter een Wikipedia-fallback dan een dode deep-link.",
+			"  - Affiliate-links of trackers in de URL\n" .
+			"  - Twee of meer suggesties van hetzelfde domein\n\n" .
+			"BELANGRIJK: verzin GEEN URLs. Niet 100%% zeker dat een diepe pagina bestaat? Neem dan een hoger niveau van datzelfde gespecialiseerde domein (de section-overzichtspagina of homepage), niet een verzonnen deep-link. Hogere URL van een vakdomein > Wikipedia-fallback.",
+			$max,
+			$max,
 			$max
 		);
 	}

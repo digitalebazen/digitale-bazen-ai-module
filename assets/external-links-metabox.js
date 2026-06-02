@@ -45,7 +45,19 @@
 		} )
 			.done( function ( res ) {
 				if ( res && res.success ) {
-					setStatus( res.data && res.data.message ? res.data.message : cfg.i18n.inserted, false );
+					var hadOk = res.data && res.data.results
+						? Object.keys( res.data.results ).some( function ( k ) { return 'ok' === res.data.results[ k ]; } )
+						: false;
+					var baseMsg = res.data && res.data.message ? res.data.message : cfg.i18n.inserted;
+					// Editor-form-state bevat nog de OUDE ACF-waardes (zonder de zojuist
+					// ingevoegde link). Zou de redacteur nu "Update" klikken, dan
+					// overschrijft de form-submit de DB met die oude data en is de link
+					// weg. Pagina herladen forceert verse form-state.
+					if ( hadOk ) {
+						setStatus( baseMsg + ' ' + ( cfg.i18n.reloading || 'Pagina wordt herladen om verlies te voorkomen…' ), false );
+					} else {
+						setStatus( baseMsg, false );
+					}
 					renderDiagnostic( res.data );
 					// Removed inserted suggestions from the list voor visuele feedback.
 					indexes.forEach( function ( i ) {
@@ -53,6 +65,9 @@
 							$( this ).remove();
 						} );
 					} );
+					if ( hadOk ) {
+						setTimeout( function () { window.location.reload(); }, 1800 );
+					}
 				} else {
 					var msg = res && res.data && res.data.message ? res.data.message : cfg.i18n.insertFailed;
 					setStatus( msg, true );
