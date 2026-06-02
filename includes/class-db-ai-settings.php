@@ -31,18 +31,6 @@ class DB_AI_Settings {
 		'unsplash'  => 'DB_AI_UNSPLASH_API_KEY',
 	];
 
-	/**
-	 * User-facing labels voor de block-layout checkboxes. Volgorde = volgorde in UI.
-	 */
-	private const LAYOUT_LABELS = [
-		'banner'               => 'Banner (intro / hero — meestal eerste blok)',
-		'tekst_met_afbeelding' => 'Tekst met afbeelding (body content, alternerend links/rechts)',
-		'tekst_weergaves'      => 'Tekst-weergaves (1- of 2-koloms tekst-blok)',
-		'usps'                 => 'USPs (sterke punten / waarom kiezen)',
-		'veelgestelde_vragen'  => 'Veelgestelde vragen / FAQ (meestal laatste blok, triggert ook JSON-LD)',
-		'fotogalerij'          => 'Fotogalerij (optioneel — AI gebruikt zelden, kost extra image-fetches)',
-	];
-
 	// ─── Static helpers ────────────────────────────────────────────────────
 
 	public static function get_options(): array {
@@ -814,12 +802,25 @@ class DB_AI_Settings {
 			$out['reference_post_ids'] = $ids;
 		}
 
-		// Allowed layouts: array van layout-namen, intersect met bekende layouts.
-		// LET OP: 'allowed_layouts' KEY moet altijd gezet worden bij elke save,
-		// anders kan een gebruiker geen vinkjes wegnemen (HTML form sluit lege
-		// checkbox-groep uit van $input). We accepteren dus ook lege array.
-		$known = array_keys( self::LAYOUT_LABELS );
-		$raw   = isset( $input['allowed_layouts'] ) && is_array( $input['allowed_layouts'] )
+		// Allowed layouts: array van layout-namen, intersect met de layouts die
+		// op deze site daadwerkelijk in de gekozen ACF field group bestaan.
+		//
+		// `$known` MOET dezelfde set zijn die render_allowed_layouts_field() laat
+		// zien — anders worden site-eigen layouts bij save stilletjes gestript
+		// en lijken de vinkjes na refresh "vergeten".
+		//
+		// Als er geen layouts ontdekt worden (ACF nog niet geconfigureerd) is er
+		// niets om op te slaan; render toont in dat geval de "Geen layouts
+		// gevonden"-melding.
+		//
+		// LET OP: 'allowed_layouts' KEY altijd zetten bij elke save, anders kan
+		// een gebruiker geen vinkjes wegnemen (HTML form sluit lege checkbox-
+		// groep uit van $input).
+		$discovered = DB_AI_ACF_Discovery::get_layouts_for( self::get_field_group_key(), self::get_flex_field_name() );
+		$known      = array_values( array_filter( array_map( static function ( $l ) {
+			return (string) ( $l['name'] ?? '' );
+		}, $discovered ) ) );
+		$raw        = isset( $input['allowed_layouts'] ) && is_array( $input['allowed_layouts'] )
 			? $input['allowed_layouts']
 			: [];
 		$out['allowed_layouts'] = array_values( array_intersect( $known, array_map( 'strval', $raw ) ) );
@@ -925,15 +926,8 @@ class DB_AI_Settings {
 		$flex    = self::get_flex_field_name();
 		$layouts = DB_AI_ACF_Discovery::get_layouts_for( $group, $flex );
 
-		// Fallback: hardcoded labels uit V1 voor backwards-compat als auto-detect niets vindt
 		if ( empty( $layouts ) ) {
-			foreach ( self::LAYOUT_LABELS as $name => $label ) {
-				$layouts[] = [ 'name' => $name, 'label' => $label ];
-			}
-		}
-
-		if ( empty( $layouts ) ) {
-			echo '<p class="description"><em>' . esc_html__( 'Geen layouts gevonden — kies eerst een ACF field group + flex field hierboven en sla op.', 'digitale-bazen-ai-module' ) . '</em></p>';
+			echo '<p class="description"><em>' . esc_html__( 'Geen layouts gevonden — kies eerst een ACF field group + flex content veld hierboven en sla op.', 'digitale-bazen-ai-module' ) . '</em></p>';
 			return;
 		}
 

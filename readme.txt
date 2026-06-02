@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,41 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.3 =
+* **Stijl-streepjes hard verwijderd uit AI-tekst** — de generator gebruikte van
+  zichzelf graag em-dashes (—) als zinsonderbreking ("X — ook wel Y — is..."),
+  wat heel AI-gegenereerd oogt. Naast een strikte prompt-regel staat er nu een
+  post-processing vangnet (`DB_AI_ACF_Mapper::strip_style_dashes()`) dat alle AI-
+  tekst opschoont: em-dash, en-dash en " - " als gedachtestreepje worden komma's,
+  numerieke reeksen ("1200–1800", "9:00 - 17:00") worden een koppelteken,
+  en koppeltekens binnen woorden (`e-mail`, `SEO-tips`, `MKB-ondernemers`) blijven
+  als correcte Nederlandse spelling staan. Toegepast op blok-velden, post-titel,
+  excerpt én de RankMath meta-titel/omschrijving.
+* **Kortere blokken + wervender banner als default** — de prompt vraagt nu
+  expliciet om korte tekst per blok (max 2-3 alinea's van 2-4 zinnen) en om
+  inhoud te verdelen over één extra blok in plaats van lange blocks te
+  proppen. Blok-aantallen opgehoogd (4-5 voor simpele, 6-8 voor brede
+  onderwerpen). De banner/hero krijgt nu de instructie kort en wervend te
+  zijn: één pakkende alinea van 1-3 zinnen die nieuwsgierig maakt, geen
+  volledige uitleg. Totale woord-target (1200-1800) blijft gelijk.
+* **Quote-blokken centraal uitgesloten van generatie** — de AI vulde op sites
+  met een `quote`/`testimonial`/`review`-layout fabricated klantcitaten + namen
+  in (nep sociaal bewijs). Nieuwe filter (`db_ai_blocked_layout_pattern`,
+  default `quote|testimonial|citaat|aanbeveling|review`) strijkt die layouts
+  altijd uit de toegestane lijst, ongeacht de per-site Settings-keuze. Werkt
+  ook in de async-worker (late prio 99 op `db_ai_allowed_layouts`).
+* **Fix: layout-checkboxen sloegen site-eigen layouts niet op** — pre-existing
+  bug sinds v1.1.0. Render gebruikte sinds toen auto-detectie uit ACF, maar
+  save intersect-te nog tegen een hardcoded V1-lijst van 6 layoutnamen.
+  Vink je iets aan dat daar niet in zat (zoals `quote` of `cta`), dan zei
+  Settings "opgeslagen" maar bij refresh was het vinkje weer leeg. Save
+  gebruikt nu dezelfde auto-detectie als render.
+* **V1-fallbacklijst (`LAYOUT_LABELS`) volledig verwijderd** — sinds v1.1.0
+  site-agnostisch overbodig en juist misleidend. Bij een onontdekte ACF
+  field group toont Settings nu de bestaande "Geen layouts gevonden — kies
+  eerst een ACF field group..."-melding (was voorheen onbereikbaar omdat de
+  fallback hem overschreef).
 
 = 2.0.2 =
 * **OpenAI-provider verwijderd** — de generator gebruikte in de praktijk alleen

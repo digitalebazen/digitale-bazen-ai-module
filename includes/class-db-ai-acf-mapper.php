@@ -164,6 +164,40 @@ class DB_AI_ACF_Mapper {
 	}
 
 	/**
+	 * Patroon voor layouts die de generator NOOIT zelf mag invullen: quote-/
+	 * testimonial-achtige blokken. De AI zou daar verzonnen citaten en namen
+	 * inzetten (nep sociaal bewijs). Centraal uitgesloten ongeacht de per-site
+	 * Settings-keuze. Aanpasbaar via de `db_ai_blocked_layout_pattern` filter
+	 * (lege string = niets uitsluiten).
+	 */
+	public static function blocked_layout_pattern(): string {
+		return (string) apply_filters( 'db_ai_blocked_layout_pattern', 'quote|testimonial|citaat|aanbeveling|review' );
+	}
+
+	/**
+	 * Filter-callback (late prioriteit) op `db_ai_allowed_layouts`: strip
+	 * quote-/testimonial-achtige layouts uit de toegestane lijst.
+	 *
+	 * @param string[] $allowed
+	 * @return string[]
+	 */
+	public static function strip_blocked_layouts( array $allowed ): array {
+		$pattern = self::blocked_layout_pattern();
+		if ( '' === $pattern ) {
+			return $allowed;
+		}
+		$regex = '/(' . $pattern . ')/i';
+		return array_values(
+			array_filter(
+				$allowed,
+				static function ( $name ) use ( $regex ) {
+					return ! preg_match( $regex, (string) $name );
+				}
+			)
+		);
+	}
+
+	/**
 	 * Layout fields keyed by layout name -> field name (for quick lookups).
 	 *
 	 * @return array|WP_Error
@@ -685,6 +719,31 @@ class DB_AI_ACF_Mapper {
 		return (array) apply_filters( 'db_ai_always_empty_fields', $merged, $context );
 	}
 
+	/**
+	 * Haal stijl-streepjes uit AI-tekst. Modellen gebruiken de em-dash (—) en
+	 * en-dash (–) graag als zinsonderbreking; de user wil die absoluut niet.
+	 * Koppeltekens BINNEN een woord (e-mail, SEO-tips, MKB-ondernemers) blijven
+	 * staan — dat is correcte Nederlandse spelling.
+	 */
+	public static function strip_style_dashes( string $text ): string {
+		if ( '' === $text ) {
+			return $text;
+		}
+
+		// 1. Cijfer–cijfer (ook met spatie-hyphen) = reeks/tijd → koppelteken.
+		//    "1200 – 1800" → "1200-1800", "9:00 - 17:00" → "9:00-17:00".
+		$text = preg_replace( '/(\d)\s*[\x{2013}\x{2014}-]\s*(\d)/u', '$1-$2', $text );
+
+		// 2. Resterende em-/en-dash als zinsonderbreking → komma.
+		$text = preg_replace( '/\s*[\x{2014}\x{2013}]\s*/u', ', ', $text );
+
+		// 3. Losse " - " (spatie-hyphen-spatie) als gedachtestreepje → komma.
+		//    Numerieke reeksen zijn in stap 1 al ontdaan van spaties, dus veilig.
+		$text = preg_replace( '/ +- +/', ', ', $text );
+
+		return $text;
+	}
+
 	private function sanitize_block( array $sub_fields, array $data, string $context ): array {
 		$out          = [];
 		$always_empty = $this->compute_always_empty_for( $sub_fields, $context );
@@ -709,13 +768,13 @@ class DB_AI_ACF_Mapper {
 
 			switch ( $type ) {
 				case 'text':
-					$out[ $name ] = sanitize_text_field( (string) $value );
+					$out[ $name ] = self::strip_style_dashes( sanitize_text_field( (string) $value ) );
 					break;
 				case 'textarea':
-					$out[ $name ] = sanitize_textarea_field( (string) $value );
+					$out[ $name ] = self::strip_style_dashes( sanitize_textarea_field( (string) $value ) );
 					break;
 				case 'wysiwyg':
-					$out[ $name ] = wp_kses_post( (string) $value );
+					$out[ $name ] = self::strip_style_dashes( wp_kses_post( (string) $value ) );
 					break;
 				case 'select':
 					$choices  = isset( $field['choices'] ) && is_array( $field['choices'] ) ? array_keys( $field['choices'] ) : [];

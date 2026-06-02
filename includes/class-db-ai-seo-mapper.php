@@ -30,7 +30,7 @@ class DB_AI_SEO_Mapper {
 			update_post_meta(
 				$post_id,
 				'rank_math_title',
-				sanitize_text_field( (string) $seo['meta_title'] )
+				DB_AI_ACF_Mapper::strip_style_dashes( sanitize_text_field( (string) $seo['meta_title'] ) )
 			);
 		}
 
@@ -38,7 +38,7 @@ class DB_AI_SEO_Mapper {
 			update_post_meta(
 				$post_id,
 				'rank_math_description',
-				sanitize_text_field( (string) $seo['meta_description'] )
+				DB_AI_ACF_Mapper::strip_style_dashes( sanitize_text_field( (string) $seo['meta_description'] ) )
 			);
 		}
 	}

@@ -139,9 +139,9 @@ class DB_AI_Post_Creator {
 		$post_type = (string) apply_filters( 'db_ai_post_type', self::DEFAULT_POST_TYPE );
 		$post_id   = wp_insert_post(
 			[
-				'post_title'   => sanitize_text_field( (string) ( $ai_output['post']['title'] ?? '' ) ),
+				'post_title'   => DB_AI_ACF_Mapper::strip_style_dashes( sanitize_text_field( (string) ( $ai_output['post']['title'] ?? '' ) ) ),
 				'post_name'    => sanitize_title( (string) ( $ai_output['post']['slug'] ?? '' ) ),
-				'post_excerpt' => sanitize_textarea_field( (string) ( $ai_output['post']['excerpt'] ?? '' ) ),
+				'post_excerpt' => DB_AI_ACF_Mapper::strip_style_dashes( sanitize_textarea_field( (string) ( $ai_output['post']['excerpt'] ?? '' ) ) ),
 				'post_status'  => 'draft',
 				'post_type'    => $post_type,
 				'post_author'  => $user_id,

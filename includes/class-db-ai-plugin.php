@@ -39,6 +39,11 @@ final class DB_AI_Plugin {
 		// context (worker draait buiten admin). Zie PROJECT_BRIEF.md sectie 0F.
 		DB_AI_Job_Queue::register();
 
+		// Quote-/testimonial-achtige layouts centraal uitsluiten van generatie:
+		// de AI zou daar verzonnen citaten + namen invullen (nep sociaal bewijs).
+		// Late prioriteit (99) zodat dit ná de Settings-keuze draait en altijd wint.
+		add_filter( 'db_ai_allowed_layouts', [ 'DB_AI_ACF_Mapper', 'strip_blocked_layouts' ], 99 );
+
 		// DB_AI_Settings registreert de `db_ai_allowed_layouts` filter die de
 		// generatie beïnvloedt — altijd instantiëren zodat die filter óók in de
 		// async worker (non-admin) actief is. De admin-UI hooks erin zijn intern

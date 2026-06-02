@@ -178,6 +178,7 @@ SCHRIJFSTIJL:
 - Concreet en praktisch — geef voorbeelden, vermijd holle frasen
 - Vermijd: "innovatieve oplossingen", "unieke kans", "in deze snel veranderende wereld"
 - Vermijd jargon, of leg het uit als het nodig is
+- LEESTEKENS (strikt): gebruik NOOIT een gedachtestreepje (— em-dash of – en-dash) en ook geen losse " - " als zinsonderbreking of opsomming. Schrijf losse zinnen of gebruik een komma, dubbele punt of haakjes. Koppeltekens BINNEN een woord (samenstellingen en afkortingen zoals e-mail, SEO-tips, MKB-ondernemers, B2B-markt) zijn correct Nederlands en blijven wél toegestaan.
 
 SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
 - Hoofdzoekwoord MOET voorkomen in:
@@ -223,7 +224,10 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
 - Meta_description: focus keyword + duidelijke CTA, max 155 chars
 - Image alt-teksten: focus keyword waar natuurlijk past, niet bij elke afbeelding herhalen
 
-LENGTE: streef naar 1200-1800 woorden totaal in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).
+LENGTE & VERDELING (belangrijk):
+- Totaal: streef naar 1200-1800 woorden in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).
+- Houd de tekst PER BLOK kort: maximaal 2-3 korte alinea's per tekstveld, elke alinea 2-4 zinnen. Geen muren van tekst.
+- Verdeel de inhoud liever over een EXTRA blok dan alles in een paar lange blocks te proppen. Wordt een tekstveld lang? Splits het op in twee blocks met elk één duidelijk deelonderwerp. Liever één blok te veel dan te volle blocks.
 TXT;
 	}
 
@@ -307,13 +311,13 @@ TXT;
 		$lines[] = 'HARDE REGEL: een layout die NIET in bovenstaande lijst staat mag NOOIT in je output voorkomen — ook geen banner/hero/intro als die er niet bij staat. Elke `acf_fc_layout`-waarde moet exact één van de beschikbare namen zijn.';
 		$lines[] = '';
 		$lines[] = 'RICHTLIJNEN VOOR JE KEUZE:';
-		$lines[] = '- Begin met het intro/hero-achtige blok ALS er zo\'n layout in de lijst hierboven staat (hoofdzoekwoord prominent in titel + eerste paragraaf). Staat er geen intro-layout? Open dan met het eerste beschikbare tekst-blok.';
+		$lines[] = '- Begin met het intro/hero-achtige blok ALS er zo\'n layout in de lijst hierboven staat (hoofdzoekwoord prominent in titel + eerste paragraaf). Houd de banner/hero-tekst KORT en wervend: één pakkende, uitnodigende alinea van 1-3 zinnen die nieuwsgierig maakt en de lezer het artikel in trekt, geen volledige uitleg (dat komt in de volgende blocks). Staat er geen intro-layout? Open dan met het eerste beschikbare tekst-blok.';
 		$lines[] = '- Eindig bij voorkeur met een FAQ-blok ALS er zo\'n layout beschikbaar is (5-8 vragen). Zo niet, sla het over.';
 		$lines[] = '- Voor de middelste blocks: kies aantal en mix op basis van topic-complexiteit en wat de inhoud écht nodig heeft.';
 		$lines[] = '- USP-achtige layouts: voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn. Sla over als het onderwerp daar niet om vraagt.';
-		$lines[] = '- Korte/eenvoudige onderwerpen → 3-4 blocks totaal';
-		$lines[] = '- Brede/complexe/how-to onderwerpen → 5-7 blocks totaal';
-		$lines[] = '- Niet meer blocks dan nodig. Vermijd block-padding.';
+		$lines[] = '- Korte/eenvoudige onderwerpen → 4-5 blocks totaal';
+		$lines[] = '- Brede/complexe/how-to onderwerpen → 6-8 blocks totaal';
+		$lines[] = '- Liever een blok MEER met korte tekst dan een paar blocks met lange teksten. Splits een blok waarvan het tekstveld lang wordt op in twee blocks met elk één deelonderwerp. Wel echte inhoud per blok — geen lege filler-blocks of herhaling.';
 
 		$role_hints = $this->build_layout_role_hints( $names );
 		if ( '' !== $role_hints ) {
@@ -323,10 +327,10 @@ TXT;
 
 		$lines[] = '';
 		$lines[] = 'DIVERSITEIT — vermijd dat elke blog dezelfde drie-vier "veilige" layouts gebruikt:';
-		$lines[] = '- Gebruik minstens 4 VERSCHILLENDE layout-types per blog van 5-7 blocks.';
+		$lines[] = '- Gebruik minstens 4 VERSCHILLENDE layout-types per blog (zolang er genoeg layouts beschikbaar zijn).';
 		$lines[] = '- Sta niet 3+ identieke layouts (zoals 3× tekst_met_afbeelding) achter elkaar toe.';
-		$lines[] = '- Mix tekstuele blocks met visuele/conversie-blocks (quote, video, cta, gallery) waar de inhoud dat draagt.';
-		$lines[] = '- Liever 1 quote-block dan 2 extra tekst-blocks waar je dezelfde boodschap herhaalt.';
+		$lines[] = '- Mix tekstuele blocks met visuele/conversie-blocks (video, cta, gallery) waar de inhoud dat draagt.';
+		$lines[] = '- Liever 1 visueel of conversie-block dan 2 extra tekst-blocks waar je dezelfde boodschap herhaalt.';
 		$lines[] = '';
 		$lines[] = 'De exacte velden + types per layout staan in de layout-spec hieronder. Match je output daar exact op.';
 
