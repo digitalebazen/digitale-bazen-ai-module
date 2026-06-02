@@ -11,10 +11,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * zonder `the_content()` filter — RankMath's analyzer scant alleen `post_content`
  * en ziet daardoor geen H2/H3-titels, body-tekst of outbound links uit ACF blocks.
  *
- * Oplossing: bouw bij het laden van de post-editor een gerenderde HTML-versie van
- * de flex-content op basis van het frontend template-niveau (h1/h2/h4 etc.),
- * geef die mee via wp_localize_script, en hook hem via `wp.hooks.addFilter` op
- * RankMath's `rank_math_content` filter. Frontend rendering blijft ongewijzigd.
+ * Oplossing: bij het laden van de post-editor renderen we de échte theme-templates
+ * (`paginablokken/{layout}.php`) in een output buffer en geven die HTML mee via
+ * wp_localize_script aan een JS-handler die hem op RankMath's `rank_math_content`
+ * filter hookt. Voordeel: zodra het theme een blok-template wijzigt (heading-
+ * niveau, extra veld, andere classnames) ziet RankMath dat automatisch — geen
+ * plugin-update meer nodig per blok-wijziging.
+ *
+ * Fallback: als er geen `paginablokken/`-map in het theme staat of een template
+ * faalt tijdens rendering, valt de bridge terug op een handmatige mirror
+ * (`render_rows_to_html`) die de bekende layouts hardcoded mapt. Houdt oudere
+ * sites + niet-Digitale-Bazen-themes werkend.
  */
 final class DB_AI_Rankmath_Bridge {
 
@@ -42,14 +49,23 @@ final class DB_AI_Rankmath_Bridge {
 			return;
 		}
 
-		$rows = function_exists( 'get_field' ) ? get_field( $flex_field, $post_id ) : null;
-		if ( empty( $rows ) || ! is_array( $rows ) ) {
-			return;
-		}
+		// Probeer eerst de échte theme-templates te renderen — dan ziet RankMath
+		// 1-op-1 wat de bezoeker ook ziet, zonder dat we per blok-wijziging in de
+		// plugin iets hoeven aan te passen.
+		$html = $this->render_via_theme_templates( $post_id, $flex_field );
 
-		$html = $this->render_rows_to_html( $rows );
+		// Fallback: theme heeft geen `paginablokken/`-map, een template faalde, of
+		// de flex-data leverde geen output. Dan gebruiken we de handmatige mirror
+		// (hardcoded layouts) zodat oudere sites + niet-DB-themes blijven werken.
 		if ( '' === trim( $html ) ) {
-			return;
+			$rows = function_exists( 'get_field' ) ? get_field( $flex_field, $post_id ) : null;
+			if ( empty( $rows ) || ! is_array( $rows ) ) {
+				return;
+			}
+			$html = $this->render_rows_to_html( $rows );
+			if ( '' === trim( $html ) ) {
+				return;
+			}
 		}
 
 		wp_register_script(
@@ -91,8 +107,62 @@ final class DB_AI_Rankmath_Bridge {
 	}
 
 	/**
-	 * Walk de flex-rows en bouw een HTML-string met dezelfde heading-hiërarchie
-	 * als de frontend (zie themes/bazentemplate/paginablokken/*.php).
+	 * Rendert de échte theme-templates uit `paginablokken/{layout}.php` voor elk
+	 * flex-row van deze post, in een output buffer. Dat geeft 1-op-1 dezelfde
+	 * HTML als de bezoeker ziet, zodat RankMath's checks (heading-hiërarchie,
+	 * woordtelling, focus-keyword-in-subkop, outbound links) op de werkelijkheid
+	 * draaien in plaats van op een hardcoded mirror.
+	 *
+	 * Returnt lege string bij ontbrekende theme-folder, geen ACF-data, of een
+	 * template die throwt — de caller valt dan terug op `render_rows_to_html()`.
+	 */
+	private function render_via_theme_templates( int $post_id, string $flex_field ): string {
+		if ( ! function_exists( 'have_rows' ) || ! function_exists( 'get_row_layout' ) ) {
+			return '';
+		}
+
+		// Theme moet een `paginablokken/`-map hebben — anders is er niks om aan
+		// te roepen via `get_template_part()`. We kijken in zowel het actieve als
+		// het parent-theme (child-themes vallen op het parent terug).
+		$has_folder = is_dir( get_stylesheet_directory() . '/paginablokken' )
+			|| is_dir( get_template_directory() . '/paginablokken' );
+		if ( ! $has_folder ) {
+			return '';
+		}
+
+		ob_start();
+		$rendered = false;
+		try {
+			if ( have_rows( $flex_field, $post_id ) ) {
+				while ( have_rows( $flex_field, $post_id ) ) {
+					the_row();
+					$layout = (string) get_row_layout();
+					if ( '' === $layout ) {
+						continue;
+					}
+					get_template_part( 'paginablokken/' . $layout );
+					$rendered = true;
+				}
+			}
+			$html = (string) ob_get_clean();
+		} catch ( \Throwable $e ) {
+			// Onverwachte fatal in een template: schoonruimen + leeg teruggeven
+			// zodat de caller terugvalt op de handmatige mirror.
+			if ( ob_get_level() > 0 ) {
+				ob_end_clean();
+			}
+			return '';
+		}
+
+		return $rendered ? trim( $html ) : '';
+	}
+
+	/**
+	 * Handmatige mirror — walk de flex-rows en bouw een HTML-string met dezelfde
+	 * heading-hiërarchie als de frontend (zie themes/bazentemplate/paginablokken/
+	 * *.php). Wordt alleen gebruikt als fallback wanneer `render_via_theme_templates()`
+	 * geen output oplevert (theme zonder paginablokken/, template-fatal, of geen
+	 * ACF-data).
 	 *
 	 * @param array<int,array<string,mixed>> $rows
 	 */
@@ -125,14 +195,21 @@ final class DB_AI_Rankmath_Bridge {
 					}
 					break;
 				case 'veelgestelde_vragen':
+					// Spiegelt de frontend-hiërarchie (zie themes/bazentemplate/
+					// paginablokken/veelgestelde_vragen.php + functions.php
+					// get_faq_item): block-titel H2 → onderwerp_titel H3 (indien
+					// gevuld) → vraag H4. Zonder onderwerp_titel is de vraag de
+					// eerstvolgende sub-laag onder H2 en dus H3.
 					$out[] = $this->render_simple_block( $row, 'h2' );
 					foreach ( (array) ( $row['onderwerpen'] ?? [] ) as $onderwerp ) {
-						if ( ! empty( $onderwerp['onderwerp_titel'] ) ) {
-							$out[] = '<h4>' . esc_html( (string) $onderwerp['onderwerp_titel'] ) . '</h4>';
+						$has_onderwerp_titel = ! empty( $onderwerp['onderwerp_titel'] );
+						if ( $has_onderwerp_titel ) {
+							$out[] = '<h3>' . esc_html( (string) $onderwerp['onderwerp_titel'] ) . '</h3>';
 						}
+						$vraag_tag = $has_onderwerp_titel ? 'h4' : 'h3';
 						foreach ( (array) ( $onderwerp['vragen'] ?? [] ) as $vraag ) {
 							if ( ! empty( $vraag['vraag'] ) ) {
-								$out[] = '<p><strong>' . esc_html( (string) $vraag['vraag'] ) . '</strong></p>';
+								$out[] = '<' . $vraag_tag . '>' . esc_html( (string) $vraag['vraag'] ) . '</' . $vraag_tag . '>';
 							}
 							if ( ! empty( $vraag['antwoord'] ) ) {
 								$out[] = $this->wysiwyg( (string) $vraag['antwoord'] );

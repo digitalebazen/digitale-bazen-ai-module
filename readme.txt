@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,26 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.4 =
+* **RankMath-bridge rendert nu de échte theme-templates** — voorheen bouwde de
+  bridge een hardcoded HTML-mirror per layout (`banner`/`tekst_met_afbeelding`/
+  `usps`/etc.). Dat hield in: bij elke theme-aanpassing aan heading-niveaus of
+  nieuwe blok-velden moest de plugin mee bijgewerkt worden, en blokken die
+  niet in de mirror stonden (`slider`, `videos`, `partners`, `module_overzicht`,
+  `tekst_met_formulier`, `module_slider`) waren onzichtbaar voor RankMath's
+  content-analyzer. De bridge roept nu via `have_rows() → the_row() →
+  get_template_part('paginablokken/{layout}')` de werkelijke theme-templates aan
+  en buffert hun output. RankMath ziet daardoor 1-op-1 wat de bezoeker ook
+  ziet, en theme-wijzigingen werken automatisch door.
+* **Fallback naar de bestaande mirror** als template-rendering geen output
+  geeft (theme zonder `paginablokken/`-map, fatal in een template, lege flex-
+  data). Beschermt sites die niet de Digitale Bazen template-structuur volgen.
+* **FAQ-bridge bijgewerkt op de nieuwe heading-hiërarchie** — `onderwerp_titel`
+  is in de fallback nu H3 i.p.v. H4 (sluit het oude H2→H4-gat), en de vragen
+  worden conditioneel H3 (zonder onderwerp_titel) of H4 (met onderwerp_titel)
+  i.p.v. `<p><strong>`. Spiegelt de theme-aanpassing in
+  `paginablokken/veelgestelde_vragen.php` + `functions.php get_faq_item()`.
 
 = 2.0.3 =
 * **Stijl-streepjes hard verwijderd uit AI-tekst** — de generator gebruikte van
