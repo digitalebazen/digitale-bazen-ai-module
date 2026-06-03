@@ -223,7 +223,14 @@ class DB_AI_Post_Creator {
 
 		$this->report( 95, __( 'Blocks invullen', 'digitale-bazen-ai-module' ) );
 
-		// 6. ACF write
+		// 6. ACF write — geef het interne-link-pool als whitelist mee zodat de AI
+		// CTA-button-velden mag vullen, maar uitsluitend met URLs die we zelf
+		// hebben aangeleverd (verzonnen URLs worden gestript naar leeg).
+		$allowed_link_urls = array_values( array_filter( array_map(
+			static function ( $entry ) { return (string) ( $entry['url'] ?? '' ); },
+			$internal_link_pool
+		) ) );
+		$this->acf_mapper->set_allowed_link_urls( $allowed_link_urls );
 		$this->acf_mapper->write_blocks_to_post( $post_id, $transformed_blocks );
 
 		// 7. SEO mapper

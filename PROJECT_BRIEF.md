@@ -264,6 +264,29 @@ Strikt genomen een breaking change voor een site die alleen een OpenAI-key had o
 
 ---
 
+## 0H. v2.0.7 — CTA-buttons via internal_link_pool + max_tokens bump (2026-06-02)
+
+### Buttons vulbaar door AI met whitelist-check
+
+Tot v2.0.6 werden ACF `link`-velden (zoals `button`, `button_2`) onvoorwaardelijk leeggemaakt door `sanitize_block` — defensieve default tegen verzonnen URLs. Sinds v2.0.7 mag de AI ze invullen, maar UITSLUITEND met URLs uit `internal_link_pool` (de bestaande-posts-feed). Verzonnen of externe URLs worden door `DB_AI_ACF_Mapper::sanitize_link_value()` automatisch gestript naar een leeg link-veld.
+
+Flow:
+1. Post-creator extraheert URLs uit `internal_link_pool` en geeft die als whitelist door aan de mapper via `set_allowed_link_urls()` vóór `write_blocks_to_post()`.
+2. Sanitize normaliseert beide kanten naar pad-zonder-host/scheme/trailing-slash voor de match.
+3. Prompt-update in `DB_AI_Internal_Links::get_prompt_addition()` legt de AI het link-veld formaat uit en dat alleen pool-URLs door de filter komen.
+
+Plus: dezelfde prompt-blok bevat nu een **DUPLICATEN-regel** — elke pool-URL max 2× per blog (wysiwyg-anchors + CTA-buttons samen) om "/werkwijze/"-spam te voorkomen.
+
+### `DEFAULT_MAX_TOKENS` 8000 → 16000
+
+De v2.0.6-prompt is fors gegroeid (past-blogs-lijst + uitgebreide externe-bronnen + CTA-button-instructies + JSON-output dat nu ook buttons bevat). Bij 8000 output-tokens werden generaties afgekapt op `"meta_description":`. Sonnet 4.6 ondersteunt tot 64k output; 16000 geeft comfortabele headroom zonder kostenrisico (pricing is per daadwerkelijk gebruikte token, niet per cap).
+
+### ALWAYS_EMPTY_FIELDS opgeschoond
+
+`button`/`button_2` zijn uit de hardcoded ALWAYS_EMPTY_FIELDS-lijst gehaald. Wat blijft: `banner.mobiele_afbeelding` (fallback naar `afbeelding`) en `usps.usps.icoon_content` (V1 niet ondersteund). De auto-detectie *"alle link-type velden → always empty"* is ook weg uit `compute_always_empty_for()`; sanitize doet nu per veld de whitelist-check.
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
@@ -400,8 +423,8 @@ Hoofdveld: `paginacontent` (flexible_content)
 | `subtitel` | text | – | – |
 | `titel` | text | – | – |
 | `tekst` | wysiwyg | – | – |
-| `button` | link | – | leeg laten |
-| `button_2` | link | – | leeg laten |
+| `button` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
+| `button_2` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
 | `afbeelding` | image | – | attachment ID |
 | `mobiele_afbeelding` | image | – | leeg laten (fallback naar `afbeelding`) |
 
@@ -412,8 +435,8 @@ Hoofdveld: `paginacontent` (flexible_content)
 | `subtitel` | text | – | – |
 | `titel` | text | – | – |
 | `tekst` | wysiwyg | – | – |
-| `button` | link | – | leeg laten |
-| `button_2` | link | – | leeg laten |
+| `button` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
+| `button_2` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
 | `positie` | select | – | `links` / `rechts` — AI alterneert |
 | `afbeelding` | image | – | attachment ID |
 | `kleurenthema` | select | ✅ | `wit` / `blauw` — AI gebruikt altijd `wit` |
@@ -427,8 +450,8 @@ Hoofdveld: `paginacontent` (flexible_content)
 | `titel` | text | – | – |
 | `tekst` | wysiwyg | – | – |
 | `tekst_kolom_2` | wysiwyg | – | – |
-| `button` | link | – | leeg laten |
-| `button_2` | link | – | leeg laten |
+| `button` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
+| `button_2` | link | – | sinds v2.0.7: AI vult met URL uit `internal_link_pool` (zie 0H), anders leeg |
 
 #### Layout: `usps`
 
@@ -623,7 +646,7 @@ content-type: application/json
 ```json
 {
   "model": "claude-sonnet-4-6",
-  "max_tokens": 8000,
+  "max_tokens": 16000,
   "system": "<system prompt — sectie 9>",
   "messages": [{ "role": "user", "content": "<user prompt — sectie 9>" }]
 }
@@ -1263,7 +1286,7 @@ Filters en actions die V1 daadwerkelijk biedt:
 ```php
 // Filters — provider (Anthropic; OpenAI verwijderd 2026-05-28, zie sectie 0G)
 apply_filters( 'db_ai_anthropic_model', 'claude-sonnet-4-6' );
-apply_filters( 'db_ai_anthropic_max_tokens', 8000 );
+apply_filters( 'db_ai_anthropic_max_tokens', 16000 );
 
 // Filters — prompts
 apply_filters( 'db_ai_system_prompt', $system_prompt );

@@ -10,7 +10,11 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 	public const API_VERSION       = '2023-06-01';
 	public const DEFAULT_MODEL     = 'claude-sonnet-4-6';
 	public const HTTP_TIMEOUT      = 120;
-	public const DEFAULT_MAX_TOKENS = 8000;
+	// 16k output-tokens geeft comfortabele headroom voor een volledige blog +
+	// external_link_suggestions + ingevulde CTA-buttons. Sonnet 4.6 ondersteunt
+	// tot 64k output, dus dit is ruim binnen veilige marges. Kosten zijn per
+	// daadwerkelijk gebruikte token, niet per cap.
+	public const DEFAULT_MAX_TOKENS = 16000;
 
 	private $api_key;
 	private $last_tokens = 0;

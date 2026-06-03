@@ -241,8 +241,12 @@ class DB_AI_Internal_Links {
 			"INTERNE LINKS BESCHIKBAAR — verwerk maximaal %d natuurlijk in de tekst. " .
 			"Gebruik alleen URLs uit onderstaande lijsten, verzin GEEN nieuwe URLs.\n\n" .
 			"%s%s" .
-			"Plaats links via standaard HTML: <a href=\"/pad/\">anchor-tekst</a>. " .
-			"Anchor-tekst hoeft NIET de exacte page-titel te zijn — kies natuurlijke bewoording die past in de zin.",
+			"Plaats links via standaard HTML in de wysiwyg/tekst-velden: <a href=\"/pad/\">anchor-tekst</a>. " .
+			"Anchor-tekst hoeft NIET de exacte page-titel te zijn — kies natuurlijke bewoording die past in de zin.\n\n" .
+			"CTA-BUTTONS — bevat een layout een `link`-type sub-veld (bv. `button`, `button_2`)? Dan MAG je dat veld vullen met een passende CTA. Format per link-veld:\n" .
+			"  { \"title\": \"Korte actie-tekst (max 4 woorden, bv. 'Bekijk werkwijze')\", \"url\": \"/pad/uit-pool/\", \"target\": \"_self\" }\n" .
+			"Gebruik UITSLUITEND een URL uit bovenstaande pool — alles wat niet matcht wordt gestript naar een leeg button-veld. Niet elke layout hoeft een button — alleen wanneer het natuurlijk past bij de blok-context (bv. een banner-hero of een tekst_met_afbeelding die naar een dieper pagina-onderwerp verwijst). Laat het button-veld leeg ({}) als er geen passende pool-URL is.\n\n" .
+			"DUPLICATEN VOORKOMEN — gebruik elke afzonderlijke URL uit het pool MAXIMAAL 2× in totaal in dit hele blog (wysiwyg-anchors + CTA-buttons samen geteld). Liefst 1× per URL: als het pool meerdere relevante URLs heeft, varieer dán. Vier keer dezelfde \"/werkwijze/\"-link in één blog is altijd te veel — dat oogt spammerig en is slecht voor SEO. Heb je maar 1-2 echt passende URLs in het pool en geen variatie mogelijk? Plaats dan minder links liever dan herhaling.",
 			$max_links,
 			$forced_block,
 			$auto_block

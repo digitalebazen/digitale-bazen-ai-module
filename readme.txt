@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.6
+Stable tag: 2.0.7
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,34 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.0.7 =
+* **CTA-buttons worden nu door de generator gevuld** — ACF `link`-velden
+  (zoals `button`, `button_2`) waren tot v2.0.6 onvoorwaardelijk leeg na
+  sanitize (defensieve default tegen verzonnen URLs). De generator mag ze
+  nu invullen, maar UITSLUITEND met URLs uit `internal_link_pool` (de
+  bestaande-posts-feed). Verzonnen of externe URLs worden door
+  `DB_AI_ACF_Mapper::sanitize_link_value()` automatisch gestript naar een
+  leeg link-veld. Post-creator geeft de pool als whitelist door via
+  `set_allowed_link_urls()` vóór de write. Prompt-update in
+  `DB_AI_Internal_Links::get_prompt_addition()` legt de generator het
+  link-veld-formaat (`{title, url, target}`) uit.
+* **DUPLICATEN-regel toegevoegd** — elke afzonderlijke pool-URL mag max 2×
+  per blog gebruikt worden (wysiwyg-anchors + CTA-buttons samen geteld),
+  liefst 1× per URL als er variatie in het pool is. Voorkomt dat
+  bijvoorbeeld "/werkwijze/" 4× in dezelfde blog opduikt — spammerig en
+  slecht voor SEO.
+* **`DEFAULT_MAX_TOKENS` 8000 → 16000** — de v2.0.6-prompt is fors gegroeid
+  (past-blogs-lijst + uitgebreide externe-bronnen + CTA-button-instructies +
+  JSON-output dat nu ook buttons bevat). Bij 8000 output-tokens werden
+  generaties afgekapt op `"meta_description":` zonder waarde. Sonnet 4.6
+  ondersteunt tot 64k output; 16000 geeft comfortabele headroom zonder
+  kostenrisico (pricing per daadwerkelijk gebruikte token, niet per cap).
+* **`ALWAYS_EMPTY_FIELDS` opgeschoond** — `button`/`button_2` zijn uit de
+  hardcoded lijst gehaald. Wat blijft: `banner.mobiele_afbeelding` (fallback
+  naar `afbeelding`) en `usps.usps.icoon_content` (V1 niet ondersteund). De
+  auto-detectie *"alle link-type velden → always empty"* is ook weg uit
+  `compute_always_empty_for()`; sanitize doet nu per veld de whitelist-check.
 
 = 2.0.6 =
 * **FAQ-prompt is nu conditioneel op layout-beschikbaarheid** — als er geen

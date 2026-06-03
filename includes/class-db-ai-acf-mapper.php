@@ -13,6 +13,42 @@ class DB_AI_ACF_Mapper {
 	public const FLEX_FIELD_NAME = 'paginacontent';
 
 	/**
+	 * URLs die de AI in `link`-velden (bv. CTA-buttons) mag plaatsen. Verifieerde
+	 * URLs uit het interne-link-pool. Wordt door de post-creator gezet via
+	 * `set_allowed_link_urls()` net vóór `write_blocks_to_post()`. Alles wat de
+	 * AI buiten deze lijst plaatst wordt door sanitize_block gestript.
+	 *
+	 * @var string[]
+	 */
+	private $allowed_link_urls = [];
+
+	/**
+	 * Stel de whitelist van URLs in die in `link`-velden geaccepteerd worden.
+	 * Pool-URLs worden genormaliseerd (trailing slash + host gestript) zodat
+	 * relatieve en absolute varianten matchen.
+	 *
+	 * @param string[] $urls
+	 */
+	public function set_allowed_link_urls( array $urls ): void {
+		$this->allowed_link_urls = array_values( array_filter( array_map(
+			[ $this, 'normalize_link_url' ],
+			$urls
+		) ) );
+	}
+
+	private function normalize_link_url( string $url ): string {
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return '';
+		}
+		// Strip host (en eventueel scheme) zodat /pad/ en https://site.nl/pad/ matchen.
+		$parsed = wp_parse_url( $url );
+		$path   = isset( $parsed['path'] ) ? (string) $parsed['path'] : $url;
+		// Trailing slash normaliseren.
+		return rtrim( $path, '/' );
+	}
+
+	/**
 	 * Image fields per layout (whitelist that the AI returns as { query, alt } objects).
 	 * Keyed by [layout_name][field_name] = true.
 	 */
@@ -673,9 +709,7 @@ class DB_AI_ACF_Mapper {
 	 * Voor extra site-specifieke regels: gebruik filter `db_ai_always_empty_fields`.
 	 */
 	private const ALWAYS_EMPTY_FIELDS = [
-		'banner'               => [ 'button', 'button_2', 'mobiele_afbeelding' ],
-		'tekst_met_afbeelding' => [ 'button', 'button_2' ],
-		'tekst_weergaves'      => [ 'button', 'button_2' ],
+		'banner'               => [ 'mobiele_afbeelding' ],
 		'usps.usps'            => [ 'icoon_content' ],
 	];
 
@@ -729,28 +763,21 @@ class DB_AI_ACF_Mapper {
 	/**
 	 * Bouwt de lijst velden die op deze layout altijd leeg moeten blijven.
 	 * Combineert:
-	 *  - Auto-detectie van `link` velden (AI moet geen URLs verzinnen)
-	 *  - Hardcoded ALWAYS_EMPTY_FIELDS (alleen actief op de Digitale Bazen site;
-	 *    layout-namen matchen niet op andere sites dus daar effect-loos)
-	 *  - Filter `db_ai_always_empty_fields` voor site-specifieke overrides
+	 *  - Hardcoded ALWAYS_EMPTY_FIELDS (site-specifieke uitzonderingen)
+	 *  - Filter `db_ai_always_empty_fields` voor extra site-specifieke overrides
 	 *
-	 * @param array  $sub_fields  ACF sub_fields van deze layout/context.
+	 * Link-velden (bv. CTA-buttons) worden NIET meer automatisch leeggemaakt;
+	 * die filtert sanitize_block via een whitelist van toegestane URLs (set via
+	 * `set_allowed_link_urls`) zodat de AI alleen verifieerde URLs uit het
+	 * interne-link-pool kan plaatsen — verzonnen URLs worden gestript.
+	 *
+	 * @param array  $sub_fields  ACF sub_fields van deze layout/context (gereserveerd).
 	 * @param string $context     Layout-naam, of `layout.repeater` bij nested.
 	 * @return string[]
 	 */
 	private function compute_always_empty_for( array $sub_fields, string $context ): array {
-		$auto = [];
-		foreach ( $sub_fields as $field ) {
-			if ( ( $field['type'] ?? '' ) === 'link' ) {
-				$name = (string) ( $field['name'] ?? '' );
-				if ( '' !== $name ) {
-					$auto[] = $name;
-				}
-			}
-		}
 		$manual = self::ALWAYS_EMPTY_FIELDS[ $context ] ?? [];
-		$merged = array_values( array_unique( array_merge( $auto, $manual ) ) );
-		return (array) apply_filters( 'db_ai_always_empty_fields', $merged, $context );
+		return (array) apply_filters( 'db_ai_always_empty_fields', $manual, $context );
 	}
 
 	/**
@@ -819,7 +846,10 @@ class DB_AI_ACF_Mapper {
 					$out[ $name ] = is_numeric( $value ) ? (int) $value : '';
 					break;
 				case 'link':
-					$out[ $name ] = $this->empty_value_for_type( 'link' );
+					// AI mag CTA-button-velden vullen, maar UITSLUITEND met een URL
+					// uit de whitelist (gevoed door internal_link_pool). Verzonnen
+					// of externe URLs worden gestript naar een leeg link-veld.
+					$out[ $name ] = $this->sanitize_link_value( $value );
 					break;
 				case 'repeater':
 					$sub        = $field['sub_fields'] ?? [];
@@ -853,6 +883,44 @@ class DB_AI_ACF_Mapper {
 			return $default;
 		}
 		return $choices[0] ?? '';
+	}
+
+	/**
+	 * Sanitize een AI-geleverde link-veld waarde. Accepteert `{title, url, target}`
+	 * alleen als `url` overeenkomt met een URL uit `$allowed_link_urls` (na
+	 * normaliseren naar pad zonder host/scheme/trailing-slash). Anders empty.
+	 *
+	 * @param mixed $value
+	 * @return array{title:string,url:string,target:string}
+	 */
+	private function sanitize_link_value( $value ): array {
+		$empty = [ 'title' => '', 'url' => '', 'target' => '' ];
+		if ( ! is_array( $value ) ) {
+			return $empty;
+		}
+
+		$url = trim( (string) ( $value['url'] ?? '' ) );
+		if ( '' === $url ) {
+			return $empty;
+		}
+
+		// Whitelist-check tegen het interne-link-pool (genormaliseerd naar pad).
+		$normalized = $this->normalize_link_url( $url );
+		if ( '' === $normalized || ! in_array( $normalized, $this->allowed_link_urls, true ) ) {
+			return $empty;
+		}
+
+		$title  = sanitize_text_field( (string) ( $value['title'] ?? '' ) );
+		$target = (string) ( $value['target'] ?? '_self' );
+		if ( ! in_array( $target, [ '_self', '_blank' ], true ) ) {
+			$target = '_self';
+		}
+
+		return [
+			'title'  => $title,
+			'url'    => esc_url_raw( $url ),
+			'target' => $target,
+		];
 	}
 
 	private function empty_value_for_type( string $type ) {
