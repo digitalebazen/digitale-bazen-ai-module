@@ -214,8 +214,9 @@ final class DB_AI_Rankmath_Bridge {
 							if ( ! empty( $vraag['vraag'] ) ) {
 								$out[] = '<' . $vraag_tag . '>' . esc_html( (string) $vraag['vraag'] ) . '</' . $vraag_tag . '>';
 							}
-							if ( ! empty( $vraag['antwoord'] ) ) {
-								$out[] = $this->wysiwyg( (string) $vraag['antwoord'] );
+							$antwoord_html = $this->faq_answer_html( $vraag['antwoord'] ?? '' );
+							if ( '' !== $antwoord_html ) {
+								$out[] = $antwoord_html;
 							}
 						}
 					}
@@ -248,5 +249,38 @@ final class DB_AI_Rankmath_Bridge {
 	 */
 	private function wysiwyg( string $html ): string {
 		return preg_replace( '#<(script|style)\b[^>]*>.*?</\1>#is', '', $html );
+	}
+
+	/**
+	 * Rendert een FAQ-`antwoord` naar HTML voor de analyzer. `antwoord` is van
+	 * wysiwyg-string omgezet naar flexible_content (layouts tekst/afbeelding/button);
+	 * we pakken de tekst-sub-velden uit elke flex-rij en slaan afbeelding/button
+	 * (arrays) over. Oude string-antwoorden blijven werken.
+	 *
+	 * @param mixed $antwoord
+	 */
+	private function faq_answer_html( $antwoord ): string {
+		if ( is_string( $antwoord ) ) {
+			return '' === trim( $antwoord ) ? '' : $this->wysiwyg( $antwoord );
+		}
+		if ( ! is_array( $antwoord ) ) {
+			return '';
+		}
+		$parts = [];
+		foreach ( $antwoord as $row ) {
+			if ( ! is_array( $row ) ) {
+				if ( is_string( $row ) && '' !== trim( $row ) ) {
+					$parts[] = $this->wysiwyg( $row );
+				}
+				continue;
+			}
+			foreach ( $row as $key => $value ) {
+				if ( 'acf_fc_layout' === $key || ! is_string( $value ) || '' === trim( $value ) ) {
+					continue;
+				}
+				$parts[] = $this->wysiwyg( $value );
+			}
+		}
+		return implode( "\n", $parts );
 	}
 }

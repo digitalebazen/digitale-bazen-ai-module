@@ -17,8 +17,9 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 	public const DEFAULT_MAX_TOKENS = 16000;
 
 	private $api_key;
-	private $last_tokens = 0;
-	private $last_model  = self::DEFAULT_MODEL;
+	private $last_tokens     = 0;
+	private $last_model      = self::DEFAULT_MODEL;
+	private $last_json_error = '';
 
 	public function __construct( string $api_key ) {
 		$this->api_key = $api_key;
@@ -126,12 +127,34 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 
 		$text = $this->strip_markdown_fences( $text );
 
-		$parsed = json_decode( $text, true );
+		$parsed    = $this->decode_blog_json( $text );
+		$stop      = (string) ( $decoded['stop_reason'] ?? '' );
 		if ( ! is_array( $parsed ) ) {
+			// Diagnose: log de volledige rauwe content zodat de exacte malformatie
+			// te vinden is. Gated via filter (default uit) — zet aan met
+			// add_filter( 'db_ai_debug_raw_response', '__return_true' ) in een mu-plugin.
+			if ( (bool) apply_filters( 'db_ai_debug_raw_response', false ) ) {
+				error_log( 'DB_AI Anthropic JSON-decode faalde (' . $this->last_json_error . '; stop_reason: ' . $stop . '). Volledige content volgt:' );
+				error_log( $text );
+			}
+			// Afgekapt antwoord: JSON is dan per definitie onvolledig en niet te repareren.
+			if ( 'max_tokens' === $stop ) {
+				return new WP_Error(
+					'db_ai_anthropic_truncated',
+					__( 'Het AI-antwoord werd afgekapt doordat de max_tokens-limiet werd bereikt; de JSON is daardoor onvolledig. Verhoog `db_ai_anthropic_max_tokens` of vraag een korter blog.', 'digitale-bazen-ai-module' )
+				);
+			}
 			$snippet = mb_substr( $text, 0, 400 );
 			return new WP_Error(
 				'db_ai_anthropic_content_invalid_json',
-				sprintf( __( 'AI gaf geen geldig JSON-object terug. Begin van content: %s', 'digitale-bazen-ai-module' ), $snippet )
+				sprintf(
+					/* translators: 1 = json-foutmelding, 2 = lengte, 3 = stop_reason, 4 = begin van content */
+					__( 'AI gaf geen geldig JSON-object terug (%1$s; lengte %2$d; stop_reason: %3$s). Begin van content: %4$s', 'digitale-bazen-ai-module' ),
+					'' !== $this->last_json_error ? $this->last_json_error : 'onbekende JSON-fout',
+					mb_strlen( $text ),
+					'' !== $stop ? $stop : 'onbekend',
+					$snippet
+				)
 			);
 		}
 
@@ -142,6 +165,109 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 		do_action( 'db_ai_after_ai_response', $parsed, $main_keyword );
 
 		return $parsed;
+	}
+
+	/**
+	 * Decodeer het blog-JSON-object robuust. `json_decode` is strikt; Claude levert
+	 * af en toe net-niet-geldige JSON ondanks de instructie. We proberen meerdere
+	 * strategieën, oplopend in "agressiviteit", en stoppen bij de eerste die een
+	 * array oplevert. Slaat de laatste JSON-foutmelding op voor diagnose.
+	 *
+	 * Strategieën:
+	 *  1. Direct decoden (gewone, geldige output — de normale weg).
+	 *  2. Alleen het buitenste object (eerste `{` t/m laatste `}`) — strip eventueel
+	 *     omringende toelichting/fence-resten.
+	 *  3. Rauwe control-chars (letterlijke newline/tab/CR) binnen strings escapen —
+	 *     komt voor bij HTML-content in `tekst`-velden.
+	 *
+	 * @return array|null
+	 */
+	private function decode_blog_json( string $text ) {
+		$this->last_json_error = '';
+
+		$candidates = [ $text ];
+
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		if ( false !== $start && false !== $end && $end > $start ) {
+			$inner = substr( $text, $start, $end - $start + 1 );
+			if ( $inner !== $text ) {
+				$candidates[] = $inner;
+			}
+		}
+
+		foreach ( $candidates as $candidate ) {
+			$decoded = json_decode( $candidate, true );
+			if ( is_array( $decoded ) ) {
+				return $decoded;
+			}
+			$this->last_json_error = json_last_error_msg();
+
+			$repaired = $this->escape_raw_control_chars( $candidate );
+			if ( $repaired !== $candidate ) {
+				$decoded = json_decode( $repaired, true );
+				if ( is_array( $decoded ) ) {
+					return $decoded;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Escape letterlijke control-chars (newline, CR, tab) die BINNEN een JSON-string
+	 * staan — die maken de JSON ongeldig. Werkt op byte-niveau met een kleine state-
+	 * machine; multibyte UTF-8 (hoge bytes) en chars buiten strings blijven onaangeroerd.
+	 */
+	private function escape_raw_control_chars( string $json ): string {
+		$out       = '';
+		$in_string = false;
+		$escaped   = false;
+		$len       = strlen( $json );
+
+		for ( $i = 0; $i < $len; $i++ ) {
+			$ch = $json[ $i ];
+
+			if ( $in_string ) {
+				if ( $escaped ) {
+					$out    .= $ch;
+					$escaped = false;
+					continue;
+				}
+				if ( '\\' === $ch ) {
+					$out    .= $ch;
+					$escaped = true;
+					continue;
+				}
+				if ( '"' === $ch ) {
+					$out      .= $ch;
+					$in_string = false;
+					continue;
+				}
+				if ( "\n" === $ch ) {
+					$out .= '\\n';
+					continue;
+				}
+				if ( "\r" === $ch ) {
+					$out .= '\\r';
+					continue;
+				}
+				if ( "\t" === $ch ) {
+					$out .= '\\t';
+					continue;
+				}
+				$out .= $ch;
+				continue;
+			}
+
+			if ( '"' === $ch ) {
+				$in_string = true;
+			}
+			$out .= $ch;
+		}
+
+		return $out;
 	}
 
 	/**
@@ -169,11 +295,15 @@ OUTPUTREGELS:
 1. Je antwoordt UITSLUITEND met één geldig JSON-object, geen markdown, geen toelichting, geen code fences.
 2. De JSON-structuur is exact zoals gespecificeerd in de gebruikersinstructie.
 3. Alle teksten zijn in het Nederlands, behalve de "query" velden voor afbeeldingen (die zijn Engels).
-4. HTML in tekstvelden beperkt tot: <p>, <strong>, <em>, <ul>, <ol>, <li>, <a href="">.
+4. HTML in tekstvelden beperkt tot: <p>, <strong>, <em>, <ul>, <ol>, <li> en links.
    GEEN <h1>, <h2>, <h3> in tekstvelden (titels staan in aparte "titel" velden).
    GEEN inline styles, klassen of IDs.
-5. Geen externe links naar concurrenten of onbekende bronnen.
-6. Geen verzonnen statistieken of percentages.
+5. KRITIEK VOOR GELDIGE JSON — HTML-attributen: gebruik in álle HTML-attributen ALTIJD
+   enkele quotes, NOOIT dubbele. Dus schrijf <a href='https://voorbeeld.nl/pad/'>tekst</a>,
+   NOOIT <a href="...">. Dubbele quotes in attribuutwaarden botsen met de JSON-string-
+   delimiters en maken het hele JSON-object ongeldig. Dit geldt voor href en elk ander attribuut.
+6. Geen externe links naar concurrenten of onbekende bronnen.
+7. Geen verzonnen statistieken of percentages.
 
 SCHRIJFSTIJL:
 - Professioneel maar toegankelijk

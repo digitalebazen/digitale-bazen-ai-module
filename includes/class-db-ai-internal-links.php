@@ -241,7 +241,7 @@ class DB_AI_Internal_Links {
 			"INTERNE LINKS BESCHIKBAAR — verwerk maximaal %d natuurlijk in de tekst. " .
 			"Gebruik alleen URLs uit onderstaande lijsten, verzin GEEN nieuwe URLs.\n\n" .
 			"%s%s" .
-			"Plaats links via standaard HTML in de wysiwyg/tekst-velden: <a href=\"/pad/\">anchor-tekst</a>. " .
+			"Plaats links via standaard HTML in de wysiwyg/tekst-velden, met ENKELE quotes rond de href (verplicht voor geldige JSON): <a href='/pad/'>anchor-tekst</a>. " .
 			"Anchor-tekst hoeft NIET de exacte page-titel te zijn — kies natuurlijke bewoording die past in de zin.\n\n" .
 			"CTA-BUTTONS — bevat een layout een `link`-type sub-veld (bv. `button`, `button_2`)? Dan MAG je dat veld vullen met een passende CTA. Format per link-veld:\n" .
 			"  { \"title\": \"Korte actie-tekst (max 4 woorden, bv. 'Bekijk werkwijze')\", \"url\": \"/pad/uit-pool/\", \"target\": \"_self\" }\n" .

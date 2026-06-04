@@ -548,9 +548,14 @@ Hoofdveld: `paginacontent` (flexible_content)
 | └── `onderwerp_titel` | text | – | – |
 | └── `vragen` | repeater | – | sub_fields: |
 | &nbsp;&nbsp;&nbsp;&nbsp;└── `vraag` | text | ✅ | – |
-| &nbsp;&nbsp;&nbsp;&nbsp;└── `antwoord` | wysiwyg | ✅ | – |
+| &nbsp;&nbsp;&nbsp;&nbsp;└── `antwoord` | **flexible_content** | ✅ | layouts: `tekst` (wysiwyg `tekst`), `afbeelding` (image), `button` (link) — **gewijzigd, zie hieronder** |
 
 **Belangrijk**: voor blogs gebruikt de AI typisch **1 onderwerp** met 5-8 vragen. Voor langere blogs eventueel 2-3 onderwerpen.
+
+> **`antwoord` omgezet van wysiwyg → flexible_content (2026-06-04).** Het theme rendert `antwoord` nu via een flex met layouts `tekst`/`afbeelding`/`button` (oude string-antwoorden hebben backwards-compat in de theme). De plugin verandert het **AI-contract niet**: de generator levert `antwoord` nog als platte HTML-string. De omzetting gebeurt volledig in `DB_AI_ACF_Mapper`:
+> - `describe_fields()` presenteert het flex-veld aan de AI als `wysiwyg` (string blijft de output).
+> - `sanitize_block()` → `coerce_flexible_content()` wikkelt die string bij het wegschrijven in één `tekst`-flexrij (eerste tekst-houdende layout, site-agnostisch gevonden). Levert de AI tóch flex-rijen, dan worden die per layout gesaniteerd.
+> - `DB_AI_FAQ_Schema::answer_to_text()` en de RankMath-bridge (`faq_answer_html()`) lezen de tekst nu uit de flex-rijen i.p.v. een string-cast (loste een "Array to string conversion"-warning op).
 
 #### Layout: `fotogalerij` (optioneel — AI mag overslaan)
 

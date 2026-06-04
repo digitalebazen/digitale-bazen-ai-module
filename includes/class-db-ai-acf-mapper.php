@@ -334,6 +334,16 @@ class DB_AI_ACF_Mapper {
 				$entry['sub_fields'] = $this->describe_fields( $field['sub_fields'] ?? [], $layout_name . '.' . $name );
 			}
 
+			if ( 'flexible_content' === $type ) {
+				// Dit veld is in ACF een flexible_content (bv. FAQ-`antwoord` met
+				// layouts tekst/afbeelding/button), maar de generator levert — en de
+				// mapper verwacht — gewoon een HTML-string. coerce_flexible_content()
+				// wikkelt die string bij het wegschrijven in de juiste tekst-layout.
+				// Presenteer 'm daarom als wysiwyg aan de AI zodat die een platte
+				// HTML-string blijft produceren en geen flex-structuur hoeft te bedenken.
+				$entry['type'] = 'wysiwyg';
+			}
+
 			$out[] = $entry;
 		}
 		return $out;
@@ -867,12 +877,126 @@ class DB_AI_ACF_Mapper {
 					}
 					$out[ $name ] = $rows;
 					break;
+				case 'flexible_content':
+					$out[ $name ] = $this->coerce_flexible_content( $value, $field, $context . '.' . $name );
+					break;
 				default:
 					$out[ $name ] = $value;
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Zet een AI-waarde om naar geldige ACF flexible_content rijen.
+	 *
+	 * De FAQ-`antwoord` is in ACF omgezet van wysiwyg (string) naar een
+	 * flexible_content met layouts tekst/afbeelding/button. De generator levert
+	 * `antwoord` echter nog als platte HTML-string. We wikkelen die string in één
+	 * rij van de eerste tekst-houdende layout, zodat de frontend identiek rendert
+	 * als vóór de omzetting. Levert de AI tóch al kant-en-klare flex-rijen, dan
+	 * saniteren we die per layout. Onbekend formaat → lege flex (geen crash).
+	 *
+	 * @param mixed  $value
+	 * @param array  $field    ACF flexible_content veld-definitie (met `layouts`).
+	 * @param string $context  Pad voor nested sanitize (layout.field).
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function coerce_flexible_content( $value, array $field, string $context ): array {
+		$layouts = $field['layouts'] ?? [];
+		$layouts = is_array( $layouts ) ? array_values( $layouts ) : [];
+
+		// Geval 1: AI leverde al flex-rijen (array van objecten met acf_fc_layout).
+		if ( is_array( $value ) && $this->looks_like_flex_rows( $value ) ) {
+			$rows = [];
+			foreach ( $value as $item ) {
+				if ( ! is_array( $item ) ) {
+					continue;
+				}
+				$layout_name = (string) ( $item['acf_fc_layout'] ?? '' );
+				$layout_def  = $this->find_layout_def( $layouts, $layout_name );
+				if ( null === $layout_def ) {
+					continue;
+				}
+				$row                  = $this->sanitize_block( $layout_def['sub_fields'] ?? [], $item, $context );
+				$row['acf_fc_layout'] = $layout_name;
+				$rows[]               = $row;
+			}
+			return $rows;
+		}
+
+		// Geval 2: platte (HTML-)string → wikkel in de eerste tekst-houdende layout.
+		$html = is_string( $value ) ? trim( $value ) : '';
+		if ( '' === $html ) {
+			return [];
+		}
+		$target = $this->find_text_layout( $layouts );
+		if ( null === $target ) {
+			return [];
+		}
+		return [
+			[
+				'acf_fc_layout'      => $target['layout'],
+				$target['field']     => self::strip_style_dashes( wp_kses_post( $html ) ),
+			],
+		];
+	}
+
+	/**
+	 * Heuristiek: ziet $value eruit als een lijst ACF flex-rijen?
+	 *
+	 * @param array $value
+	 */
+	private function looks_like_flex_rows( array $value ): bool {
+		foreach ( $value as $item ) {
+			return is_array( $item ) && isset( $item['acf_fc_layout'] );
+		}
+		return false;
+	}
+
+	/**
+	 * Zoek een layout-definitie op naam binnen een flexible_content `layouts` lijst.
+	 *
+	 * @param array  $layouts
+	 * @param string $name
+	 * @return array|null
+	 */
+	private function find_layout_def( array $layouts, string $name ): ?array {
+		if ( '' === $name ) {
+			return null;
+		}
+		foreach ( $layouts as $layout ) {
+			if ( is_array( $layout ) && ( $layout['name'] ?? '' ) === $name ) {
+				return $layout;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Vind de eerste layout met een tekst-houdend sub-veld (wysiwyg > textarea >
+	 * text) om een platte string in te wikkelen. Site-agnostisch: gokt niet op
+	 * vaste namen maar leest de werkelijke layouts uit ACF.
+	 *
+	 * @param array $layouts
+	 * @return array{layout:string,field:string}|null
+	 */
+	private function find_text_layout( array $layouts ): ?array {
+		foreach ( [ 'wysiwyg', 'textarea', 'text' ] as $wanted_type ) {
+			foreach ( $layouts as $layout ) {
+				$layout_name = (string) ( $layout['name'] ?? '' );
+				if ( '' === $layout_name ) {
+					continue;
+				}
+				foreach ( $layout['sub_fields'] ?? [] as $sub ) {
+					if ( ( $sub['type'] ?? '' ) === $wanted_type && '' !== ( $sub['name'] ?? '' ) ) {
+						return [ 'layout' => $layout_name, 'field' => (string) $sub['name'] ];
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	private function coerce_select_value( $value, array $choices, $default ) {
