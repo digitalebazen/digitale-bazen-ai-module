@@ -196,7 +196,7 @@ tag pusht + GitHub release maakt, zien de sites de update. Dit is bewust gedrag.
 
 ## Bestanden die NIET in de repo horen
 
-Voeg een `.gitignore` toe met:
+De repo bevat al een `.gitignore`:
 
 ```
 .DS_Store

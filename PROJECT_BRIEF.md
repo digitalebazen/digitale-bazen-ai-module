@@ -4,11 +4,15 @@
 
 ---
 
-## 0. Build Status (V1 — afgerond 2026-05-20)
+## 0. Build Status (huidige versie: v2.0.7 — 2026-06-02)
 
-V1 is **end-to-end werkend**. Een redacteur kan: CSV uploaden → keyword kiezen → dry-run preview (optioneel) → "Genereer" → draft staat 30-60s later onder Blogs met featured image, in-body afbeeldingen, RankMath SEO velden en `_db_ai_*` audit-meta. FAQ JSON-LD wordt site-breed geïnjecteerd op élke post met een `veelgestelde_vragen` block.
+> De plugin staat op **v2.0.7** (`digitale-bazen-ai-module.php` header, `DB_AI_VERSION`, `readme.txt` → `Stable tag`). De `readme.txt`-changelog is de gezagvolle, per-patch versiehistorie (0.1.0 → 2.0.7); de §0-secties hieronder beschrijven de grotere mijlpalen as-built. De originele V1-brief begint bij §1.
 
-Alle 7 bouwstappen uit sectie 14 zijn gerealiseerd. Per stap acceptatiecriteria gehaald en handmatig getest.
+V1 was **end-to-end werkend** (afgerond 2026-05-20) en is sindsdien doorontwikkeld t/m v2.0.7. Een redacteur kan: zoekwoordenonderzoek uploaden (CSV/Excel) → keyword kiezen → "Genereer" → de generatie draait **async via een job-queue** met live progress-bar → draft staat ~30-60s later onder Blogs met featured image, in-body afbeeldingen, RankMath SEO velden, FAQ JSON-LD, interne + externe link-suggesties en `_db_ai_*` audit-meta. FAQ JSON-LD wordt site-breed geïnjecteerd op élke post met een `veelgestelde_vragen` block.
+
+Alle 7 bouwstappen uit sectie 14 (V1) zijn gerealiseerd. De latere iteraties staan in §0B t/m §0I.
+
+> **Onderhoud van dit document:** §0B–§0I en §4 zijn het meest aan verloop onderhevig. Bij elke nieuwe feature: voeg een §0-subsectie toe **en** werk de structuurboom in §4 bij. Laatste sync van §4 met de werkelijke `includes/`-map: **2026-06-04**.
 
 ### Afwijkingen van de originele brief (bevestigd, in code verwerkt)
 
@@ -287,6 +291,43 @@ De v2.0.6-prompt is fors gegroeid (past-blogs-lijst + uitgebreide externe-bronne
 
 ---
 
+## 0I. As-built features die buiten de iteratie-log om zijn gegroeid
+
+Onderstaande capabilities zitten in de code (t/m v2.0.7) maar kregen geen eigen §0-mijlpaal. Hier kort gedocumenteerd zodat §1–§18 (de originele V1-brief) niet misleidend blijven. Per-patch details staan in `readme.txt`.
+
+### Multi-site ACF field group selectie (`DB_AI_ACF_Discovery` + Settings)
+
+De plugin hardcodet de field group **niet** meer op `group_5da97023a084d`. `DB_AI_Settings::get_field_group_key()` resolved in deze volgorde:
+
+1. Settings-keuze `acf_field_group_key` (dropdown op de Settings-page)
+2. Filter `db_ai_field_group_key`
+3. Constante `DB_AI_ACF_FIELD_GROUP_KEY` (default `group_5da97023a084d`, overschrijfbaar via wp-config), alleen als die group op de site bestaat
+4. Eerste auto-detected field group met een `flexible_content`-veld (`DB_AI_ACF_Discovery::find_flex_field_groups()`)
+
+Hierdoor draait de plugin op andere sites zonder code-aanpassing. Het hoofdveld (de flex-content key, voorheen aangenomen als `paginacontent`) wordt eveneens dynamisch uit de gekozen group gelezen.
+
+### Zoekwoordenonderzoek persistent opgeslagen (`DB_AI_Keyword_Research`)
+
+Geüploade onderzoeken worden bewaard als niet-publieke CPT **`db_ai_kwo`** (naam = `post_title`, geparseerde rijen JSON in `_db_ai_kwo_rows`, aantal in `_db_ai_kwo_count`). Een redacteur kan een eerder onderzoek herkiezen zonder opnieuw te uploaden. Vervangt de eerdere "upload-elke-keer-opnieuw"-flow uit V1/V2.
+
+### Per-blog input in de user-prompt (`DB_AI_Blog_Input`)
+
+Naast de Settings-brede stijl (`DB_AI_Style_Profile`, die in de **system**-prompt landt) injecteert `DB_AI_Blog_Input` per-generatie instructies in de **user**-prompt (funnel-fase, must-include, doelgroep, etc.). Per-blog input overruled de algemene Settings waar ze conflicteren. Dit is de server-kant van de "Geavanceerd (optioneel)"-collapsible uit v1.4.0.
+
+### Interne links (`DB_AI_Internal_Links`) — uit V3-backlog gehaald, nu gebouwd
+
+Bouwt een pool van bestaande site-URLs (Settings: post types + max kandidaten), scoort op title-overlap met het hoofdzoekwoord/onderwerp, en injecteert de top-N als URL+title-lijst in de user-prompt (`internal_link_pool`, transient-gecached). Na generatie worden verzonnen interne links opgeruimd. Sinds v2.0.7 voedt deze pool ook de whitelist voor CTA-buttons (zie §0H). De externe-link advisor (`DB_AI_External_Links` + metabox) staat in §0D.
+
+### Past-blogs context (`DB_AI_Past_Blogs_Context`)
+
+Geeft de recentste blog-titels + focus-keywords mee aan de prompt zodat de generator geen herhalende titels/structuren maakt. Filterbaar via `db_ai_past_blogs_limit`. Geïntroduceerd in v2.0.6.
+
+### Auto-update via GitHub Releases (`DB_AI_Updater`)
+
+Hookt `YahnisElsts/plugin-update-checker` (`vendor/plugin-update-checker/`) op WordPress' update-systeem. Volledige release-workflow staat in **DEPLOYMENT.md**. Constants: `DB_AI_GITHUB_REPO_URL`, `DB_AI_GITHUB_TOKEN`.
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
@@ -335,12 +376,23 @@ De gegenereerde post:
 ### wp-config.php constants (door developer aan te maken)
 
 ```php
-define( 'DB_AI_OPENAI_API_KEY', 'sk-...' );
-define( 'DB_AI_PEXELS_API_KEY', '...' );
-define( 'DB_AI_UNSPLASH_API_KEY', '...' ); // optioneel
+// API keys — kunnen ook via Instellingen → Generator → API-keys.
+// wp-config wint altijd (veld wordt dan disabled met "Ingesteld via wp-config.php").
+define( 'DB_AI_ANTHROPIC_API_KEY', 'sk-ant-...' ); // verplicht (enige provider sinds v2.0.2)
+define( 'DB_AI_PEXELS_API_KEY',    '...' );
+define( 'DB_AI_UNSPLASH_API_KEY',  '...' ); // optioneel (Pexels-fallback)
+
+// Auto-update vanuit private GitHub repo (zie DEPLOYMENT.md)
+define( 'DB_AI_GITHUB_REPO_URL', 'https://github.com/DigitaleBazen/digitale-bazen-ai-module/' );
+define( 'DB_AI_GITHUB_TOKEN',    'github_pat_xxxx' ); // PAT, verplicht voor private repo
+
+// Optioneel: forceer een specifieke ACF field group (anders auto-detect, zie §0I)
+// define( 'DB_AI_ACF_FIELD_GROUP_KEY', 'group_5da97023a084d' );
 ```
 
-Plugin controleert deze bij activatie en toont admin notice als ze ontbreken.
+> `DB_AI_OPENAI_API_KEY` / `DB_AI_PROVIDER` zijn vervallen — OpenAI is verwijderd in v2.0.2 (§0G). Anthropic is de enige provider.
+
+Plugin controleert de keys bij activatie/gebruik en geeft een duidelijke melding als de Anthropic-key ontbreekt.
 
 ---
 
@@ -352,57 +404,76 @@ Plugin controleert deze bij activatie en toont admin notice als ze ontbreken.
 - ACF Pro (met field group `group_5da97023a084d` geactiveerd)
 - RankMath SEO (free of Pro)
 
-### Geen externe dependencies
-- **Geen Composer** — alle code native PHP
+### Geen build-pipeline
+- **Geen Composer** — alle eigen code is native PHP; geen `composer.json`/autoloader
 - **Geen build-step voor JS** — vanilla JS, geen bundler
 - **LESS** wordt gecompileerd door bestaande theme-pipeline van de developer (NIET door plugin)
 
-### Bundled vendor JS (single-file, geen npm)
-- **SheetJS Community Edition 0.20.3** (MIT) — `assets/vendor/xlsx.full.min.js`, ~952 KB. Pinned version, gepinned via release URL: `https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js`. Toegevoegd in V2 voor de Excel-import wizard. Alleen geladen op de generator-page via `wp_enqueue_script`, niet site-breed.
+### Gebundelde vendor-libraries (gecommit in de repo, geen npm/composer install)
+- **SheetJS Community Edition 0.20.3** (MIT) — `assets/vendor/xlsx.full.min.js`, ~952 KB. Gepind via release URL `https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js`. Toegevoegd in V2 voor de Excel-import wizard. Alleen geladen op de generator-page via `wp_enqueue_script`, niet site-breed.
+- **plugin-update-checker** (YahnisElsts, MIT) — `vendor/plugin-update-checker/`. Runtime geladen door `DB_AI_Updater` voor auto-updates via GitHub Releases. MOET meegecommit worden (zie DEPLOYMENT.md). Ondanks de `vendor/`-naam is dit géén Composer-package.
 
 ### Externe APIs (HTTP via `wp_remote_*`)
-- Anthropic API — `https://api.anthropic.com/v1/messages` (V1 default)
-- OpenAI API — `https://api.openai.com/v1/chat/completions` (fallback / configureerbaar)
-- Pexels API — `https://api.pexels.com/v1/search`
-- Unsplash API — `https://api.unsplash.com/search/photos`
+- Anthropic API — `https://api.anthropic.com/v1/messages` (enige AI-provider; OpenAI verwijderd in v2.0.2)
+- Pexels API — `https://api.pexels.com/v1/search` (primair)
+- Unsplash API — `https://api.unsplash.com/search/photos` (fallback, optioneel)
+- GitHub Releases API — via plugin-update-checker, voor auto-updates (DEPLOYMENT.md)
 
 ---
 
-## 4. Plugin folder structuur (V2 actueel, 2026-05-20)
+## 4. Plugin folder structuur (actueel, gesynct 2026-06-04 — v2.0.7)
 
 ```
 digitale-bazen-ai-module/
-├── digitale-bazen-ai-module.php                       # Plugin bootstrap, header, requires
+├── digitale-bazen-ai-module.php                # Plugin bootstrap, header, constants, requires, updater-hook
 ├── PROJECT_BRIEF.md                            # Dit document
-├── readme.txt                                  # WP plugin readme
-├── uninstall.php                               # Drop tabel + cleanup options (incl. db_ai_settings)
+├── DEPLOYMENT.md                               # Release-workflow (GitHub Releases + auto-update)
+├── readme.txt                                  # WP plugin readme + gezagvolle per-patch changelog
+├── uninstall.php                               # Drop `wp_db_ai_generations` + cleanup options (db_ai_db_version, db_ai_settings, rate-transients)
+├── .gitignore                                  # .DS_Store, *.zip, node_modules/, vendor/composer/
 ├── includes/
-│   ├── class-db-ai-plugin.php                  # Singleton, init, activation, db-version check
-│   ├── class-db-ai-admin-page.php              # Submenu (alleen Blogs) + asset enqueue + nonce localize
-│   ├── class-db-ai-settings.php                # V2: Settings API page onder Instellingen + helpers voor keys
-│   ├── class-db-ai-style-profile.php           # V2.1: TOV/context/rules + referentie-post text extractie
-│   ├── class-db-ai-ajax.php                    # AJAX endpoints (parse_csv, generate)
+│   ├── class-db-ai-plugin.php                  # Singleton, init, activation/deactivation, db-version check
+│   ├── class-db-ai-acf-discovery.php           # Auto-detectie van ACF flex field groups (multi-site) — §0I
+│   ├── class-db-ai-settings.php                # Settings API page onder Instellingen + key-helpers + field-group-resolver
+│   ├── class-db-ai-style-profile.php           # V2.1: TOV/context/rules + referentie-post text → SYSTEM prompt
+│   ├── class-db-ai-blog-input.php              # Per-blog input (funnel/must-include/doelgroep) → USER prompt — §0I
+│   ├── class-db-ai-internal-links.php          # Interne-link pool + scoring + prompt + opschoning + CTA-whitelist — §0H/§0I
+│   ├── class-db-ai-external-links.php          # Externe-link suggesties: prompt + validatie + HEAD-check — §0D
+│   ├── class-db-ai-external-links-metabox.php  # Metabox die suggesties toont + op verzoek invoegt — §0D
+│   ├── class-db-ai-past-blogs-context.php      # Recente blog-titels/keywords → prompt (anti-herhaling) — §0I
+│   ├── class-db-ai-admin-page.php              # Submenu (alleen Blogs) + asset enqueue (filemtime cache-bust) + nonce localize
 │   ├── class-db-ai-keyword-importer.php        # CSV parsing + grouping + secundaire keywords
-│   ├── class-db-ai-acf-mapper.php              # Dynamic field group inlezen + layout spec + validator + write_blocks_to_post
+│   ├── class-db-ai-keyword-research.php        # Persistente onderzoeken als CPT `db_ai_kwo` — §0I
+│   ├── class-db-ai-acf-mapper.php              # Field group dynamisch inlezen + layout spec + validator + write_blocks_to_post + sanitize_link_value
 │   ├── class-db-ai-image-service.php           # Pexels → Unsplash fallback + download_url + media_handle_sideload
 │   ├── class-db-ai-seo-mapper.php              # RankMath meta velden
-│   ├── class-db-ai-post-creator.php            # Orchestrator (11 stappen volgens sectie 13)
 │   ├── class-db-ai-faq-schema.php              # FAQPage JSON-LD op wp_head (site-breed)
 │   ├── class-db-ai-logger.php                  # Custom DB tabel `wp_db_ai_generations` + dbDelta
-│   ├── class-db-ai-rate-limiter.php            # 10/dag/user, telt uit logger tabel
+│   ├── class-db-ai-job-queue.php               # Async job-queue (tabel `wp_db_ai_jobs`, Action Scheduler/WP-Cron) — §0F
+│   ├── class-db-ai-rate-limiter.php            # 10/dag/user, telt in-flight + done jobs
+│   ├── class-db-ai-post-creator.php            # Orchestrator (11 stappen, §13) + progress-reporter + link-whitelist
+│   ├── class-db-ai-ajax.php                    # AJAX endpoints (parse_csv, generate=dispatch, job_status) + worker-handler
+│   ├── class-db-ai-rankmath-bridge.php         # Rendert theme-templates voor RankMath content-analyzer — §0D/2.0.4
+│   ├── class-db-ai-updater.php                 # plugin-update-checker hook → GitHub Releases auto-update — §0I
 │   └── providers/
 │       ├── interface-db-ai-provider.php        # DB_AI_Provider interface
-│       └── class-db-ai-anthropic-provider.php  # Anthropic claude-sonnet-4-6 (enige provider; OpenAI verwijderd 2026-05-28)
+│       └── class-db-ai-anthropic-provider.php  # Anthropic claude-sonnet-4-6 (enige provider; OpenAI verwijderd v2.0.2)
 ├── assets/
-│   ├── admin.js                                # Vanilla JS — Excel/CSV wizard + mapping + generate
-│   ├── admin.css                               # Plain CSS, spinner, status, mapping-table, generate-card
+│   ├── admin.js                                # Vanilla JS — Excel/CSV wizard + mapping + dispatch + job-status polling + progress-bar
+│   ├── admin.css                               # Generator-page styling (wizard, mapping-table, progress-bar)
+│   ├── settings.js / settings.css              # Settings-page (tabs, key-velden, reference-post selector)
+│   ├── rankmath-bridge.js                      # Feedt gerenderde ACF-HTML aan RankMath's editor-analyzer — §0D
+│   ├── external-links-metabox.js               # Metabox-interactie (status, insert-AJAX) — §0D
+│   ├── banner-1544x500.png / banner-772x250.png# Plugin-header banners (WP plugin listing)
 │   └── vendor/
-│       └── xlsx.full.min.js                    # V2: SheetJS CE 0.20.3 (MIT) voor client-side xlsx/csv parsing
-└── templates/
-    └── admin-page.php                          # 3-staps markup: Upload (+ mapping) → Keyword → Genereer
+│       └── xlsx.full.min.js                    # SheetJS CE 0.20.3 (MIT) — client-side xlsx/csv parsing
+├── templates/
+│   └── admin-page.php                          # 3-staps markup: Upload (+ mapping) → Keyword → Genereer
+└── vendor/
+    └── plugin-update-checker/                  # YahnisElsts PUC (MIT), runtime geladen door DB_AI_Updater
 ```
 
-**Status:** alle bestanden bestaan. PHP-lint schoon op PHP 7.4 voor alle 19 PHP files.
+**Status:** 28 eigen PHP-files (excl. `vendor/`), PHP-lint schoon op PHP 7.4. Bij toevoegen/hernoemen van een class: werk deze boom **en** de require-lijst in `digitale-bazen-ai-module.php` bij.
 
 ---
 
@@ -1325,17 +1396,22 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 ### Afgewezen
 - ~~Outline-first / multi-step generatie (outline → review → write)~~ — gebouwd op de async-infra (backend + wizard-review-UI) en op 2026-05-28 weer verwijderd: in de praktijk geen toegevoegde waarde. Niet opnieuw inplannen.
 
+### Sinds afgerond (v1.3.0 – v2.0.7) — waren V3-backlog
+- ✅ Internal linking met bestaande URLs (`DB_AI_Internal_Links`, §0I) — voedt sinds v2.0.7 ook CTA-buttons
+- ✅ Externe link-suggesties (`DB_AI_External_Links` + metabox, §0D)
+- ✅ Async generatie / job-queue als fundering voor bulk + per-block (`DB_AI_Job_Queue`, §0F)
+- ✅ Per-generatie input via "Geavanceerd (optioneel)" (`DB_AI_Blog_Input`, §0I) — los van Settings-default
+- ✅ Persistente zoekwoordenonderzoeken (`DB_AI_Keyword_Research` CPT, §0I)
+
 ### V3 — backlog (nog niet ingepland)
-- Per-block regeneratie (alleen FAQ opnieuw als die zwak is)
+- Per-block regeneratie (alleen FAQ opnieuw als die zwak is) — bouwt op de job-queue
+- Bulk generatie van meerdere posts — bouwt op de job-queue
 - Image preview met handmatige selectie (3-5 thumbnails per slot, redacteur kiest)
 - Categorie/tag automatisch via AI
-- Internal linking met bestaande URLs (SEO-impact)
-- Externe link suggesties
-- Gemini provider (Anthropic Claude is in V1 al toegevoegd naast OpenAI)
-- Bulk generatie van meerdere posts
+- Gemini provider (interface `DB_AI_Provider` ligt klaar; Anthropic is enige implementatie sinds v2.0.2)
 - Onderbroken/paused rijen filteren in Excel-wizard (checkbox in mapping-UI)
-- Streaming UI tijdens generatie (tokens live tonen i.p.v. spinner)
-- Per-generatie TOV-overrides (in plaats van alleen Settings-default)
+- Streaming UI tijdens generatie (tokens live tonen i.p.v. progress-bar)
+- Per-generatie TOV-overrides (i.p.v. alleen Settings-default)
 
 ---
 
