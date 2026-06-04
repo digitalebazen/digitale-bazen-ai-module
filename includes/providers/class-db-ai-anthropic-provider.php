@@ -411,6 +411,11 @@ TXT;
 			$output_schema_json
 		);
 
+		$layout_guidance = DB_AI_Layout_Calibration::get_prompt_addition( $layout_spec );
+		if ( '' !== $layout_guidance ) {
+			$prompt .= "\n\n" . $layout_guidance;
+		}
+
 		$blog_input_block = DB_AI_Blog_Input::get_prompt_addition( $blog_input );
 		if ( '' !== $blog_input_block ) {
 			$prompt .= "\n\n" . $blog_input_block;
