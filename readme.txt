@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.7
+Stable tag: 2.1.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,34 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.1.0 =
+* **Layout-calibratie (nieuw)** — een nieuwe Settings-tab "Layout-calibratie".
+  De generator analyseert je theme-templates en schrijft per blok hoe het eruitziet
+  en wanneer je het inzet; je controleert/bewerkt dit en slaat het op. Deze guidance
+  gaat mee in elke generatie-prompt zodat blokken gerichter gevuld worden.
+  - **Fase 1 (deterministisch):** `DB_AI_Layout_Calibration` leidt uit de templates
+    af welke velden bij welke `weergave` renderen. Lost op dat de generator content
+    in een veld zet dat de gekozen weergave niet toont (lege kolommen/secties), bv.
+    `tekst_weergaves` → `tekst-alternatief` rendert de body uit `tekst_kolom_2`, niet
+    `tekst`. Confidence-gating voorkomt foute guidance bij lastig te parsen templates.
+  - **Fase 2 (AI + review):** een "Calibreren"-knop laat Claude per layout
+    stijl/gebruik-guidance schrijven op basis van templates, het echte kleurpalet en
+    enkele bestaande pagina's; bewerkbaar en op te slaan in Settings. Staleness-
+    waarschuwing als de templates sinds de laatste calibratie zijn gewijzigd.
+  - **Kleurpalet-extractie:** leest de echte merkkleuren + semantische toewijzingen
+    uit de theme-stylesheet (ook `.less`), zodat de generator weet welke kleuren waar
+    voor gebruikt worden.
+* **FAQ-`antwoord` ondersteunt flexible_content** — het `antwoord`-veld is in ACF
+  omgezet van wysiwyg naar een flexible_content (layouts tekst/afbeelding/button).
+  De mapper wikkelt de AI-string nu in een tekst-flexrij; FAQ-schema en RankMath-
+  bridge lezen de tekst uit de flex-rijen (loste een "Array to string conversion"-
+  warning op). Oude string-antwoorden blijven werken.
+* **Robuustere JSON-verwerking van AI-output** — de Anthropic-provider pakt nu het
+  buitenste JSON-object, escapet rauwe control-chars en geeft bij falen een precieze
+  melding (incl. json-foutmelding en stop_reason; aparte melding bij afkapping op
+  max_tokens). Prompt scherpgesteld: HTML-attributen met enkele quotes zodat ze niet
+  botsen met de JSON-string-delimiters (voorkomt "geen geldig JSON-object").
 
 = 2.0.7 =
 * **CTA-buttons worden nu door de generator gevuld** — ACF `link`-velden

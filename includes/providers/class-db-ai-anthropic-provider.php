@@ -168,6 +168,101 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 	}
 
 	/**
+	 * Generieke JSON-completion los van de blog-flow. Stuurt een system/user-prompt
+	 * naar Claude en geeft het geparseerde JSON-object terug (hergebruikt dezelfde
+	 * robuuste decode als generate_blog). Gebruikt o.a. door de layout-calibratie.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function complete_json( string $system, string $user, int $max_tokens = 6000 ) {
+		if ( '' === trim( $this->api_key ) ) {
+			return new WP_Error(
+				'db_ai_missing_api_key',
+				__( 'Anthropic API-sleutel ontbreekt. Definieer DB_AI_ANTHROPIC_API_KEY in wp-config.php of vul de key in bij Instellingen.', 'digitale-bazen-ai-module' )
+			);
+		}
+
+		$model            = (string) apply_filters( 'db_ai_anthropic_model', self::DEFAULT_MODEL );
+		$this->last_model = $model;
+
+		$response = wp_remote_post(
+			self::ENDPOINT,
+			[
+				'timeout' => self::HTTP_TIMEOUT,
+				'headers' => [
+					'x-api-key'         => $this->api_key,
+					'anthropic-version' => self::API_VERSION,
+					'content-type'      => 'application/json',
+				],
+				'body'    => wp_json_encode(
+					[
+						'model'      => $model,
+						'max_tokens' => $max_tokens,
+						'system'     => $system,
+						'messages'   => [
+							[
+								'role'    => 'user',
+								'content' => $user,
+							],
+						],
+					]
+				),
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'db_ai_anthropic_http_error',
+				sprintf( __( 'Anthropic HTTP-fout: %s', 'digitale-bazen-ai-module' ), $response->get_error_message() )
+			);
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$raw  = wp_remote_retrieve_body( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error(
+				'db_ai_anthropic_status_error',
+				sprintf(
+					__( 'Anthropic antwoordde met status %1$d. Response: %2$s', 'digitale-bazen-ai-module' ),
+					$code,
+					mb_substr( (string) $raw, 0, 400 )
+				)
+			);
+		}
+
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return new WP_Error( 'db_ai_anthropic_invalid_json', __( 'Anthropic antwoord is geen geldige JSON.', 'digitale-bazen-ai-module' ) );
+		}
+
+		$text = '';
+		foreach ( $decoded['content'] ?? [] as $block ) {
+			if ( ( $block['type'] ?? '' ) === 'text' && isset( $block['text'] ) ) {
+				$text = (string) $block['text'];
+				break;
+			}
+		}
+		$text   = $this->strip_markdown_fences( trim( $text ) );
+		$parsed = $this->decode_blog_json( $text );
+		if ( ! is_array( $parsed ) ) {
+			return new WP_Error(
+				'db_ai_anthropic_content_invalid_json',
+				sprintf(
+					__( 'AI gaf geen geldig JSON-object terug (%1$s; stop_reason: %2$s).', 'digitale-bazen-ai-module' ),
+					'' !== $this->last_json_error ? $this->last_json_error : 'onbekende JSON-fout',
+					(string) ( $decoded['stop_reason'] ?? 'onbekend' )
+				)
+			);
+		}
+
+		$input             = isset( $decoded['usage']['input_tokens'] ) ? (int) $decoded['usage']['input_tokens'] : 0;
+		$output            = isset( $decoded['usage']['output_tokens'] ) ? (int) $decoded['usage']['output_tokens'] : 0;
+		$this->last_tokens = $input + $output;
+
+		return $parsed;
+	}
+
+	/**
 	 * Decodeer het blog-JSON-object robuust. `json_decode` is strikt; Claude levert
 	 * af en toe net-niet-geldige JSON ondanks de instructie. We proberen meerdere
 	 * strategieën, oplopend in "agressiviteit", en stoppen bij de eerste die een

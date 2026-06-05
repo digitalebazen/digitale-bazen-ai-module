@@ -288,4 +288,46 @@
 			}
 		} );
 	}
+
+	// ─── Layout-calibratie ────────────────────────────────────────────────
+	const calibrateBtn = document.getElementById( 'db-ai-calibrate-btn' );
+	const calibrateStatus = document.getElementById( 'db-ai-calibrate-status' );
+	if ( calibrateBtn && kwoConfig ) {
+		calibrateBtn.addEventListener( 'click', function () {
+			const i18n = kwoConfig.i18n || {};
+			calibrateBtn.disabled = true;
+			if ( calibrateStatus ) calibrateStatus.textContent = i18n.calibrating || 'Bezig…';
+
+			const formData = new FormData();
+			formData.append( 'action', 'db_ai_calibrate_layouts' );
+			formData.append( 'nonce', kwoConfig.nonce );
+
+			fetch( kwoConfig.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: formData } )
+				.then( function ( res ) { return res.json(); } )
+				.then( function ( json ) {
+					calibrateBtn.disabled = false;
+					if ( ! json || ! json.success || ! json.data ) {
+						const msg = ( json && json.data && json.data.message ) ? json.data.message : ( i18n.calibrateFailed || 'Mislukt.' );
+						if ( calibrateStatus ) calibrateStatus.textContent = msg;
+						return;
+					}
+					const guidance = json.data.guidance || {};
+					Object.keys( guidance ).forEach( function ( layout ) {
+						const ta = document.querySelector( 'textarea[data-layout="' + layout + '"]' );
+						if ( ta ) ta.value = guidance[ layout ];
+					} );
+					const fp = document.getElementById( 'db-ai-calibrate-fingerprint' );
+					if ( fp && json.data.fingerprint ) fp.value = json.data.fingerprint;
+					const gen = document.getElementById( 'db-ai-calibrate-generated' );
+					if ( gen && json.data.generated_at ) gen.value = json.data.generated_at;
+					if ( calibrateStatus ) calibrateStatus.textContent = i18n.calibrateOk || 'Klaar.';
+					// Markeer als gewijzigd zodat de gebruiker weet dat hij moet opslaan.
+					if ( tabs ) tabs.classList.add( 'is-dirty' );
+				} )
+				.catch( function () {
+					calibrateBtn.disabled = false;
+					if ( calibrateStatus ) calibrateStatus.textContent = i18n.networkError || 'Netwerkfout.';
+				} );
+		} );
+	}
 } )();

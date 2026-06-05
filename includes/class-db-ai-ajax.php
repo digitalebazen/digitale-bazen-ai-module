@@ -25,6 +25,7 @@ class DB_AI_Ajax {
 		add_action( 'wp_ajax_db_ai_save_kwo', [ $this, 'save_kwo' ] );
 		add_action( 'wp_ajax_db_ai_load_kwo', [ $this, 'load_kwo' ] );
 		add_action( 'wp_ajax_db_ai_delete_kwo', [ $this, 'delete_kwo' ] );
+		add_action( 'wp_ajax_db_ai_calibrate_layouts', [ $this, 'calibrate_layouts' ] );
 
 		// Async runner-handler voor het 'generate_blog' job-type. Draait in de
 		// worker-context (Action Scheduler of WP-Cron), buiten de browser-request.
@@ -138,6 +139,38 @@ class DB_AI_Ajax {
 		}
 
 		wp_send_json_success( [ 'all' => DB_AI_Keyword_Research::get_all() ] );
+	}
+
+	/**
+	 * Layout-calibratie (fase 2): laat de generator per layout stijl/gebruik-guidance
+	 * schrijven op basis van de theme-templates. Persisteert niet — de gebruiker
+	 * reviewt het resultaat en slaat het op via de Settings-form.
+	 */
+	public function calibrate_layouts(): void {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
+		}
+
+		$layout_spec = ( new DB_AI_ACF_Mapper() )->get_layout_spec_for_prompt();
+		if ( is_wp_error( $layout_spec ) ) {
+			wp_send_json_error( [ 'message' => $layout_spec->get_error_message() ], 400 );
+		}
+
+		$guidance = DB_AI_Layout_Calibration::synthesize( $layout_spec );
+		if ( is_wp_error( $guidance ) ) {
+			wp_send_json_error( [ 'message' => $guidance->get_error_message() ], 400 );
+		}
+
+		wp_send_json_success(
+			[
+				'guidance'     => $guidance,
+				'fingerprint'  => DB_AI_Layout_Calibration::template_fingerprint( $layout_spec ),
+				'generated_at' => current_time( 'mysql' ),
+			]
+		);
 	}
 
 	/**

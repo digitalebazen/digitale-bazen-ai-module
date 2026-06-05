@@ -200,6 +200,9 @@ class DB_AI_Settings {
 					'tableCountLabel'  => __( 'Zoekwoorden', 'digitale-bazen-ai-module' ),
 					'tableDateLabel'   => __( 'Geüpload op', 'digitale-bazen-ai-module' ),
 					'tableDeleteLabel' => __( 'Verwijder', 'digitale-bazen-ai-module' ),
+					'calibrating'      => __( 'Je thema wordt geanalyseerd… dit kan ~10-30 sec duren.', 'digitale-bazen-ai-module' ),
+					'calibrateOk'      => __( 'Klaar — controleer de teksten per layout en klik onderaan op Opslaan.', 'digitale-bazen-ai-module' ),
+					'calibrateFailed'  => __( 'Calibratie mislukt.', 'digitale-bazen-ai-module' ),
 				],
 			]
 		);
@@ -678,6 +681,24 @@ class DB_AI_Settings {
 			self::PAGE_SLUG,
 			'db_ai_kwo_section'
 		);
+
+		// ─── Layout-calibratie sectie ─────────────────────────────────────
+		add_settings_section(
+			'db_ai_calibration_section',
+			__( 'Layout-calibratie', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'De generator analyseert je theme-templates en schrijft per blok hoe het eruitziet en wanneer je het inzet. Klik op Calibreren, controleer per layout, en sla op met de Opslaan-knop onderaan.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'layout_guidance',
+			__( 'Guidance per layout', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_calibration_field' ],
+			self::PAGE_SLUG,
+			'db_ai_calibration_section'
+		);
 	}
 
 	public function sanitize( $input ): array {
@@ -825,6 +846,26 @@ class DB_AI_Settings {
 			: [];
 		$out['allowed_layouts'] = array_values( array_intersect( $known, array_map( 'strval', $raw ) ) );
 
+		// Layout-calibratie — guidance per layout (textareas) + metadata.
+		if ( isset( $input[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] ) && is_array( $input[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] ) ) {
+			$guidance = [];
+			foreach ( $input[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] as $layout => $text ) {
+				$layout = sanitize_key( (string) $layout );
+				$text   = sanitize_textarea_field( (string) $text );
+				if ( '' !== $layout && '' !== trim( $text ) ) {
+					$guidance[ $layout ] = $text;
+				}
+			}
+			$out[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] = $guidance;
+		}
+		if ( isset( $input[ DB_AI_Layout_Calibration::OPTION_META ] ) && is_array( $input[ DB_AI_Layout_Calibration::OPTION_META ] ) ) {
+			$meta = $input[ DB_AI_Layout_Calibration::OPTION_META ];
+			$out[ DB_AI_Layout_Calibration::OPTION_META ] = [
+				'fingerprint'  => sanitize_text_field( (string) ( $meta['fingerprint'] ?? '' ) ),
+				'generated_at' => sanitize_text_field( (string) ( $meta['generated_at'] ?? '' ) ),
+			];
+		}
+
 		add_settings_error(
 			self::OPTION_NAME,
 			'db_ai_settings_saved',
@@ -833,6 +874,74 @@ class DB_AI_Settings {
 		);
 
 		return $out;
+	}
+
+	public function render_calibration_field(): void {
+		$opts   = self::get_options();
+		$stored = isset( $opts[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] ) && is_array( $opts[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ] )
+			? $opts[ DB_AI_Layout_Calibration::OPTION_GUIDANCE ]
+			: [];
+		$meta   = isset( $opts[ DB_AI_Layout_Calibration::OPTION_META ] ) && is_array( $opts[ DB_AI_Layout_Calibration::OPTION_META ] )
+			? $opts[ DB_AI_Layout_Calibration::OPTION_META ]
+			: [];
+
+		$spec    = ( new DB_AI_ACF_Mapper() )->get_layout_spec_for_prompt();
+		$layouts = is_wp_error( $spec ) ? [] : array_values( array_filter( array_map(
+			static function ( $l ) {
+				return (string) ( $l['name'] ?? '' );
+			},
+			$spec
+		) ) );
+
+		if ( empty( $layouts ) ) {
+			echo '<p class="description">' . esc_html__( 'Nog geen layouts gevonden. Configureer eerst de ACF field group bij "ACF integratie".', 'digitale-bazen-ai-module' ) . '</p>';
+			return;
+		}
+
+		echo '<p>';
+		echo '<button type="button" class="button button-secondary" id="db-ai-calibrate-btn">' . esc_html__( 'Calibreren met de generator', 'digitale-bazen-ai-module' ) . '</button> ';
+		echo '<span id="db-ai-calibrate-status" class="description" aria-live="polite"></span>';
+		echo '</p>';
+
+		$generated_at = (string) ( $meta['generated_at'] ?? '' );
+		$fingerprint  = (string) ( $meta['fingerprint'] ?? '' );
+		if ( '' !== $generated_at ) {
+			/* translators: %s = datum/tijd */
+			printf( '<p class="description" id="db-ai-calibrate-generated-label">' . esc_html__( 'Laatst gegenereerd: %s.', 'digitale-bazen-ai-module' ) . '</p>', esc_html( $generated_at ) );
+		}
+		$current_fp = is_wp_error( $spec ) ? '' : DB_AI_Layout_Calibration::template_fingerprint( $spec );
+		if ( '' !== $fingerprint && '' !== $current_fp && $fingerprint !== $current_fp ) {
+			echo '<p class="description" style="color:#b32d2e;">' . esc_html__( 'Let op: je theme-templates zijn gewijzigd sinds de laatste calibratie. Overweeg opnieuw te calibreren.', 'digitale-bazen-ai-module' ) . '</p>';
+		}
+
+		printf(
+			'<input type="hidden" id="db-ai-calibrate-fingerprint" name="%s[%s][fingerprint]" value="%s">',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( DB_AI_Layout_Calibration::OPTION_META ),
+			esc_attr( $fingerprint )
+		);
+		printf(
+			'<input type="hidden" id="db-ai-calibrate-generated" name="%s[%s][generated_at]" value="%s">',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( DB_AI_Layout_Calibration::OPTION_META ),
+			esc_attr( $generated_at )
+		);
+
+		echo '<div class="db-ai-calibration-fields">';
+		foreach ( $layouts as $layout ) {
+			$val = (string) ( $stored[ $layout ] ?? '' );
+			printf(
+				'<p class="db-ai-calibration-row"><label for="db-ai-guidance-%1$s"><code>%2$s</code></label><br>'
+				. '<textarea id="db-ai-guidance-%1$s" data-layout="%2$s" name="%3$s[%4$s][%2$s]" rows="3" class="large-text">%5$s</textarea></p>',
+				esc_attr( sanitize_html_class( $layout ) ),
+				esc_attr( $layout ),
+				esc_attr( self::OPTION_NAME ),
+				esc_attr( DB_AI_Layout_Calibration::OPTION_GUIDANCE ),
+				esc_textarea( $val )
+			);
+		}
+		echo '</div>';
+		echo '<p class="description">' . esc_html__( 'Je kunt elke tekst handmatig bijschaven. Klik daarna onderaan op Opslaan.', 'digitale-bazen-ai-module' ) . '</p>';
 	}
 
 	public function render_text_field( array $args ): void {
@@ -1256,6 +1365,13 @@ class DB_AI_Settings {
 				'title'    => __( 'Beschikbare layouts', 'digitale-bazen-ai-module' ),
 				'intro'    => __( 'Bepaal welke blokken (layouts) de generator mag gebruiken om blogs op te bouwen. Standaard staan alle layouts aan.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_layouts_section' ],
+			],
+			[
+				'id'       => 'calibration',
+				'label'    => __( 'Layout-calibratie', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Layout-calibratie', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Laat de generator je thema "bekijken" en per blok beschrijven hoe het eruitziet en wanneer je het inzet. Klik op Calibreren, controleer de tekst per layout en sla op. Hoe beter deze guidance, hoe gerichter de generator de juiste velden vult.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_calibration_section' ],
 			],
 			[
 				'id'       => 'acf',

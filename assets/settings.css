@@ -202,3 +202,24 @@
 @keyframes db-ai-spin {
 	to { transform: rotate(360deg); }
 }
+
+/* Layout-calibratie */
+.db-ai-calibration-fields {
+	margin-top: 12px;
+}
+.db-ai-calibration-row {
+	margin: 0 0 14px;
+}
+.db-ai-calibration-row label code {
+	font-size: 13px;
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+.db-ai-calibration-row textarea {
+	margin-top: 4px;
+}
+#db-ai-calibrate-status {
+	margin-left: 8px;
+	font-style: italic;
+}
