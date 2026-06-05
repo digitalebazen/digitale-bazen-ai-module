@@ -416,6 +416,7 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
   * MINIMAAL 2 verschillende `titel`-velden van blocks (deze worden gerenderd als H2/H3)
   * meta_title — als allereerste woord(en), niet in het midden
   * meta_description — minstens één keer, liefst vooraan
+- ZOEKWOORDDICHTHEID (belangrijk voor RankMath): laat het exacte hoofdzoekwoord (of een duidelijke variant ervan) in totaal ongeveer 12-16 keer terugkomen in de body-tekst, verspreid over meerdere blocks — dat is ±1% dichtheid bij 1200-1800 woorden. Verweef ze natuurlijk in lopende zinnen; nooit stuffen, niet binnen één zin herhalen, en niet alleen in titels. RankMath rekent een dichtheid onder ~0,5% (bv. maar 4 vermeldingen) als te laag.
 - post-titel MOET bevatten (beide, tenzij echt onnatuurlijk):
   * Eén power-word — kies UITSLUITEND uit onderstaande lijst. Elk woord staat letterlijk in RankMath's NL power-word lijst (`seo-by-rank-math/assets/vendor/powerwords/nl.php`) én is gefilterd op B2B/MKB-toon (geen sensatie/clickbait varianten). Plaats het direct na het focus keyword waar grammaticaal mogelijk. Voorkeur voor `bewezen` als veilige default — past participle inflecteert nooit.
 
@@ -452,7 +453,7 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
 - FAQ-vragen formuleren als echte gebruikersvragen (long-tail keywords)
 - Meta_title: focus keyword vooraan, max 60 chars, bevat indien mogelijk power-word
 - Meta_description: focus keyword + duidelijke CTA, max 155 chars
-- Image alt-teksten: focus keyword waar natuurlijk past, niet bij elke afbeelding herhalen
+- Image alt-teksten: de `featured_image.alt` MOET het exacte hoofdzoekwoord bevatten — RankMath vereist minstens één afbeelding met het focus keyword in de alt-tekst. Bij block-afbeeldingen: hoofdzoekwoord of variant waar natuurlijk past, niet bij élke afbeelding herhalen.
 
 LENGTE & VERDELING (belangrijk):
 - Totaal: streef naar 1200-1800 woorden in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).

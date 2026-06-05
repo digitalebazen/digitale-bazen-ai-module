@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,16 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.1.1 =
+* **SEO-prompt aangescherpt op RankMath-feedback:**
+  - **Zoekwoorddichtheid** — de generator mikt nu op ±1% dichtheid (hoofdzoekwoord
+    of variant ~12-16× verspreid door de body, natuurlijk verweven). Voorkomt de
+    "keyword density te laag"-melding bij blogs die het keyword maar enkele keren
+    noemden.
+  - **Afbeelding-alt** — de `featured_image.alt` bevat nu verplicht het exacte
+    hoofdzoekwoord, zodat RankMath's "afbeelding met focus keyword als alt"-check
+    slaagt. Block-afbeeldingen blijven gevarieerd.
 
 = 2.1.0 =
 * **Layout-calibratie (nieuw)** — een nieuwe Settings-tab "Layout-calibratie".
