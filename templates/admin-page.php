@@ -69,30 +69,28 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 				<h2><?php esc_html_e( '1. Kies of upload zoekwoordenonderzoek', 'digitale-bazen-ai-module' ); ?></h2>
 
 				<?php if ( ! empty( $saved_kwos ) ) : ?>
-					<div class="db-ai-kwo-picker">
-						<label for="db-ai-kwo-select"><?php esc_html_e( 'Gebruik opgeslagen onderzoek', 'digitale-bazen-ai-module' ); ?></label>
-						<select id="db-ai-kwo-select">
-							<option value=""><?php esc_html_e( '— Kies een onderzoek —', 'digitale-bazen-ai-module' ); ?></option>
-							<?php foreach ( $saved_kwos as $r ) : ?>
-								<option value="<?php echo (int) $r['id']; ?>">
-									<?php
-									/* translators: 1 = onderzoek naam, 2 = aantal zoekwoorden, 3 = upload-datum */
-									printf(
-										esc_html__( '%1$s (%2$d zoekwoorden — %3$s)', 'digitale-bazen-ai-module' ),
-										esc_html( $r['name'] ),
-										(int) $r['count'],
-										esc_html( $r['uploaded_at'] )
-									);
-									?>
-								</option>
-							<?php endforeach; ?>
-						</select>
+					<?php $current_kwo = $saved_kwos[0]; ?>
+					<div class="db-ai-kwo-current" data-kwo-id="<?php echo (int) $current_kwo['id']; ?>">
+						<p class="db-ai-kwo-current-label">
+							<?php
+							/* translators: 1 = onderzoek naam, 2 = aantal zoekwoorden, 3 = upload-datum */
+							printf(
+								wp_kses(
+									__( '<strong>Huidig onderzoek:</strong> %1$s <span class="db-ai-kwo-current-meta">(%2$d zoekwoorden — %3$s)</span>', 'digitale-bazen-ai-module' ),
+									[ 'strong' => [], 'span' => [ 'class' => [] ] ]
+								),
+								esc_html( $current_kwo['name'] ),
+								(int) $current_kwo['count'],
+								esc_html( $current_kwo['uploaded_at'] )
+							);
+							?>
+						</p>
 						<p class="description">
 							<?php
 							printf(
 								/* translators: %s = link naar Settings */
 								wp_kses(
-									__( 'Beheer (toevoegen / verwijderen) van onderzoeken doe je in %s. Of <a href="#" id="db-ai-kwo-toggle-upload">upload hieronder eenmalig</a> zonder opslaan.', 'digitale-bazen-ai-module' ),
+									__( 'Wordt automatisch gebruikt. Vervangen of verwijderen doe je in %s. Of <a href="#" id="db-ai-kwo-toggle-upload">upload hieronder eenmalig</a> zonder opslaan.', 'digitale-bazen-ai-module' ),
 									[ 'a' => [ 'href' => [], 'id' => [] ] ]
 								),
 								'<a href="' . esc_url( admin_url( 'options-general.php?page=' . DB_AI_Settings::PAGE_SLUG . '#kwo' ) ) . '">' . esc_html__( 'Instellingen → Zoekwoorden', 'digitale-bazen-ai-module' ) . '</a>'

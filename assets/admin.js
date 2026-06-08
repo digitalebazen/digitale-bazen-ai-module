@@ -787,14 +787,12 @@
 			});
 		});
 
-		// KWO dropdown — selecteer een opgeslagen zoekwoordenonderzoek.
-		const kwoSelect = $('#db-ai-kwo-select');
-		if (kwoSelect) {
-			kwoSelect.addEventListener('change', function (e) {
-				const id = parseInt(e.target.value, 10);
-				if (!id) return;
-				loadSavedKwo(id);
-			});
+		// Er is altijd maar één opgeslagen zoekwoordenonderzoek — laad het automatisch
+		// bij openen van de generator (ontgrendelt + springt naar de keyword-stap).
+		const kwoCurrent = $('.db-ai-kwo-current');
+		if (kwoCurrent && kwoCurrent.dataset.kwoId) {
+			const id = parseInt(kwoCurrent.dataset.kwoId, 10);
+			if (id) loadSavedKwo(id);
 		}
 
 		// "Of upload hieronder eenmalig" link toont de file-upload sectie als die verborgen is.

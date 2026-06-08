@@ -1187,10 +1187,14 @@ class DB_AI_Settings {
 				<p class="description">
 					<?php esc_html_e( 'Accepteert Excel (.xlsx, .xls), CSV en OpenDocument (.ods). De wizard herkent de kolommen automatisch — alleen "Zoekwoord" is verplicht. Optioneel: maandelijks volume, pagina, onderwerp, concurrentie en CPC.', 'digitale-bazen-ai-module' ); ?>
 				</p>
+				<p class="description">
+					<strong><?php esc_html_e( 'Let op:', 'digitale-bazen-ai-module' ); ?></strong>
+					<?php esc_html_e( 'er is altijd maar één zoekwoordenonderzoek actief. Een nieuwe upload vervangt het huidige onderzoek.', 'digitale-bazen-ai-module' ); ?>
+				</p>
 				<div id="db-ai-kwo-status" class="db-ai-status" role="status" aria-live="polite"></div>
 			</div>
 
-			<h3><?php esc_html_e( 'Opgeslagen onderzoeken', 'digitale-bazen-ai-module' ); ?></h3>
+			<h3><?php esc_html_e( 'Huidig onderzoek', 'digitale-bazen-ai-module' ); ?></h3>
 			<table class="widefat striped db-ai-kwo-table" id="db-ai-kwo-table">
 				<thead>
 					<tr>

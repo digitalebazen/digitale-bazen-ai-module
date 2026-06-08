@@ -181,6 +181,28 @@
 	margin-bottom: 8px;
 }
 
+.db-ai-kwo-current {
+	margin-bottom: 16px;
+	padding: 12px 16px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 4px;
+}
+
+.db-ai-kwo-current-label {
+	margin: 0 0 4px;
+	font-size: 14px;
+}
+
+.db-ai-kwo-current-meta {
+	color: #50575e;
+	font-weight: 400;
+}
+
+.db-ai-kwo-current .description {
+	margin-bottom: 0;
+}
+
 .db-ai-status {
 	margin-top: 8px;
 	font-size: 13px;

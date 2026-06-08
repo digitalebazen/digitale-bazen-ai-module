@@ -61,6 +61,11 @@ class DB_AI_Keyword_Research {
 			return new WP_Error( 'db_ai_kwo_empty', __( 'Geen zoekwoorden gevonden in het bestand.', 'digitale-bazen-ai-module' ) );
 		}
 
+		// Er is altijd maar één onderzoek tegelijk: een nieuwe upload vervangt de
+		// bestaande. Pas verwijderen nadat de input gevalideerd is, zodat een
+		// mislukte upload het huidige onderzoek niet wegvaagt.
+		self::delete_all();
+
 		$post_id = wp_insert_post(
 			[
 				'post_type'   => self::POST_TYPE,
@@ -134,12 +139,41 @@ class DB_AI_Keyword_Research {
 		];
 	}
 
+	/**
+	 * Het (enige) opgeslagen onderzoek, of null als er nog geen is.
+	 *
+	 * @return array{id:int,name:string,count:int,uploaded_at:string}|null
+	 */
+	public static function get_current(): ?array {
+		$all = self::get_all();
+		return $all[0] ?? null;
+	}
+
 	public static function delete( int $id ): bool {
 		$post = get_post( $id );
 		if ( ! $post || self::POST_TYPE !== $post->post_type ) {
 			return false;
 		}
 		return (bool) wp_delete_post( $id, true );
+	}
+
+	/**
+	 * Verwijder álle opgeslagen onderzoeken. Dwingt af dat er maar één onderzoek
+	 * tegelijk bestaat — aangeroepen vanuit save() vóór een nieuwe upload.
+	 */
+	public static function delete_all(): void {
+		$ids = get_posts(
+			[
+				'post_type'        => self::POST_TYPE,
+				'post_status'      => 'any',
+				'numberposts'      => -1,
+				'fields'           => 'ids',
+				'suppress_filters' => false,
+			]
+		);
+		foreach ( $ids as $id ) {
+			wp_delete_post( (int) $id, true );
+		}
 	}
 
 	/**
