@@ -10,11 +10,11 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 	public const API_VERSION       = '2023-06-01';
 	public const DEFAULT_MODEL     = 'claude-sonnet-4-6';
 	public const HTTP_TIMEOUT      = 120;
-	// 16k output-tokens geeft comfortabele headroom voor een volledige blog +
-	// external_link_suggestions + ingevulde CTA-buttons. Sonnet 4.6 ondersteunt
-	// tot 64k output, dus dit is ruim binnen veilige marges. Kosten zijn per
-	// daadwerkelijk gebruikte token, niet per cap.
-	public const DEFAULT_MAX_TOKENS = 16000;
+	// 20k output-tokens geeft comfortabele headroom voor een uitgebreide blog van
+	// 2500-3200 woorden (9-13 blocks) + FAQ + external_link_suggestions + CTA-buttons,
+	// zonder afkapping. Sonnet 4.6 ondersteunt tot 64k output, dus ruim binnen veilige
+	// marges. Kosten zijn per daadwerkelijk gebruikte token, niet per cap.
+	public const DEFAULT_MAX_TOKENS = 20000;
 
 	private $api_key;
 	private $last_tokens     = 0;
@@ -416,7 +416,7 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
   * MINIMAAL 2 verschillende `titel`-velden van blocks (deze worden gerenderd als H2/H3)
   * meta_title — als allereerste woord(en), niet in het midden
   * meta_description — minstens één keer, liefst vooraan
-- ZOEKWOORDDICHTHEID (belangrijk voor RankMath): laat het exacte hoofdzoekwoord (of een duidelijke variant ervan) in totaal ongeveer 12-16 keer terugkomen in de body-tekst, verspreid over meerdere blocks — dat is ±1% dichtheid bij 1200-1800 woorden. Verweef ze natuurlijk in lopende zinnen; nooit stuffen, niet binnen één zin herhalen, en niet alleen in titels. RankMath rekent een dichtheid onder ~0,5% (bv. maar 4 vermeldingen) als te laag.
+- ZOEKWOORDDICHTHEID (belangrijk voor RankMath): laat het exacte hoofdzoekwoord (of een duidelijke variant ervan) met een dichtheid van ±1% terugkomen — schaal het mee met de lengte, dus bij een artikel van 2500-3200 woorden komt dat neer op ongeveer 25-32 vermeldingen, verspreid over alle blocks. Verweef ze natuurlijk in lopende zinnen; nooit stuffen, niet binnen één zin herhalen, en niet alleen in titels. RankMath rekent een dichtheid onder ~0,5% als te laag.
 - post-titel MOET bevatten (beide, tenzij echt onnatuurlijk):
   * Eén power-word — kies UITSLUITEND uit onderstaande lijst. Elk woord staat letterlijk in RankMath's NL power-word lijst (`seo-by-rank-math/assets/vendor/powerwords/nl.php`) én is gefilterd op B2B/MKB-toon (geen sensatie/clickbait varianten). Plaats het direct na het focus keyword waar grammaticaal mogelijk. Voorkeur voor `bewezen` als veilige default — past participle inflecteert nooit.
 
@@ -455,10 +455,11 @@ SEO-RICHTLIJNEN (RankMath-optimalisatie — volg strikt):
 - Meta_description: focus keyword + duidelijke CTA, max 155 chars
 - Image alt-teksten: de `featured_image.alt` MOET het exacte hoofdzoekwoord bevatten — RankMath vereist minstens één afbeelding met het focus keyword in de alt-tekst. Bij block-afbeeldingen: hoofdzoekwoord of variant waar natuurlijk past, niet bij élke afbeelding herhalen.
 
-LENGTE & VERDELING (belangrijk):
-- Totaal: streef naar 1200-1800 woorden in alle tekst-velden samen (titel/subtitel-velden niet meegeteld).
-- Houd de tekst PER BLOK kort: maximaal 2-3 korte alinea's per tekstveld, elke alinea 2-4 zinnen. Geen muren van tekst.
-- Verdeel de inhoud liever over een EXTRA blok dan alles in een paar lange blocks te proppen. Wordt een tekstveld lang? Splits het op in twee blocks met elk één duidelijk deelonderwerp. Liever één blok te veel dan te volle blocks.
+LENGTE & VERDELING (mik op een diepgaand, volledig artikel):
+- STREEFLENGTE (het optimum): 2500-3200 woorden in alle tekst-velden samen (titel/subtitel-velden niet meegeteld). Span je in om dat te halen: bedenk EERST alle relevante invalshoeken (achtergrond, aanpak/stappen, kosten, valkuilen, voorbeelden, vergelijkingen, veelgestelde vragen) en werk die met echte diepgang uit. Standaard ga je voor deze lengte.
+- NOOIT FILLER: vul de lengte niet met herhaling, opgerekte zinnen, holle frasen of verzonnen details. Kwaliteit en relevantie gaan altijd vóór woordenaantal.
+- KLEIN ONDERWERP = korter mag (uitzondering, niet de norm): leent het onderwerp zich echt niet voor 2500+ woorden zonder te gaan rekken? Schrijf dan een korter maar volledig artikel (bv. 1500-2000 woorden). Een compacte, sterke blog is beter dan een opgerekte. Ga pas korter als het uitputten van nuttige invalshoeken écht niets meer oplevert — niet uit gemak.
+- Houd PER tekstveld de leesbaarheid hoog: 2-4 korte alinea's per veld, elke alinea 2-5 zinnen. Geen muren van tekst — verdeel inhoud liever over een EXTRA blok met een eigen deelonderwerp dan een paar blocks vol te proppen.
 TXT;
 	}
 
@@ -580,8 +581,8 @@ TXT;
 
 		$lines[] = '- Voor de middelste blocks: kies aantal en mix op basis van topic-complexiteit en wat de inhoud écht nodig heeft.';
 		$lines[] = '- USP-achtige layouts: voeg toe ALS er concrete sterke punten/voordelen te vermelden zijn. Sla over als het onderwerp daar niet om vraagt.';
-		$lines[] = '- Korte/eenvoudige onderwerpen → 4-5 blocks totaal';
-		$lines[] = '- Brede/complexe/how-to onderwerpen → 6-8 blocks totaal';
+		$lines[] = '- Mik standaard op een DIEP, volledig artikel: idealiter 9-13 blocks, zodat je ruim boven de 2500 woorden komt — zolang het onderwerp genoeg echte deelonderwerpen biedt.';
+		$lines[] = '- Bij een smal onderwerp dat zich daar niet voor leent: maak liever minder blocks met échte inhoud dan blocks met opgerekte tekst of herhaling. Liever 6 sterke blocks dan 12 met filler.';
 		$lines[] = '- Liever een blok MEER met korte tekst dan een paar blocks met lange teksten. Splits een blok waarvan het tekstveld lang wordt op in twee blocks met elk één deelonderwerp. Wel echte inhoud per blok — geen lege filler-blocks of herhaling.';
 
 		$role_hints = $this->build_layout_role_hints( $names );

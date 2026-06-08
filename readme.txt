@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,20 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.1.2 =
+* **Langere, diepgaandere blogs:**
+  - **Streeflengte verhoogd** — de generator mikt nu standaard op een diepgaand,
+    volledig artikel van 2500-3200 woorden (9-13 blocks) i.p.v. 1200-1800 woorden.
+    Eerst alle relevante invalshoeken bedenken (achtergrond, aanpak, kosten,
+    valkuilen, voorbeelden, FAQ) en die met echte diepgang uitwerken.
+  - **Geen filler** — expliciete instructie dat lengte nooit met herhaling of
+    holle frasen gevuld mag worden; kwaliteit gaat vóór woordenaantal. Smalle
+    onderwerpen mogen korter (1500-2000 woorden) blijven.
+  - **Zoekwoorddichtheid schaalt mee** — ±1% dichtheid blijft het doel, maar
+    schaalt nu mee met de lengte (~25-32 vermeldingen bij 2500-3200 woorden).
+  - **max_tokens 16k → 20k** — comfortabele headroom voor de langere output
+    zodat artikelen niet afgekapt worden.
 
 = 2.1.1 =
 * **SEO-prompt aangescherpt op RankMath-feedback:**
