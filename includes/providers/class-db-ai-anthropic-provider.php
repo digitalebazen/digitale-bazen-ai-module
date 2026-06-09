@@ -9,7 +9,13 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 	public const ENDPOINT          = 'https://api.anthropic.com/v1/messages';
 	public const API_VERSION       = '2023-06-01';
 	public const DEFAULT_MODEL     = 'claude-sonnet-4-6';
-	public const HTTP_TIMEOUT      = 120;
+	// Een uitgebreide blog (max_tokens 20k) is een NIET-streamende request: WordPress
+	// wacht op het volledige antwoord vóór de eerste byte binnenkomt. Bij ~6-10k
+	// output-tokens duurt dat al snel 2-4 minuten, dus 120s gaf "cURL error 28 …
+	// 0 bytes received". De generatie draait async via Action Scheduler (geen
+	// browser/FastCGI-limiet eraan vast), dus een ruime timeout is veilig.
+	// Filterbaar via `db_ai_anthropic_http_timeout`.
+	public const HTTP_TIMEOUT      = 300;
 	// 20k output-tokens geeft comfortabele headroom voor een uitgebreide blog van
 	// 2500-3200 woorden (9-13 blocks) + FAQ + external_link_suggestions + CTA-buttons,
 	// zonder afkapping. Sonnet 4.6 ondersteunt tot 64k output, dus ruim binnen veilige
@@ -75,7 +81,7 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			[
-				'timeout' => self::HTTP_TIMEOUT,
+				'timeout' => (int) apply_filters( 'db_ai_anthropic_http_timeout', self::HTTP_TIMEOUT ),
 				'headers' => [
 					'x-api-key'         => $this->api_key,
 					'anthropic-version' => self::API_VERSION,
@@ -188,7 +194,7 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			[
-				'timeout' => self::HTTP_TIMEOUT,
+				'timeout' => (int) apply_filters( 'db_ai_anthropic_http_timeout', self::HTTP_TIMEOUT ),
 				'headers' => [
 					'x-api-key'         => $this->api_key,
 					'anthropic-version' => self::API_VERSION,

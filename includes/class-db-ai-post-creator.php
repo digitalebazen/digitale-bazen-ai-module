@@ -202,7 +202,8 @@ class DB_AI_Post_Creator {
 		$featured = $this->image_service->find_and_import(
 			(string) ( $ai_output['featured_image']['query'] ?? '' ),
 			(string) ( $ai_output['featured_image']['alt'] ?? '' ),
-			$post_id
+			$post_id,
+			[ 'role' => 'featured' ]
 		);
 		if ( is_wp_error( $featured ) ) {
 			$warnings[] = sprintf(
@@ -333,7 +334,8 @@ class DB_AI_Post_Creator {
 				$att_id = $this->image_service->find_and_import(
 					(string) $value['query'],
 					(string) ( $value['alt'] ?? '' ),
-					$post_id
+					$post_id,
+					[ 'role' => 'block' ]
 				);
 				if ( is_wp_error( $att_id ) ) {
 					$warnings[] = sprintf(

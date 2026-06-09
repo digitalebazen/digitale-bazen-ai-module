@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.1.2
+Stable tag: 2.2.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,27 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.2.0 =
+* **AI-gegenereerde afbeeldingen via Google Gemini (nieuw):**
+  - Nieuwe Settings-tab **Afbeeldingen** met een keuze voor de afbeeldingsbron:
+    `Stockfoto's` (Pexels/Unsplash — huidig gedrag, default), `AI: alleen coverfoto`
+    of `AI: alle afbeeldingen`. Plus een **beeldstijl**-veld dat vóór elke
+    generatie-prompt wordt geplakt voor een consistente huisstijl.
+  - Gebruikt het Gemini 2.5 Flash Image-model (`gemini-2.5-flash-image`); base64-output
+    wordt direct in de mediabibliotheek gesideload. Aspect ratio per rol (coverfoto 16:9,
+    blok-afbeeldingen 4:3).
+  - **Automatische fallback naar stock** als een generatie mislukt, zodat een blog nooit
+    zonder beeld komt te zitten. Alt-teksten blijven behouden (RankMath).
+  - Nieuwe `DB_AI_GEMINI_API_KEY` constant / Gemini API-key veld onder API-keys.
+  - Filters: `db_ai_image_source`, `db_ai_gemini_image_model`, `db_ai_gemini_image_prompt`,
+    `db_ai_gemini_aspect_ratio`.
+* **Eén zoekwoordenonderzoek tegelijk:** een nieuwe upload vervangt voortaan het
+  bestaande onderzoek. De generator laadt het ene onderzoek automatisch bij openen
+  (geen dropdown meer); de Instellingen-UI is naar enkelvoud aangepast.
+* **Timeout-fix lange generaties:** de Anthropic-call had een vaste 120s-timeout, wat
+  bij uitgebreide blogs (20k max_tokens, niet-streamend) "cURL error 28 — 0 bytes
+  received" gaf. Verhoogd naar 300s en filterbaar via `db_ai_anthropic_http_timeout`.
 
 = 2.1.2 =
 * **Langere, diepgaandere blogs:**

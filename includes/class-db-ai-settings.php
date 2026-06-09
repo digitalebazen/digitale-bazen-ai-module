@@ -29,7 +29,11 @@ class DB_AI_Settings {
 		'anthropic' => 'DB_AI_ANTHROPIC_API_KEY',
 		'pexels'    => 'DB_AI_PEXELS_API_KEY',
 		'unsplash'  => 'DB_AI_UNSPLASH_API_KEY',
+		'gemini'    => 'DB_AI_GEMINI_API_KEY',
 	];
+
+	/** Toegestane waarden voor de afbeeldingsbron. */
+	public const IMAGE_SOURCES = [ 'stock', 'ai_featured', 'ai_all' ];
 
 	// ─── Static helpers ────────────────────────────────────────────────────
 
@@ -126,6 +130,26 @@ class DB_AI_Settings {
 			return 5;
 		}
 		return $val;
+	}
+
+	/**
+	 * Welke afbeeldingsbron gebruikt de generator?
+	 *  - 'stock'       : Pexels (Unsplash fallback) — default, huidig gedrag
+	 *  - 'ai_featured' : alleen de featured image via Gemini, blocks via stock
+	 *  - 'ai_all'      : alle afbeeldingen via Gemini
+	 * Filterbaar via `db_ai_image_source`.
+	 */
+	public static function get_image_source(): string {
+		$opts   = self::get_options();
+		$source = (string) ( $opts['image_source'] ?? 'stock' );
+		$source = (string) apply_filters( 'db_ai_image_source', $source );
+		return in_array( $source, self::IMAGE_SOURCES, true ) ? $source : 'stock';
+	}
+
+	/** Globale beeldstijl-instructie die vóór elke Gemini-prompt wordt geplakt. */
+	public static function get_image_style(): string {
+		$opts = self::get_options();
+		return (string) ( $opts['image_style'] ?? '' );
 	}
 
 	// ─── Instance: menu + Settings API ─────────────────────────────────────
@@ -285,6 +309,7 @@ class DB_AI_Settings {
 			'anthropic' => __( 'Anthropic API key', 'digitale-bazen-ai-module' ),
 			'pexels'    => __( 'Pexels API key', 'digitale-bazen-ai-module' ),
 			'unsplash'  => __( 'Unsplash API key', 'digitale-bazen-ai-module' ),
+			'gemini'    => __( 'Gemini API key', 'digitale-bazen-ai-module' ),
 		];
 		foreach ( $fields as $name => $label ) {
 			add_settings_field(
@@ -296,6 +321,47 @@ class DB_AI_Settings {
 				[ 'name' => $name ]
 			);
 		}
+
+		// ─── Afbeeldingen ─────────────────────────────────────────────────
+		add_settings_section(
+			'db_ai_images_section',
+			__( 'Afbeeldingen', 'digitale-bazen-ai-module' ),
+			function () {
+				echo '<p>' . esc_html__( 'Kies of de generator stockfoto\'s gebruikt of afbeeldingen laat genereren met Google Gemini. Bij generatie zorgt de beeldstijl-instructie voor een consistente huisstijl. Mislukt een generatie, dan valt de plugin automatisch terug op stockfoto\'s.', 'digitale-bazen-ai-module' ) . '</p>';
+			},
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'image_source',
+			__( 'Afbeeldingsbron', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_select_field' ],
+			self::PAGE_SLUG,
+			'db_ai_images_section',
+			[
+				'key'         => 'image_source',
+				'options'     => [
+					'stock'       => __( 'Stockfoto\'s (Pexels / Unsplash)', 'digitale-bazen-ai-module' ),
+					'ai_featured' => __( 'AI: alleen coverfoto (blocks via stock)', 'digitale-bazen-ai-module' ),
+					'ai_all'      => __( 'AI: alle afbeeldingen (Gemini)', 'digitale-bazen-ai-module' ),
+				],
+				'description' => __( 'Geschatte kosten per blog — Google Gemini rekent ~$0,04 per gegenereerde afbeelding:<br>• <strong>Stockfoto\'s</strong> — gratis (Pexels/Unsplash).<br>• <strong>AI: alleen coverfoto</strong> — 1 afbeelding, dus ~$0,04 per blog. Blok-afbeeldingen blijven gratis stock.<br>• <strong>AI: alle afbeeldingen</strong> — coverfoto + elke blok-afbeelding. Een blog heeft meestal 4-8 afbeeldingen, dus reken op ~$0,15-$0,35 per blog (= $0,04 × aantal afbeeldingen).<br>Bij elke AI-modus blijft stock de automatische fallback als generatie mislukt. De Gemini API-key beheer je op het tabblad API-keys.', 'digitale-bazen-ai-module' ),
+			]
+		);
+
+		add_settings_field(
+			'image_style',
+			__( 'Beeldstijl', 'digitale-bazen-ai-module' ),
+			[ $this, 'render_textarea_field' ],
+			self::PAGE_SLUG,
+			'db_ai_images_section',
+			[
+				'key'         => 'image_style',
+				'rows'        => 4,
+				'placeholder' => __( 'Bv: Professionele B2B-bedrijfsfotografie, warm natuurlijk licht, ingetogen kleuren, echte mensen op de werkvloer. Geen stockfoto-gevoel.', 'digitale-bazen-ai-module' ),
+				'description' => __( 'Wordt vóór elke beeld-prompt geplakt zodat alle gegenereerde afbeeldingen dezelfde huisstijl delen. Alleen van toepassing bij AI-generatie.', 'digitale-bazen-ai-module' ),
+			]
+		);
 
 		// ─── Tone of voice & content sectie ───────────────────────────────
 		add_settings_section(
@@ -711,7 +777,7 @@ class DB_AI_Settings {
 
 		// Keys: lege submission = bestaande waarde behouden (we tonen ze niet terug,
 		// dus user kan niet "weten" of er iets staat — we updaten alleen bij niet-lege input).
-		foreach ( [ 'anthropic', 'pexels', 'unsplash' ] as $name ) {
+		foreach ( [ 'anthropic', 'pexels', 'unsplash', 'gemini' ] as $name ) {
 			$field = $name . '_key';
 			if ( self::is_constant_defined( $name ) ) {
 				continue; // Constant wint, optie negeren.
@@ -764,6 +830,7 @@ class DB_AI_Settings {
 			'tone_of_voice', 'site_context', 'style_rules',
 			'company_services', 'company_usps', 'company_competitors',
 			'audience_who', 'audience_objections', 'audience_frustrations', 'audience_buying_criteria',
+			'image_style',
 		];
 		foreach ( $textarea_fields as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
@@ -784,6 +851,12 @@ class DB_AI_Settings {
 		if ( array_key_exists( 'audience_language_level', $input ) ) {
 			$val = strtolower( trim( (string) $input['audience_language_level'] ) );
 			$out['audience_language_level'] = in_array( $val, [ '', 'b1', 'expert' ], true ) ? $val : '';
+		}
+
+		// Afbeeldingsbron select — alleen toegestane modi, anders terug naar stock.
+		if ( array_key_exists( 'image_source', $input ) ) {
+			$val = (string) $input['image_source'];
+			$out['image_source'] = in_array( $val, self::IMAGE_SOURCES, true ) ? $val : 'stock';
 		}
 
 		// Anti-generiek + interne links toggles — unchecked checkboxes komen niet in
@@ -1357,6 +1430,13 @@ class DB_AI_Settings {
 				'sections' => [ 'db_ai_external_links_section' ],
 			],
 			[
+				'id'       => 'images',
+				'label'    => __( 'Afbeeldingen', 'digitale-bazen-ai-module' ),
+				'title'    => __( 'Afbeeldingen', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'Bepaal of de generator stockfoto\'s gebruikt of afbeeldingen genereert met Google Gemini. Met een beeldstijl-instructie houd je alle gegenereerde beelden in dezelfde huisstijl.', 'digitale-bazen-ai-module' ),
+				'sections' => [ 'db_ai_images_section' ],
+			],
+			[
 				'id'       => 'kwo',
 				'label'    => __( 'Zoekwoorden', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'Zoekwoordenonderzoeken', 'digitale-bazen-ai-module' ),
@@ -1388,7 +1468,7 @@ class DB_AI_Settings {
 				'id'       => 'ai',
 				'label'    => __( 'API-keys', 'digitale-bazen-ai-module' ),
 				'title'    => __( 'API-keys', 'digitale-bazen-ai-module' ),
-				'intro'    => __( 'De API-keys die de generator gebruikt: Anthropic Claude voor de tekst en Pexels (met Unsplash als fallback) voor de afbeeldingen.', 'digitale-bazen-ai-module' ),
+				'intro'    => __( 'De API-keys die de generator gebruikt: Anthropic Claude voor de tekst, Pexels (met Unsplash als fallback) voor stockfoto\'s en Google Gemini voor AI-gegenereerde afbeeldingen. Kies de afbeeldingsbron op het tabblad Afbeeldingen.', 'digitale-bazen-ai-module' ),
 				'sections' => [ 'db_ai_keys_section' ],
 			],
 		];

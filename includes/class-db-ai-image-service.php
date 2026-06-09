@@ -8,24 +8,69 @@ class DB_AI_Image_Service {
 
 	public const PEXELS_ENDPOINT   = 'https://api.pexels.com/v1/search';
 	public const UNSPLASH_ENDPOINT = 'https://api.unsplash.com/search/photos';
+	public const GEMINI_ENDPOINT   = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent';
+
+	public const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash-image';
 
 	public const SEARCH_TIMEOUT   = 15;
 	public const DOWNLOAD_TIMEOUT = 60;
+	public const GENERATE_TIMEOUT = 60;
 
 	/**
-	 * Search image, download, sideload to media library, return attachment ID.
+	 * Resolve één afbeelding naar een attachment ID. Afhankelijk van de instelling
+	 * `image_source` wordt het beeld AI-gegenereerd (Google Gemini) of via stockfoto's
+	 * (Pexels → Unsplash) gezocht. Mislukt de AI-generatie, dan valt hij automatisch
+	 * terug op stock — zodat een API-hapering nooit een blog zonder beeld oplevert.
 	 *
-	 * @param string $query    English search term
-	 * @param string $alt_text Dutch alt text
-	 * @param int    $post_id  Post to attach to (0 = unattached)
+	 * @param string $query    Engelse zoekterm / beeld-seed
+	 * @param string $alt_text Nederlandse alt-tekst
+	 * @param int    $post_id  Post om aan te koppelen (0 = los)
+	 * @param array  $opts     Optioneel: [ 'role' => 'featured'|'block' ]
 	 * @return int|WP_Error    Attachment ID
 	 */
-	public function find_and_import( string $query, string $alt_text, int $post_id = 0 ) {
+	public function find_and_import( string $query, string $alt_text, int $post_id = 0, array $opts = [] ) {
 		$query = trim( $query );
 		if ( '' === $query ) {
 			return new WP_Error( 'db_ai_image_empty_query', __( 'Lege zoekterm voor afbeelding.', 'digitale-bazen-ai-module' ) );
 		}
 
+		$role = 'featured' === ( $opts['role'] ?? '' ) ? 'featured' : 'block';
+
+		if ( $this->should_generate_ai( $role ) ) {
+			$generated = $this->generate_with_gemini( $query, $alt_text, $post_id, $role );
+			if ( ! is_wp_error( $generated ) ) {
+				return $generated;
+			}
+			// Conform instelling: val terug op stockfoto's als generatie mislukt.
+		}
+
+		return $this->find_stock( $query, $alt_text, $post_id );
+	}
+
+	/**
+	 * Bepaalt of dit beeld AI-gegenereerd moet worden op basis van de gekozen modus
+	 * en de rol (featured vs. block).
+	 */
+	private function should_generate_ai( string $role ): bool {
+		if ( ! class_exists( 'DB_AI_Settings' ) ) {
+			return false;
+		}
+		$source = DB_AI_Settings::get_image_source();
+		if ( 'ai_all' === $source ) {
+			return true;
+		}
+		if ( 'ai_featured' === $source && 'featured' === $role ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Zoek een stockfoto (Pexels primair, Unsplash fallback), download en sideload.
+	 *
+	 * @return int|WP_Error  Attachment ID
+	 */
+	private function find_stock( string $query, string $alt_text, int $post_id ) {
 		$orientation = (string) apply_filters( 'db_ai_image_orientation', 'landscape' );
 
 		$photo = $this->search_pexels( $query, $orientation );
@@ -203,6 +248,168 @@ class DB_AI_Image_Service {
 			update_post_meta( $attachment_id, '_db_ai_photographer', sanitize_text_field( $photo['photographer'] ) );
 		}
 		update_post_meta( $attachment_id, '_db_ai_source_provider', sanitize_key( $photo['provider'] ) );
+
+		return $attachment_id;
+	}
+
+	// ─── Gemini (AI-gegenereerde afbeeldingen) ─────────────────────────────
+
+	/**
+	 * Genereer een afbeelding met Google Gemini (Nano Banana) en sideload hem.
+	 *
+	 * @return int|WP_Error  Attachment ID
+	 */
+	private function generate_with_gemini( string $query, string $alt_text, int $post_id, string $role ) {
+		$key = DB_AI_Settings::get_api_key( 'gemini' );
+		if ( '' === trim( $key ) ) {
+			return new WP_Error( 'db_ai_gemini_missing_key', __( 'Gemini API-key niet ingesteld (Instellingen → API-keys, of via DB_AI_GEMINI_API_KEY in wp-config.php).', 'digitale-bazen-ai-module' ) );
+		}
+
+		$model  = (string) apply_filters( 'db_ai_gemini_image_model', self::GEMINI_DEFAULT_MODEL );
+		$prompt = $this->build_gemini_prompt( $query, $alt_text, $role );
+		$aspect = $this->gemini_aspect_ratio( $role );
+
+		$body = [
+			'contents'         => [
+				[ 'parts' => [ [ 'text' => $prompt ] ] ],
+			],
+			'generationConfig' => [
+				'responseModalities' => [ 'IMAGE' ],
+				'imageConfig'        => [ 'aspectRatio' => $aspect ],
+			],
+		];
+
+		$response = wp_remote_post(
+			sprintf( self::GEMINI_ENDPOINT, rawurlencode( $model ) ),
+			[
+				'timeout' => self::GENERATE_TIMEOUT,
+				'headers' => [
+					'Content-Type'   => 'application/json',
+					'x-goog-api-key' => $key,
+				],
+				'body'    => wp_json_encode( $body ),
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error(
+				'db_ai_gemini_status_error',
+				sprintf( __( 'Gemini antwoordde met status %d.', 'digitale-bazen-ai-module' ), $code )
+			);
+		}
+
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+		$inline  = $this->extract_gemini_image( $decoded );
+		if ( is_wp_error( $inline ) ) {
+			return $inline;
+		}
+
+		return $this->sideload_bytes( $inline['bytes'], $inline['mime'], $query, $alt_text, $post_id );
+	}
+
+	/**
+	 * Bouwt de generatie-prompt: globale beeldstijl + onderwerp + alt-context +
+	 * vaste guardrail tegen tekst/logo's in beeld. Filterbaar via
+	 * `db_ai_gemini_image_prompt`.
+	 */
+	private function build_gemini_prompt( string $query, string $alt_text, string $role ): string {
+		$style = class_exists( 'DB_AI_Settings' ) ? trim( DB_AI_Settings::get_image_style() ) : '';
+		if ( '' === $style ) {
+			$style = __( 'Professionele, realistische fotografie van hoge kwaliteit, natuurlijk licht.', 'digitale-bazen-ai-module' );
+		}
+
+		$parts   = [ $style, $query ];
+		$alt_text = trim( $alt_text );
+		if ( '' !== $alt_text ) {
+			$parts[] = sprintf( __( 'Onderwerp: %s', 'digitale-bazen-ai-module' ), $alt_text );
+		}
+		// Guardrail: modellen renderen anders soms rommelige tekst.
+		$parts[] = __( 'Geen tekst, letters, woorden, cijfers, watermerken of logo\'s in de afbeelding.', 'digitale-bazen-ai-module' );
+
+		$prompt = implode( '. ', $parts );
+
+		return (string) apply_filters( 'db_ai_gemini_image_prompt', $prompt, $query, $alt_text, $role );
+	}
+
+	/**
+	 * Aspect ratio per rol: featured = breed (16:9), block = 4:3. Filterbaar.
+	 */
+	private function gemini_aspect_ratio( string $role ): string {
+		$aspect = 'featured' === $role ? '16:9' : '4:3';
+		return (string) apply_filters( 'db_ai_gemini_aspect_ratio', $aspect, $role );
+	}
+
+	/**
+	 * Haal de eerste inline-image (base64 + mime) uit een Gemini-respons.
+	 *
+	 * @return array{bytes:string,mime:string}|WP_Error
+	 */
+	private function extract_gemini_image( $decoded ) {
+		$parts = $decoded['candidates'][0]['content']['parts'] ?? null;
+		if ( ! is_array( $parts ) ) {
+			return new WP_Error( 'db_ai_gemini_no_parts', __( 'Gemini-respons zonder bruikbare inhoud.', 'digitale-bazen-ai-module' ) );
+		}
+
+		foreach ( $parts as $part ) {
+			// camelCase (REST) en snake_case (sommige SDK-proxies) ondersteunen.
+			$inline = $part['inlineData'] ?? $part['inline_data'] ?? null;
+			$data   = $inline['data'] ?? '';
+			if ( '' === $data ) {
+				continue;
+			}
+			$bytes = base64_decode( $data, true );
+			if ( false === $bytes || '' === $bytes ) {
+				continue;
+			}
+			$mime = (string) ( $inline['mimeType'] ?? $inline['mime_type'] ?? 'image/png' );
+			return [ 'bytes' => $bytes, 'mime' => $mime ];
+		}
+
+		return new WP_Error( 'db_ai_gemini_no_image', __( 'Gemini gaf geen afbeelding terug.', 'digitale-bazen-ai-module' ) );
+	}
+
+	/**
+	 * Schrijf ruwe afbeeldingsbytes naar een tijdelijk bestand en sideload het.
+	 *
+	 * @return int|WP_Error  Attachment ID
+	 */
+	private function sideload_bytes( string $bytes, string $mime, string $query, string $alt_text, int $post_id ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$ext = 'image/jpeg' === $mime ? 'jpg' : ( 'image/webp' === $mime ? 'webp' : 'png' );
+		$filename = sanitize_file_name( $query . '-' . wp_generate_password( 6, false ) . '.' . $ext );
+
+		$tmp = wp_tempnam( $filename );
+		if ( ! $tmp ) {
+			return new WP_Error( 'db_ai_gemini_tmp_failed', __( 'Kon geen tijdelijk bestand maken voor de gegenereerde afbeelding.', 'digitale-bazen-ai-module' ) );
+		}
+		if ( false === file_put_contents( $tmp, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return new WP_Error( 'db_ai_gemini_write_failed', __( 'Kon de gegenereerde afbeelding niet wegschrijven.', 'digitale-bazen-ai-module' ) );
+		}
+
+		$file_array = [
+			'name'     => $filename,
+			'tmp_name' => $tmp,
+		];
+
+		$attachment_id = media_handle_sideload( $file_array, $post_id );
+		if ( is_wp_error( $attachment_id ) ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return $attachment_id;
+		}
+
+		if ( '' !== trim( $alt_text ) ) {
+			update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $alt_text ) );
+		}
+		update_post_meta( $attachment_id, '_db_ai_source_provider', 'gemini' );
 
 		return $attachment_id;
 	}
