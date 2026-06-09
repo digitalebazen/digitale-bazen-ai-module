@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,16 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 2.2.2 =
+* **RankMath-bridge vervuilde global $post op het bewerkscherm (fix):**
+  - Bij het bewerken van een pagina opende soms een custom post type (bijv. een
+    medewerker) i.p.v. de pagina zelf. Oorzaak: de bridge rendert de echte
+    front-end-blokken zodat RankMath de content kan analyseren, maar de
+    blok-templates draaien eigen `WP_Query`-loops die `global $post` niet
+    resetten. Daardoor matchte ACF de verkeerde veldgroepen.
+  - `render_via_theme_templates()` bewaart nu de globale post-context vóór het
+    renderen en herstelt die erna (ook bij een fout in een template).
 
 = 2.2.1 =
 * **Zoekwoorddichtheid omhoog (RankMath bleef "te laag" melden):**

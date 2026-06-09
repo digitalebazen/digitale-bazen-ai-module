@@ -130,8 +130,17 @@ final class DB_AI_Rankmath_Bridge {
 			return '';
 		}
 
+		// De blok-templates draaien hun eigen WP_Query-loops (medewerkers, projecten,
+		// ...) met the_post()/setup_postdata() en resetten global $post niet. Op het
+		// admin-bewerkscherm laat dat global $post op de laatste medewerker staan,
+		// waardoor ACF de verkeerde veldgroepen matcht (je bewerkt schijnbaar een
+		// medewerker i.p.v. de pagina). Bewaar de context en herstel hem hieronder.
+		global $post;
+		$original_post = $post;
+
 		ob_start();
 		$rendered = false;
+		$html     = '';
 		try {
 			if ( have_rows( $flex_field, $post_id ) ) {
 				while ( have_rows( $flex_field, $post_id ) ) {
@@ -146,12 +155,20 @@ final class DB_AI_Rankmath_Bridge {
 			}
 			$html = (string) ob_get_clean();
 		} catch ( \Throwable $e ) {
-			// Onverwachte fatal in een template: schoonruimen + leeg teruggeven
-			// zodat de caller terugvalt op de handmatige mirror.
+			// Onverwachte fatal in een template: schoonruimen en terugvallen op de
+			// handmatige mirror (lege return hieronder).
 			if ( ob_get_level() > 0 ) {
 				ob_end_clean();
 			}
-			return '';
+			$rendered = false;
+		}
+
+		// Herstel de globale post-context die de blok-templates vervuild hebben.
+		$post = $original_post;
+		if ( $original_post instanceof \WP_Post ) {
+			setup_postdata( $original_post );
+		} else {
+			wp_reset_postdata();
 		}
 
 		return $rendered ? trim( $html ) : '';
