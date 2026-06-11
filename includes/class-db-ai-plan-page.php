@@ -332,10 +332,27 @@ class DB_AI_Plan_Page {
 		}
 
 		foreach ( $clusters as $name => $group ) {
-			$pillar        = $group['pillar'];
-			$pillar_open   = ! $pillar || 'open' === ( $pillar['status'] ?? 'open' );
-			echo '<div class="db-ai-cluster">';
-			echo '<h3>' . esc_html( $name ) . '</h3>';
+			$pillar      = $group['pillar'];
+			$pillar_open = ! $pillar || 'open' === ( $pillar['status'] ?? 'open' );
+
+			// Samenvatting voor de (ingeklapte) summary: hoeveel artikelen gemaakt.
+			$entries = $pillar ? array_merge( [ $pillar ], $group['supporting'] ) : $group['supporting'];
+			$total   = count( $entries );
+			$made    = 0;
+			foreach ( $entries as $en ) {
+				if ( in_array( (string) ( $en['status'] ?? '' ), [ 'gegenereerd', 'gepubliceerd' ], true ) ) {
+					$made++;
+				}
+			}
+
+			echo '<details class="db-ai-cluster" open>';
+			echo '<summary><span class="db-ai-cluster-name">' . esc_html( $name ) . '</span> ';
+			echo '<span class="db-ai-cluster-meta">' . esc_html( sprintf(
+				/* translators: 1 = gemaakt, 2 = totaal artikelen */
+				_n( '%1$d/%2$d artikel gemaakt', '%1$d/%2$d artikelen gemaakt', $total, 'digitale-bazen-ai-module' ),
+				(int) $made,
+				(int) $total
+			) ) . '</span></summary>';
 			echo '<table class="widefat striped db-ai-plan-table db-ai-plan-table--blog"><thead><tr>';
 			echo '<th>' . esc_html__( 'Zoekwoord', 'digitale-bazen-ai-module' ) . '</th>';
 			echo '<th>' . esc_html__( 'Volume', 'digitale-bazen-ai-module' ) . '</th>';
@@ -351,7 +368,7 @@ class DB_AI_Plan_Page {
 				$this->render_row( $sup, $research_id, $pillar_open, $volumes );
 			}
 			echo '</tbody></table>';
-			echo '</div>';
+			echo '</details>';
 		}
 
 		if ( ! empty( $nonblog ) ) {

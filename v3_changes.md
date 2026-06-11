@@ -1,5 +1,7 @@
 # V3.0.0 — Wijzigingen & bouwopdracht
 
+> **✅ STATUS: GEBOUWD & GERELEASED (2026-06-11).** Deze bouwopdracht is volledig uitgevoerd: v3.0.0 (Plan-laag + menu) en v3.1.0 (aanbevelingen-paneel + pillar-fix) staan live. Dit document is nu historisch — de **as-built** stand (incl. uitbreidingen t.o.v. deze spec: blog-companions, update-in-place, batched analyse, export/import, aanbevelingen, inklapbare clusters) staat in **PROJECT_BRIEF.md §0P**. De per-deelstap-acceptatiecriteria hieronder zijn allemaal gehaald.
+
 > **Voor de AI-assistent in VS Code.** Dit document vertelt je precies wat er in `PROJECT_BRIEF.md` is veranderd voor de v3.0.0 MAJOR, en wat je moet bouwen. Lees dit eerst, dan de genoemde brief-secties. De plugin stond op v2.2.2 (volledig werkend) en gaat naar **v3.0.0**.
 
 ---

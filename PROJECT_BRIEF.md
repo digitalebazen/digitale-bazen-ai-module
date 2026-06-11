@@ -4,7 +4,7 @@
 
 ---
 
-## 0. Build Status (huidige versie: v3.0.0 — 2026-06-11)
+## 0. Build Status (huidige versie: v3.1.1 — 2026-06-11)
 
 > De plugin staat op **v2.3.0** (`digitale-bazen-ai-module.php` header, `DB_AI_VERSION`, `readme.txt` → `Stable tag`). De `readme.txt`-changelog is de gezagvolle, per-patch versiehistorie (0.1.0 → 2.3.0); de §0-secties hieronder beschrijven de grotere mijlpalen as-built. De originele V1-brief begint bij §1.
 
@@ -506,6 +506,30 @@ Per keyword-regel in het plan (post-meta op `db_ai_kwo`, of eigen kolom in de ge
 
 ---
 
+## 0P. v3.0.0 → v3.1.0 — Plan-laag as-built + uitbreidingen (2026-06-11)
+
+§0N/§0O + §14 Stap 8 beschrijven de spec; deze sectie legt vast wat er **werkelijk** is gebouwd (incl. wat tijdens de bouw is toegevoegd t.o.v. de spec). De Plan-laag is volledig functioneel (8a–8d ✅).
+
+### Bevestigd as-built (conform spec)
+- **Menu** (§0N), **planner + plan-overzicht** (§0O), **funnel-brug** (`angle`/`funnel_target`/`bridge`, inline bewerkbaar), **generatie-koppeling** (supporting → pillar interne link, avoid-overlap, status open → gegenereerd → gepubliceerd). `DB_AI_Post_Creator` ongewijzigd.
+- Plan-opslag als **één JSON-meta** `_db_ai_plan` op de `db_ai_kwo`-post (niet als losse meta per keyword — het onderzoek is één post), + `_db_ai_plan_version` / `_db_ai_plan_generated_at`. Generatie-koppeling op de blog-post: `_db_ai_plan_research` / `_db_ai_plan_keyword`.
+
+### Toegevoegd t.o.v. de spec
+- **Conservatieve bundeling:** alleen écht inwisselbare synoniemen gaan in de pillar; een eigen invalshoek → supporting (eigen volume). Bij twijfel → supporting.
+- **Blog-companion voor vaste pagina's:** commerciële/lokale termen krijgen optioneel een informatieve blog-invalshoek (angle/funnel_target/bridge) die naar de dienst funnelt — het keyword blijft role `—` (vaste pagina). In de UI als ingeklapte "+ blog-invalshoek".
+- **"+ verwant artikel":** een gebundeld synoniem kun je alsnog als supporting-artikel promoveren (`DB_AI_Keyword_Research::attach_generated_post()`).
+- **Onderzoek update-in-place:** een nieuwe upload ververst de rijen van dezelfde `db_ai_kwo`-post (zelfde id) i.p.v. delete+create — plan, statussen en post-koppelingen blijven behouden. `save_plan()` behoudt `gegenereerd`/`gepubliceerd` per keyword bij her-analyse.
+- **Batched analyse:** grote lijsten worden per 35 keywords geclassificeerd (anders kapt de niet-streamende call af op 300s of op `max_tokens`); gesorteerd op onderwerp/pagina zodat verwante termen samen blijven. `reconcile_pillars()` voegt daarna per cluster samen tot één pillar.
+- **Pillar-garantie:** elk cluster krijgt gegarandeerd één pillar (hoogste volume); een opgeslagen plan met een pillar-loos cluster wordt bij het openen automatisch hersteld (gratis, geen her-analyse).
+- **Aanbevelingen-paneel (v3.1.0):** "Aanbevolen om nu te maken" — strategie: gestart cluster eerst áfmaken (topical authority), daarna het cluster met de hoogste **clusterwaarde** (som zoekvolume); binnen tiers clusterwaarde → volume → funnel-waarde, pillar-eerst. Transparante onderbouwing per rij.
+- **Plan export/import (JSON):** een plan tokenvrij naar een andere site nemen (classificatie reist mee; generatie-status reset). AJAX `db_ai_import_plan` + `admin_post_db_ai_export_plan`.
+- **Inklapbare clusters** (UI): elk cluster is een `<details>` met een "X/Y artikelen gemaakt"-samenvatting.
+- **HTTP-timeout 300s** + filter `db_ai_anthropic_http_timeout`; de planner gebruikt de generieke `DB_AI_Anthropic_Provider::complete_json()`.
+
+> Diagnostische no-op-hooks `db_ai_planner_debug_prompts` / `db_ai_planner_debug_result` staan nog in `DB_AI_Planner` (handig bij debuggen; mogen later weg).
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
@@ -601,7 +625,7 @@ Plugin controleert de keys bij activatie/gebruik en geeft een duidelijke melding
 
 ---
 
-## 4. Plugin folder structuur (actueel, gesynct 2026-06-10 — v2.2.2)
+## 4. Plugin folder structuur (actueel, gesynct 2026-06-11 — v3.1.0)
 
 ```
 digitale-bazen-ai-module/
@@ -1711,8 +1735,17 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 - ✅ Zoekwoorddichtheid op exact keyword, doel 1,8-2,2% (§0M)
 - ✅ Eigen top-level menu "Generator" met submenu's Creatie / Plan / Instellingen (§0N)
 
+### Sinds afgerond (v3.0.0 – v3.1.0) — de Plan-laag (§0N/§0O/§0P)
+- ✅ Strategische Plan-laag: zoekwoordenonderzoek → clusters → pillar (bundelt synoniemen) → supporting, via de job-queue, in batches (`DB_AI_Planner` + `DB_AI_Plan_Page`)
+- ✅ Functie-gebaseerde classificatie + funnel-brug (angle/funnel_target/bridge) + blog-companions voor vaste pagina's
+- ✅ Genereren vanuit Plan: cluster-context, supporting→pillar interne link, avoid-overlap, statusvolging
+- ✅ Onderzoek update-in-place + plan export/import (JSON, tokenvrij naar andere site)
+- ✅ Aanbevelingen-paneel met cluster-strategie (clusterwaarde + cluster-afmaken) + inklapbare clusters
+
 ### V3 — backlog (nog niet ingepland)
-- **Plan-laag — INGEPLAND als v3.0.0, build-spec in §14 Stap 8** (achtergrond §0N/§0O). Intentie-classificatie → clusters → pillar/supporting → dekkingsstatus + geassisteerde koppeling naar Creatie. Resterend ná v3.0.0 (échte backlog): autonome onderwerpkeuze (trap 2), cron-gedreven bulk (trap 3), kruislink-automatisering tussen clusters.
+- **Plan-automatisering trap 2/3** (§0O): autonome onderwerpkeuze (Plan zet zelf een draft klaar) + cron-gedreven bulk. v3.0.0 leverde trap 1 ("Geassisteerd": mens kiest de rij).
+- **Kruislink-automatisering** tussen clusters + pillar → supporting (omlaag-links). Nu: supporting → pillar automatisch, pillar → supporting handmatig (bewuste keuze).
+- **Breadth-first toggle** voor de aanbevelingen (eerst álle pillars, dan supporting) i.p.v. de huidige depth-first "cluster afmaken"-strategie.
 - Per-block regeneratie (alleen FAQ opnieuw als die zwak is) — bouwt op de job-queue
 - Bulk generatie van meerdere posts — bouwt op de job-queue
 - Image preview met handmatige selectie (3-5 thumbnails per slot, redacteur kiest)

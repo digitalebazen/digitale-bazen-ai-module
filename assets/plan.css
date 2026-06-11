@@ -73,12 +73,27 @@
 }
 
 .db-ai-cluster {
-	margin-bottom: 28px;
+	margin-bottom: 20px;
 }
 
-.db-ai-cluster h3 {
+.db-ai-cluster > summary {
+	cursor: pointer;
+	padding: 8px 4px;
 	margin-bottom: 6px;
+	font-size: 1.1em;
+	font-weight: 600;
+	list-style: revert;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.db-ai-cluster-name {
 	text-transform: capitalize;
+}
+
+.db-ai-cluster-meta {
+	font-size: 12px;
+	font-weight: 400;
+	color: #646970;
 }
 
 .db-ai-plan-table {
