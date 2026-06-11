@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.0.0
+Stable tag: 3.1.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,19 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 3.1.0 =
+* **Aanbevelingen-paneel op het Plan ("Aanbevolen om nu te maken"):** toont de
+  beste volgende artikelen, transparant onderbouwd. Strategie: maak eerst een
+  gestart cluster áf (topical authority), start daarna het cluster met de hoogste
+  totale **clusterwaarde** (som van het zoekvolume in dat cluster); binnen elke
+  tier weegt clusterwaarde → eigen zoekvolume → funnel-waarde, met pillar-eerst.
+  Elke aanbeveling heeft een directe "Genereer"-knop en evolueert mee terwijl je
+  genereert.
+* **Fix — cluster zonder pillar:** een cluster met alleen supporting-rijen (kon
+  ontstaan door batch-verwerking) zat muurvast. `reconcile_pillars` promoveert nu
+  de hoogste-volume entry van zo'n cluster tot pillar, en een opgeslagen plan wordt
+  bij het openen automatisch hersteld (geen her-analyse / tokens nodig).
 
 = 3.0.0 =
 * **Strategische Plan-laag (MAJOR) — van zoekwoordenonderzoek naar contentplan:**

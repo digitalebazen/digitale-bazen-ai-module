@@ -117,7 +117,17 @@ class DB_AI_Plan_Page {
 			<?php endif; ?>
 
 			<?php
-			$plan    = DB_AI_Keyword_Research::get_plan( (int) $current['id'] );
+			$plan = DB_AI_Keyword_Research::get_plan( (int) $current['id'] );
+			// Repareer een opgeslagen plan waarin een cluster geen pillar heeft (kan door
+			// batch-verwerking ontstaan) — gratis, zonder her-analyse: de hoogste-volume
+			// entry van dat cluster wordt de pillar zodat het niet muurvast zit.
+			if ( ! empty( $plan ) ) {
+				$repaired = DB_AI_Planner::reconcile_pillars( $plan );
+				if ( $repaired !== $plan ) {
+					DB_AI_Keyword_Research::save_plan( (int) $current['id'], $repaired );
+					$plan = $repaired;
+				}
+			}
 			$plan_at = get_post_meta( (int) $current['id'], DB_AI_Keyword_Research::META_PLAN_AT, true );
 			?>
 
@@ -147,11 +157,136 @@ class DB_AI_Plan_Page {
 				return;
 			}
 
+			$this->render_recommendations( $plan, (int) $current['id'] );
 			$volumes = $this->build_volume_map( (int) $current['id'] );
 			$this->render_plan( $plan, (int) $current['id'], $volumes );
 			?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Bepaal de aanbevolen volgende artikelen, transparant onderbouwd. Strategie
+	 * (volgorde van prioriteit):
+	 *  1. MAAK EEN GESTART CLUSTER AF — heb je de pillar al, dan eerst de supporting
+	 *     erbij (sterkere topical authority + interne links) vóór je een nieuw cluster start.
+	 *  2. START HET WAARDEVOLSTE CLUSTER — anders de pillar van het cluster met de
+	 *     hoogste totale clusterwaarde (som van het zoekvolume in dat cluster).
+	 *  3. Binnen die tiers: clusterwaarde → eigen zoekvolume → funnel-waarde (tiebreaker).
+	 *  4. Pillar-eerst blijft: supporting van een nog-niet-gestart cluster wordt niet
+	 *     aanbevolen (de pillar moet eerst bestaan).
+	 *
+	 * @return array<int,array{entry:array,reason:string}>
+	 */
+	private function recommendations( array $plan, int $limit = 5 ): array {
+		// Cluster-stats: totale waarde (zoekvolume) + of de pillar al gemaakt is.
+		$cluster_value = [];
+		$pillar_done   = [];
+		foreach ( $plan as $e ) {
+			$role = (string) ( $e['role'] ?? '' );
+			if ( 'pillar' !== $role && 'supporting' !== $role ) {
+				continue;
+			}
+			$cluster = (string) ( $e['cluster'] ?? '' );
+			if ( '' === $cluster ) {
+				continue;
+			}
+			$cluster_value[ $cluster ] = ( $cluster_value[ $cluster ] ?? 0 ) + (int) ( $e['volume'] ?? 0 );
+			if ( 'pillar' === $role ) {
+				$done                    = in_array( (string) ( $e['status'] ?? '' ), [ 'gegenereerd', 'gepubliceerd' ], true );
+				$pillar_done[ $cluster ] = ( $pillar_done[ $cluster ] ?? false ) || $done;
+			}
+		}
+
+		$cands = [];
+		foreach ( $plan as $e ) {
+			$role = (string) ( $e['role'] ?? '' );
+			if ( 'pillar' !== $role && 'supporting' !== $role ) {
+				continue;
+			}
+			if ( 'open' !== (string) ( $e['status'] ?? 'open' ) ) {
+				continue; // al gegenereerd/gepubliceerd
+			}
+			$cluster = (string) ( $e['cluster'] ?? '' );
+			$volume  = (int) ( $e['volume'] ?? 0 );
+			$funnel  = isset( $e['funnel_target'] ) && '' !== (string) $e['funnel_target'];
+			$started = ! empty( $pillar_done[ $cluster ] );
+			$cvalue  = (int) ( $cluster_value[ $cluster ] ?? 0 );
+
+			if ( 'supporting' === $role && ! $started ) {
+				continue; // pillar-eerst: nog geblokkeerd
+			}
+
+			// Tier 1 (start: gestart cluster afmaken) telt zwaarder dan tier 2 (nieuw cluster).
+			$tier  = ( 'supporting' === $role && $started ) ? 1000000000 : 0;
+			$score = $tier + ( $cvalue * 1000 ) + $volume + ( $funnel ? 250 : 0 );
+
+			if ( 'supporting' === $role && $started ) {
+				$reason = sprintf(
+					/* translators: 1 = cluster, 2 = clusterwaarde, 3 = eigen volume */
+					__( 'Maak cluster "%1$s" af (clusterwaarde %2$s/mnd) — de pillar staat al klaar; dit supporting-artikel (%3$s/mnd) versterkt de topical authority.', 'digitale-bazen-ai-module' ),
+					$cluster,
+					number_format_i18n( $cvalue ),
+					number_format_i18n( $volume )
+				);
+			} else {
+				$reason = sprintf(
+					/* translators: 1 = cluster, 2 = clusterwaarde, 3 = pillar-volume */
+					__( 'Start het cluster "%1$s" (clusterwaarde %2$s/mnd) — de pillar (%3$s/mnd) is de basis en ontgrendelt de supporting-artikelen.', 'digitale-bazen-ai-module' ),
+					$cluster,
+					number_format_i18n( $cvalue ),
+					number_format_i18n( $volume )
+				);
+			}
+			if ( $funnel ) {
+				$reason .= ' ' . sprintf(
+					/* translators: %s = dienst */
+					__( 'Funnelt naar %s.', 'digitale-bazen-ai-module' ),
+					(string) $e['funnel_target']
+				);
+			}
+
+			$cands[] = [ 'entry' => $e, 'score' => $score, 'reason' => $reason ];
+		}
+
+		usort(
+			$cands,
+			static function ( $a, $b ) {
+				return $b['score'] <=> $a['score'];
+			}
+		);
+		return array_slice( $cands, 0, max( 1, $limit ) );
+	}
+
+	/** Render het aanbevelingen-paneel bovenaan het plan. */
+	private function render_recommendations( array $plan, int $research_id ): void {
+		$recs = $this->recommendations( $plan );
+		if ( empty( $recs ) ) {
+			return;
+		}
+		echo '<div class="db-ai-recs">';
+		echo '<h2>' . esc_html__( 'Aanbevolen om nu te maken', 'digitale-bazen-ai-module' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Strategie: maak eerst een gestart cluster áf (topical authority), start daarna het cluster met de hoogste totale waarde. Binnen elk: clusterwaarde → zoekvolume → funnel-waarde. Pillar-eerst blijft gelden.', 'digitale-bazen-ai-module' ) . '</p>';
+		echo '<ol class="db-ai-recs-list">';
+		foreach ( $recs as $r ) {
+			$e   = $r['entry'];
+			$kw  = (string) ( $e['keyword'] ?? '' );
+			$url = add_query_arg(
+				[
+					'page'          => DB_AI_Admin_Page::MENU_SLUG,
+					'plan_keyword'  => $kw,
+					'plan_research' => $research_id,
+				],
+				admin_url( 'admin.php' )
+			);
+			echo '<li>';
+			echo '<div class="db-ai-rec-head"><strong>' . esc_html( $kw ) . '</strong> ';
+			echo '<span class="db-ai-role db-ai-role-' . esc_attr( (string) ( $e['role'] ?? '' ) ) . '">' . esc_html( 'pillar' === ( $e['role'] ?? '' ) ? __( 'Pillar', 'digitale-bazen-ai-module' ) : __( 'Supporting', 'digitale-bazen-ai-module' ) ) . '</span>';
+			echo '<a class="button button-small button-primary db-ai-rec-gen" href="' . esc_url( $url ) . '">' . esc_html__( 'Genereer', 'digitale-bazen-ai-module' ) . '</a></div>';
+			echo '<div class="db-ai-rec-reason">' . esc_html( $r['reason'] ) . '</div>';
+			echo '</li>';
+		}
+		echo '</ol></div>';
 	}
 
 	/** Export/import-knoppen (plan meenemen naar een andere site). */

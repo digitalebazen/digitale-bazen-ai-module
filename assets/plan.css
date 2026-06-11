@@ -34,6 +34,44 @@
 .db-ai-status.is-success { color: #007017; }
 .db-ai-status.is-error   { color: #b32d2e; }
 
+/* Aanbevelingen-paneel. */
+.db-ai-recs {
+	margin: 16px 0 28px;
+	padding: 4px 16px 12px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 4px;
+}
+
+.db-ai-recs h2 {
+	margin: 12px 0 2px;
+}
+
+.db-ai-recs-list {
+	margin: 10px 0 0 18px;
+}
+
+.db-ai-recs-list li {
+	margin-bottom: 12px;
+}
+
+.db-ai-rec-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.db-ai-rec-gen {
+	margin-left: auto;
+}
+
+.db-ai-rec-reason {
+	margin-top: 2px;
+	font-size: 12px;
+	color: #50575e;
+}
+
 .db-ai-cluster {
 	margin-bottom: 28px;
 }

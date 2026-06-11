@@ -93,7 +93,7 @@ class DB_AI_Planner {
 		// Normaliseer over álle batches samen (dedup, bundel, vangnet), en dwing
 		// daarna per cluster precies één pillar af (batches kunnen er meerdere geven).
 		$plan = $this->normalize_plan( $raw_entries, $keywords );
-		return $this->reconcile_pillars( $plan );
+		return self::reconcile_pillars( $plan );
 	}
 
 	/**
@@ -129,45 +129,55 @@ class DB_AI_Planner {
 	}
 
 	/**
-	 * Dwing per cluster precies één pillar af: de hoogste-volume pillar wint, extra
-	 * pillars (uit andere batches) worden supporting onder die pillar; hun gebundelde
-	 * synoniemen verhuizen mee naar de winnende pillar.
+	 * Dwing per cluster precies ÉÉN pillar af. De hoogste-volume blog-entry van een
+	 * cluster wordt de pillar; de rest wordt supporting. Dit lost twee dingen op:
+	 *  - meerdere pillars (uit verschillende batches) → één winnaar, rest supporting;
+	 *  - GEEN pillar (cluster met alleen supporting) → de hoogste-volume wordt pillar,
+	 *    anders zit het cluster muurvast (pillar-eerst blokkeert alles).
+	 * Gebundelde synoniemen van gedegradeerde pillars verhuizen mee naar de winnaar.
+	 * Public static zodat een opgeslagen plan tokenvrij gerepareerd kan worden.
 	 */
-	private function reconcile_pillars( array $plan ): array {
-		$chosen = []; // cluster => index van de gekozen pillar
+	public static function reconcile_pillars( array $plan ): array {
+		// Verzamel per cluster de indexen van blog-entries (pillar + supporting).
+		$by_cluster = [];
 		foreach ( $plan as $i => $e ) {
-			if ( 'pillar' !== ( $e['role'] ?? '' ) ) {
+			$role = (string) ( $e['role'] ?? '' );
+			if ( 'pillar' !== $role && 'supporting' !== $role ) {
 				continue;
 			}
 			$cluster = (string) ( $e['cluster'] ?? '' );
 			if ( '' === $cluster ) {
 				continue;
 			}
-			if ( ! isset( $chosen[ $cluster ] ) || (int) $e['volume'] > (int) $plan[ $chosen[ $cluster ] ]['volume'] ) {
-				$chosen[ $cluster ] = $i;
-			}
+			$by_cluster[ $cluster ][] = $i;
 		}
 
-		foreach ( $plan as $i => $e ) {
-			if ( 'pillar' !== ( $e['role'] ?? '' ) ) {
-				continue;
+		foreach ( $by_cluster as $indexes ) {
+			// Kies de hoogste-volume entry als pillar van dit cluster.
+			$win = $indexes[0];
+			foreach ( $indexes as $i ) {
+				if ( (int) $plan[ $i ]['volume'] > (int) $plan[ $win ]['volume'] ) {
+					$win = $i;
+				}
 			}
-			$cluster = (string) ( $e['cluster'] ?? '' );
-			if ( '' === $cluster || $chosen[ $cluster ] === $i ) {
-				continue;
+
+			foreach ( $indexes as $i ) {
+				if ( $i === $win ) {
+					$plan[ $i ]['role']       = 'pillar';
+					$plan[ $i ]['pillar_ref'] = null;
+					continue;
+				}
+				// Degradeer naar supporting; gebundelde synoniemen verhuizen naar de winnaar.
+				if ( 'pillar' === ( $plan[ $i ]['role'] ?? '' ) && ! empty( $plan[ $i ]['bundled_keywords'] ) ) {
+					$plan[ $win ]['bundled_keywords'] = array_values( array_unique( array_merge(
+						(array) $plan[ $win ]['bundled_keywords'],
+						(array) $plan[ $i ]['bundled_keywords']
+					) ) );
+				}
+				$plan[ $i ]['role']             = 'supporting';
+				$plan[ $i ]['pillar_ref']       = (string) $plan[ $win ]['keyword'];
+				$plan[ $i ]['bundled_keywords'] = [];
 			}
-			$win = $chosen[ $cluster ];
-			// Gebundelde synoniemen van de gedegradeerde pillar verhuizen naar de winnaar,
-			// zodat ze niet verdwijnen.
-			if ( ! empty( $e['bundled_keywords'] ) ) {
-				$plan[ $win ]['bundled_keywords'] = array_values( array_unique( array_merge(
-					(array) $plan[ $win ]['bundled_keywords'],
-					(array) $e['bundled_keywords']
-				) ) );
-			}
-			$plan[ $i ]['role']             = 'supporting';
-			$plan[ $i ]['pillar_ref']       = (string) $plan[ $win ]['keyword'];
-			$plan[ $i ]['bundled_keywords'] = [];
 		}
 
 		return $plan;
