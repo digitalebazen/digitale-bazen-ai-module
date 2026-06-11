@@ -130,14 +130,16 @@ final class DB_AI_Job_Queue {
 	 *
 	 * @return string|WP_Error  job_key bij succes
 	 */
-	public static function dispatch( string $job_type, array $payload, int $user_id ) {
+	public static function dispatch( string $job_type, array $payload, int $user_id, bool $enforce_rate_limit = true ) {
 		global $wpdb;
 
 		if ( $user_id <= 0 ) {
 			return new WP_Error( 'db_ai_job_no_user', __( 'Geen geldige gebruiker.', 'digitale-bazen-ai-module' ) );
 		}
 
-		if ( ! self::can_dispatch( $user_id ) ) {
+		// Plan-analyse (§14 Stap 8c) telt niet mee tegen de blog-daglimiet: het is
+		// geen content-generatie. Alleen blog-jobs geven $enforce_rate_limit = true.
+		if ( $enforce_rate_limit && ! self::can_dispatch( $user_id ) ) {
 			return new WP_Error(
 				'db_ai_job_rate_limited',
 				__( 'Je hebt je dagelijkse generatie-limiet bereikt (lopende jobs tellen mee).', 'digitale-bazen-ai-module' )
@@ -187,9 +189,11 @@ final class DB_AI_Job_Queue {
 		global $wpdb;
 		$table = self::table_name();
 		$start = gmdate( 'Y-m-d 00:00:00' );
+		// Alleen blog-generaties tellen tegen de daglimiet — plan-analyses (§14 Stap 8c)
+		// zijn geen content-generatie en mogen het quotum niet opeten.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND status IN ('queued','running') AND created_at >= %s",
+				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND job_type = 'generate_blog' AND status IN ('queued','running') AND created_at >= %s",
 				$user_id,
 				$start
 			)

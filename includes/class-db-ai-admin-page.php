@@ -6,39 +6,91 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class DB_AI_Admin_Page {
 
-	public const MENU_SLUG = 'db-ai-generator';
+	/**
+	 * Slug van het eigen top-level menu "Generator" (sinds v3.0.0, §0N). Het
+	 * eerste submenu (Creatie) deelt deze slug zodat WordPress geen dubbel
+	 * "Generator"-item toont. Settings hangt als submenu onder dezelfde parent.
+	 */
+	public const MENU_SLUG = 'db-ai';
+
+	/** Oude Creatie-slug (was submenu onder Blogs) — alleen nog voor de redirect-shim. */
+	public const LEGACY_SLUG = 'db-ai-generator';
 
 	private $page_hooks = [];
 
-	/**
-	 * Admin parents waar het submenu zichtbaar moet zijn.
-	 * Filterbaar via `db_ai_admin_menu_parents`.
-	 */
-	private function get_menu_parents(): array {
-		$parents = [
-			'edit.php?post_type=blog',   // Blogs CPT
-		];
-		return apply_filters( 'db_ai_admin_menu_parents', $parents );
-	}
-
 	public function register(): void {
-		add_action( 'admin_menu', [ $this, 'register_menu' ] );
+		// Priority 9: het top-level menu + Creatie-submenu moeten geregistreerd zijn
+		// vóór DB_AI_Settings (priority 11) er een submenu onder hangt, zodat de
+		// volgorde Creatie → (Plan) → Instellingen klopt.
+		add_action( 'admin_menu', [ $this, 'register_menu' ], 9 );
+		add_action( 'admin_init', [ $this, 'redirect_legacy_slugs' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_assets' ] );
 	}
 
 	public function register_menu(): void {
-		foreach ( $this->get_menu_parents() as $parent ) {
-			$hook = add_submenu_page(
-				$parent,
-				__( 'AI Blog Genereren', 'digitale-bazen-ai-module' ),
-				__( 'AI Blog Genereren', 'digitale-bazen-ai-module' ),
-				'publish_posts',
-				self::MENU_SLUG,
-				[ $this, 'render' ]
-			);
-			if ( $hook ) {
-				$this->page_hooks[] = $hook;
-			}
+		$capability = (string) apply_filters( 'db_ai_admin_menu_capability', 'publish_posts' );
+		$parent     = (string) apply_filters( 'db_ai_admin_menu_parent', self::MENU_SLUG );
+		$icon       = (string) apply_filters( 'db_ai_admin_menu_icon', 'dashicons-edit-page' );
+		$position   = (int) apply_filters( 'db_ai_admin_menu_position', 26 ); // net onder Berichten (25)
+
+		// NB: de oude filter `db_ai_admin_menu_parents` (meervoud, array) is sinds
+		// v3.0.0 deprecated — het submenu hangt niet langer onder bestaande WP-menu's
+		// maar onder het eigen top-level "Generator". De filter is een no-op (niet
+		// langer aangeroepen); een bestaande override in functions.php geeft geen fatal.
+
+		$top_hook = add_menu_page(
+			__( 'Generator', 'digitale-bazen-ai-module' ),
+			__( 'Generator', 'digitale-bazen-ai-module' ),
+			$capability,
+			$parent,
+			[ $this, 'render' ],
+			$icon,
+			$position
+		);
+		if ( $top_hook ) {
+			$this->page_hooks[] = $top_hook;
+		}
+
+		// Eerste submenu op dezelfde slug = "Creatie" (anders dupliceert WP het
+		// top-level label als eerste submenu-item).
+		$creatie_hook = add_submenu_page(
+			$parent,
+			__( 'AI Blog Genereren', 'digitale-bazen-ai-module' ),
+			__( 'Creatie', 'digitale-bazen-ai-module' ),
+			$capability,
+			$parent,
+			[ $this, 'render' ]
+		);
+		if ( $creatie_hook ) {
+			$this->page_hooks[] = $creatie_hook;
+		}
+	}
+
+	/**
+	 * Lichte redirect van de oude slugs naar de nieuwe menu-locaties zodat
+	 * bestaande bookmarks blijven werken (v3.0.0 menu-herstructurering, §0N):
+	 *  - edit.php?post_type=blog&page=db-ai-generator  → admin.php?page=db-ai
+	 *  - options-general.php?page=db-ai-settings        → admin.php?page=db-ai-settings
+	 */
+	public function redirect_legacy_slugs(): void {
+		if ( empty( $_GET['page'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$page    = sanitize_key( wp_unslash( $_GET['page'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$pagenow = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
+		$target  = '';
+
+		if ( self::LEGACY_SLUG === $page ) {
+			$target = self::MENU_SLUG;
+		} elseif ( DB_AI_Settings::PAGE_SLUG === $page && 'options-general.php' === $pagenow ) {
+			// Alleen vanaf de oude locatie redirecten — op admin.php?page=db-ai-settings
+			// (de nieuwe locatie) niet, anders ontstaat een loop.
+			$target = DB_AI_Settings::PAGE_SLUG;
+		}
+
+		if ( '' !== $target ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=' . $target ) );
+			exit;
 		}
 	}
 
@@ -84,6 +136,19 @@ class DB_AI_Admin_Page {
 		$rate_remaining = $rate_limiter->remaining( $user_id );
 		$rate_limit     = $rate_limiter->limit_per_day();
 
+		// Genereren vanuit het Plan-scherm (§14 Stap 8d): het keyword + onderzoek-id
+		// komen via de URL. admin.js selecteert het keyword voor en stuurt het
+		// onderzoek-id mee bij genereren zodat de server de plan-context afleidt.
+		$plan = [];
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only pre-fill, generatie zelf is nonce-protected.
+		if ( isset( $_GET['plan_keyword'] ) && '' !== trim( (string) wp_unslash( $_GET['plan_keyword'] ) ) ) {
+			$plan = [
+				'keyword'  => sanitize_text_field( wp_unslash( $_GET['plan_keyword'] ) ),
+				'research' => isset( $_GET['plan_research'] ) ? absint( wp_unslash( $_GET['plan_research'] ) ) : 0,
+			];
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
 		wp_localize_script(
 			'db-ai-admin',
 			'dbAi',
@@ -92,6 +157,7 @@ class DB_AI_Admin_Page {
 				'nonce'          => wp_create_nonce( DB_AI_Ajax::NONCE_ACTION ),
 				'rateRemaining'  => $rate_remaining,
 				'rateLimit'      => $rate_limit,
+				'plan'           => $plan,
 				'i18n'           => [
 					'choosePlaceholder' => __( '— Kies een hoofdzoekwoord —', 'digitale-bazen-ai-module' ),
 					'previewTitle'      => __( 'Geselecteerd', 'digitale-bazen-ai-module' ),

@@ -166,7 +166,10 @@ class DB_AI_Settings {
 		if ( ! is_admin() ) {
 			return;
 		}
-		add_action( 'admin_menu', [ $this, 'register_menu' ] );
+		// Priority 11: ná DB_AI_Admin_Page (priority 9) zodat het top-level
+		// "Generator"-menu bestaat vóór we hier het Instellingen-submenu aanhangen,
+		// en de submenu-volgorde Creatie → (Plan) → Instellingen klopt (§0N).
+		add_action( 'admin_menu', [ $this, 'register_menu' ], 11 );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_assets' ] );
 	}
@@ -250,9 +253,15 @@ class DB_AI_Settings {
 	}
 
 	public function register_menu(): void {
-		$this->page_hook = (string) add_options_page(
+		// Sinds v3.0.0 hangt Instellingen als submenu onder het eigen top-level
+		// "Generator"-menu (§0N), niet langer onder Instellingen (options-general.php).
+		// Settings-velden, opslag (`db_ai_settings`) en helpers blijven identiek.
+		$parent = (string) apply_filters( 'db_ai_admin_menu_parent', DB_AI_Admin_Page::MENU_SLUG );
+
+		$this->page_hook = (string) add_submenu_page(
+			$parent,
 			__( 'Generator instellingen', 'digitale-bazen-ai-module' ),
-			__( 'Generator', 'digitale-bazen-ai-module' ),
+			__( 'Instellingen', 'digitale-bazen-ai-module' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
@@ -1262,7 +1271,7 @@ class DB_AI_Settings {
 				</p>
 				<p class="description">
 					<strong><?php esc_html_e( 'Let op:', 'digitale-bazen-ai-module' ); ?></strong>
-					<?php esc_html_e( 'er is altijd maar één zoekwoordenonderzoek actief. Een nieuwe upload vervangt het huidige onderzoek.', 'digitale-bazen-ai-module' ); ?>
+					<?php esc_html_e( 'er is altijd maar één zoekwoordenonderzoek actief. Een nieuwe upload ververst de zoekwoorden van het huidige onderzoek — je contentplan en de statussen van al gegenereerde blogs blijven behouden. Analyseer daarna opnieuw om nieuwe zoekwoorden in te delen.', 'digitale-bazen-ai-module' ); ?>
 				</p>
 				<div id="db-ai-kwo-status" class="db-ai-status" role="status" aria-live="polite"></div>
 			</div>
@@ -1487,7 +1496,7 @@ class DB_AI_Settings {
 				<span class="db-ai-dirty-badge"><?php esc_html_e( 'Niet opgeslagen', 'digitale-bazen-ai-module' ); ?></span>
 			</h1>
 			<p>
-				<a href="<?php echo esc_url( admin_url( 'edit.php?post_type=blog&page=db-ai-generator' ) ); ?>">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . DB_AI_Admin_Page::MENU_SLUG ) ); ?>">
 					<?php esc_html_e( '← Terug naar de generator', 'digitale-bazen-ai-module' ); ?>
 				</a>
 			</p>

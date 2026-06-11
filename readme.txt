@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2.2
+Stable tag: 3.0.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,31 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 3.0.0 =
+* **Strategische Plan-laag (MAJOR) — van zoekwoordenonderzoek naar contentplan:**
+  - **Eigen top-level menu "Generator"** met submenu's **Creatie / Plan / Instellingen**
+    (was: generator onder Blogs + instellingen onder Instellingen). Oude bookmarks
+    redirecten. Filters: `db_ai_admin_menu_parent` / `_icon` / `_position` / `_capability`
+    (de oude `db_ai_admin_menu_parents` is deprecated).
+  - **Plan-overzicht (`DB_AI_Planner` + `DB_AI_Plan_Page`):** "Analyseer onderzoek" zet
+    je zoekwoorden via de job-queue om in een plan — geclusterd op zoekintentie, met per
+    cluster één **pillar** (bundelt synoniemen) en **supporting**-artikelen (eigen deelvraag
+    met eigen volume). Grote lijsten worden in batches verwerkt (timeout-proof).
+  - **Functie-gebaseerde classificatie:** oriënterende termen (ook met commerciële
+    ondertoon) → blog die naar de dienst linkt; pure koop-/lokale termen → vaste pagina.
+  - **Funnel-brug:** per informatief keyword een inkaderende `angle` + `funnel_target` +
+    eerlijke `bridge` (inline bewerkbaar). En een **blog-companion** voor vaste pagina's:
+    een optionele informatieve invalshoek die naar de dienst funnelt.
+  - **Genereren vanuit Plan:** geeft cluster-rol, pillar-link (supporting → pillar
+    automatisch), avoid-overlap en de funnel-hoek mee via `DB_AI_Blog_Input`
+    (`DB_AI_Post_Creator` ongewijzigd). Status volgt: open → gegenereerd → gepubliceerd.
+  - **Verwante artikelen:** gebundelde synoniemen kun je optioneel tóch als verwant
+    supporting-artikel genereren.
+* **Onderzoek update-in-place:** een nieuwe upload ververst de zoekwoorden van het
+  bestaande onderzoek — contentplan + statussen + post-koppelingen blijven behouden.
+* **Plan export/import:** exporteer een plan als JSON en importeer het op een andere
+  site zonder opnieuw te hoeven analyseren (scheelt tokens). Generatie-status reset.
 
 = 2.2.2 =
 * **RankMath-bridge vervuilde global $post op het bewerkscherm (fix):**

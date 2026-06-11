@@ -30,7 +30,7 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 <div class="wrap db-ai-wrap">
 	<h1>
 		<?php esc_html_e( 'AI Blog Genereren', 'digitale-bazen-ai-module' ); ?>
-		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . DB_AI_Settings::PAGE_SLUG ) ); ?>" class="page-title-action">
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . DB_AI_Settings::PAGE_SLUG ) ); ?>" class="page-title-action">
 			<?php esc_html_e( 'Instellingen', 'digitale-bazen-ai-module' ); ?>
 		</a>
 	</h1>
@@ -93,7 +93,7 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 									__( 'Wordt automatisch gebruikt. Vervangen of verwijderen doe je in %s. Of <a href="#" id="db-ai-kwo-toggle-upload">upload hieronder eenmalig</a> zonder opslaan.', 'digitale-bazen-ai-module' ),
 									[ 'a' => [ 'href' => [], 'id' => [] ] ]
 								),
-								'<a href="' . esc_url( admin_url( 'options-general.php?page=' . DB_AI_Settings::PAGE_SLUG . '#kwo' ) ) . '">' . esc_html__( 'Instellingen → Zoekwoorden', 'digitale-bazen-ai-module' ) . '</a>'
+								'<a href="' . esc_url( admin_url( 'admin.php?page=' . DB_AI_Settings::PAGE_SLUG . '#kwo' ) ) . '">' . esc_html__( 'Instellingen → Zoekwoorden', 'digitale-bazen-ai-module' ) . '</a>'
 							);
 							?>
 						</p>
@@ -111,7 +111,7 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 									__( '<strong>Tip:</strong> upload onderzoeken in %s om ze hier in één klik te kiezen zonder opnieuw te uploaden.', 'digitale-bazen-ai-module' ),
 									[ 'a' => [ 'href' => [] ], 'strong' => [] ]
 								),
-								'<a href="' . esc_url( admin_url( 'options-general.php?page=' . DB_AI_Settings::PAGE_SLUG . '#kwo' ) ) . '">' . esc_html__( 'Instellingen → Zoekwoorden', 'digitale-bazen-ai-module' ) . '</a>'
+								'<a href="' . esc_url( admin_url( 'admin.php?page=' . DB_AI_Settings::PAGE_SLUG . '#kwo' ) ) . '">' . esc_html__( 'Instellingen → Zoekwoorden', 'digitale-bazen-ai-module' ) . '</a>'
 							);
 							?>
 						</p>

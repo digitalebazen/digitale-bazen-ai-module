@@ -86,6 +86,52 @@ class DB_AI_Blog_Input {
 			$lines[] = "AANVULLENDE INSTRUCTIES:\n" . $extra;
 		}
 
+		// Contentplan-context (v3.0.0, §14 Stap 8d) — alleen aanwezig bij genereren
+		// vanuit het Plan-scherm. De interne link naar de pillar loopt via het
+		// forced-internal-links-mechanisme (DB_AI_Internal_Links), niet via een
+		// rauwe URL hier, zodat de link de opschoning van verzonnen links overleeft.
+		$role    = (string) ( $blog_input['cluster_role'] ?? '' );
+		$cluster = trim( (string) ( $blog_input['cluster'] ?? '' ) );
+		if ( 'pillar' === $role ) {
+			$lines[] = 'CONTENTPLAN-ROL — PILLAR' . ( '' !== $cluster ? ' (cluster "' . $cluster . '")' : '' ) . ': dit is het brede hoofdartikel dat dit onderwerp compleet behandelt; losse deelvraag-artikelen linken er straks naar terug. Dek het onderwerp volledig en op overzichtsniveau, zodat de deelvragen ruimte houden voor de diepte.';
+		} elseif ( 'supporting' === $role ) {
+			$line         = 'CONTENTPLAN-ROL — SUPPORTING' . ( '' !== $cluster ? ' (cluster "' . $cluster . '")' : '' ) . ': dit artikel behandelt ÉÉN specifieke deelvraag in de diepte (niet het hele onderwerp).';
+			$pillar_title = trim( (string) ( $blog_input['pillar_title'] ?? '' ) );
+			if ( '' !== $pillar_title ) {
+				$line .= ' VERPLICHT: verweef in de lopende tekst minstens één interne link naar het bredere pillar-artikel "' . $pillar_title . '" (het overzichtsartikel van dit cluster), op een plek waar dat natuurlijk past.';
+			} else {
+				$line .= ' Verwijs met een interne link naar het bredere pillar-artikel van dit cluster waar dat natuurlijk past.';
+			}
+			$lines[] = $line;
+		}
+
+		// Funnel-brug (§0O): kader de informatieve post in richting een dienst —
+		// eerlijk de vraag beantwoorden én de lezer naar de dienst leiden.
+		$angle  = trim( (string) ( $blog_input['angle'] ?? '' ) );
+		$bridge = trim( (string) ( $blog_input['bridge'] ?? '' ) );
+		$funnel = trim( (string) ( $blog_input['funnel_target'] ?? '' ) );
+		if ( '' !== $angle || '' !== $funnel ) {
+			$fl = 'FUNNEL-HOEK (schrijf de post vanuit deze inkaderende hoek, NIET als platte how-to):';
+			if ( '' !== $angle ) {
+				$fl .= "\n- Invalshoek / titelrichting: " . $angle;
+			}
+			if ( '' !== $bridge ) {
+				$fl .= "\n- Eerlijke brug naar de dienst: " . $bridge;
+			}
+			if ( '' !== $funnel ) {
+				$fl .= "\n- Leid de lezer richting: " . $funnel . '. Beantwoord eerst eerlijk en volledig de vraag; bouw daarna natuurlijk de brug naar deze dienst en nodig uit tot de vervolgstap. Forceer de brug NIET als die ergens niet past — eerlijkheid boven de funnel.';
+			}
+			$lines[] = $fl;
+		}
+
+		$avoid = $blog_input['avoid_titles'] ?? [];
+		if ( is_array( $avoid ) && ! empty( $avoid ) ) {
+			$avoid = array_values( array_filter( array_map( 'strval', $avoid ) ) );
+			if ( ! empty( $avoid ) ) {
+				$lines[] = "VERMIJD OVERLAP met deze al bestaande artikelen in hetzelfde cluster (behandel hun deelonderwerp niet opnieuw — verwijs er hooguit kort naar):\n- " . implode( "\n- ", $avoid );
+			}
+		}
+
 		if ( empty( $lines ) ) {
 			return '';
 		}

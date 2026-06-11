@@ -460,7 +460,7 @@
 		setTimeout(function () { URL.revokeObjectURL(url); }, 100);
 	}
 
-	function loadSavedKwo(id) {
+	function loadSavedKwo(id, preselect) {
 		const loadStatus = $('#db-ai-kwo-load-status');
 		if (loadStatus) {
 			loadStatus.textContent = config.i18n.uploading || 'Bezig met laden…';
@@ -493,10 +493,20 @@
 					loadStatus.textContent = (config.i18n.uploadOk || '%d zoekwoorden geladen.').replace('%d', json.data.count);
 					loadStatus.className = 'db-ai-status is-success';
 				}
-				renderSecondaryPreview('');
-				// Wizard: ontgrendel + spring naar Keyword stap.
-				wizardUnlockStep(STEP_KEYWORD);
-				wizardGoTo(STEP_KEYWORD);
+				// Genereren vanuit Plan: keyword voorselecteren en doorspringen naar Genereer.
+				const kwSelect = $('#db-ai-keyword-select');
+				if (preselect && kwSelect) {
+					kwSelect.value = preselect;
+				}
+				if (preselect && kwSelect && kwSelect.value === preselect) {
+					renderSecondaryPreview(preselect);
+					wizardUnlockStep(STEP_GENERATE);
+					wizardGoTo(STEP_GENERATE);
+				} else {
+					renderSecondaryPreview('');
+					wizardUnlockStep(STEP_KEYWORD);
+					wizardGoTo(STEP_KEYWORD);
+				}
 			})
 			.catch(function () {
 				if (loadStatus) {
@@ -572,6 +582,12 @@
 		currentSecondary.forEach(function (kw) {
 			formData.append('secondary_keywords[]', kw);
 		});
+
+		// Plan-context (§14 Stap 8d): onderzoek-id meesturen zodat de server de
+		// cluster-rol, pillar-link en avoid-overlap afleidt voor dit keyword.
+		if (config.plan && config.plan.research) {
+			formData.append('plan_research', config.plan.research);
+		}
 
 		const extraEl = $('#db-ai-extra-instructions');
 		if (extraEl && extraEl.value.trim() !== '') {
@@ -792,7 +808,8 @@
 		const kwoCurrent = $('.db-ai-kwo-current');
 		if (kwoCurrent && kwoCurrent.dataset.kwoId) {
 			const id = parseInt(kwoCurrent.dataset.kwoId, 10);
-			if (id) loadSavedKwo(id);
+			const planKeyword = (config.plan && config.plan.keyword) ? config.plan.keyword : '';
+			if (id) loadSavedKwo(id, planKeyword);
 		}
 
 		// "Of upload hieronder eenmalig" link toont de file-upload sectie als die verborgen is.

@@ -203,6 +203,26 @@ class DB_AI_Ajax {
 
 		$blog_input = $this->collect_blog_input();
 
+		// Genereren vanuit het Plan-scherm (§14 Stap 8d): leid de plan-context
+		// server-side af (cluster, rol, avoid-overlap) en voeg de pillar-post toe
+		// als forced internal link. De client levert alleen het onderzoek-id.
+		$plan_research = isset( $_POST['plan_research'] ) ? absint( wp_unslash( $_POST['plan_research'] ) ) : 0;
+		if ( $plan_research > 0 && class_exists( 'DB_AI_Plan_Page' ) ) {
+			$ctx = DB_AI_Plan_Page::get_generation_context( $plan_research, $main_keyword );
+			$blog_input['cluster']       = $ctx['cluster'];
+			$blog_input['cluster_role']  = $ctx['cluster_role'];
+			$blog_input['angle']         = $ctx['angle'];
+			$blog_input['funnel_target'] = $ctx['funnel_target'];
+			$blog_input['bridge']        = $ctx['bridge'];
+			$blog_input['pillar_title']  = $ctx['pillar_title'];
+			$blog_input['avoid_titles']  = $ctx['avoid_titles'];
+			if ( $ctx['pillar_post_id'] > 0 ) {
+				$ids   = $blog_input['forced_link_ids'] ?? [];
+				$ids[] = $ctx['pillar_post_id'];
+				$blog_input['forced_link_ids'] = array_values( array_slice( array_unique( array_map( 'absint', $ids ) ), 0, 5 ) );
+			}
+		}
+
 		// Fail-fast: valideer dat er überhaupt een provider beschikbaar is (keys
 		// aanwezig) vóór we een job aanmaken. Het object zelf gaat niet mee — de
 		// worker resolved 'm opnieuw in zijn eigen context.
@@ -216,9 +236,11 @@ class DB_AI_Ajax {
 		$job_key = DB_AI_Job_Queue::dispatch(
 			'generate_blog',
 			[
-				'main_keyword' => $main_keyword,
-				'secondary'    => $secondary,
-				'blog_input'   => $blog_input,
+				'main_keyword'  => $main_keyword,
+				'secondary'     => $secondary,
+				'blog_input'    => $blog_input,
+				'plan_research' => $plan_research,
+				'plan_keyword'  => $plan_research > 0 ? $main_keyword : '',
 			],
 			$user_id
 		);
@@ -282,6 +304,18 @@ class DB_AI_Ajax {
 				$validation ? [ 'validation_errors' => $validation ] : []
 			);
 			return;
+		}
+
+		// Plan-koppeling (§14 Stap 8d): vanuit Plan gegenereerd → status bijwerken +
+		// de koppeling op de post bewaren zodat publiceren later → `gepubliceerd` kan.
+		$plan_research = (int) ( $payload['plan_research'] ?? 0 );
+		$plan_keyword  = (string) ( $payload['plan_keyword'] ?? '' );
+		$post_id       = (int) ( $result['post_id'] ?? 0 );
+		if ( $plan_research > 0 && '' !== $plan_keyword && $post_id > 0 ) {
+			update_post_meta( $post_id, '_db_ai_plan_research', $plan_research );
+			update_post_meta( $post_id, '_db_ai_plan_keyword', $plan_keyword );
+			// Koppelt aan de plan-rij, of promoveert een gebundeld synoniem tot supporting.
+			DB_AI_Keyword_Research::attach_generated_post( $plan_research, $plan_keyword, $post_id );
 		}
 
 		// Quota-teller voor de UI meegeven, net als de oude synchrone respons deed.

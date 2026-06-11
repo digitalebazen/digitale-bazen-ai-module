@@ -4,22 +4,22 @@
 
 ---
 
-## 0. Build Status (huidige versie: v2.0.7 — 2026-06-02)
+## 0. Build Status (huidige versie: v3.0.0 — 2026-06-11)
 
-> De plugin staat op **v2.0.7** (`digitale-bazen-ai-module.php` header, `DB_AI_VERSION`, `readme.txt` → `Stable tag`). De `readme.txt`-changelog is de gezagvolle, per-patch versiehistorie (0.1.0 → 2.0.7); de §0-secties hieronder beschrijven de grotere mijlpalen as-built. De originele V1-brief begint bij §1.
+> De plugin staat op **v2.3.0** (`digitale-bazen-ai-module.php` header, `DB_AI_VERSION`, `readme.txt` → `Stable tag`). De `readme.txt`-changelog is de gezagvolle, per-patch versiehistorie (0.1.0 → 2.3.0); de §0-secties hieronder beschrijven de grotere mijlpalen as-built. De originele V1-brief begint bij §1.
 
-V1 was **end-to-end werkend** (afgerond 2026-05-20) en is sindsdien doorontwikkeld t/m v2.0.7. Een redacteur kan: zoekwoordenonderzoek uploaden (CSV/Excel) → keyword kiezen → "Genereer" → de generatie draait **async via een job-queue** met live progress-bar → draft staat ~30-60s later onder Blogs met featured image, in-body afbeeldingen, RankMath SEO velden, FAQ JSON-LD, interne + externe link-suggesties en `_db_ai_*` audit-meta. FAQ JSON-LD wordt site-breed geïnjecteerd op élke post met een `veelgestelde_vragen` block.
+V1 was **end-to-end werkend** (afgerond 2026-05-20) en is sindsdien doorontwikkeld t/m v2.3.0. Een redacteur kan: zoekwoordenonderzoek uploaden (CSV/Excel) → keyword kiezen → "Genereer" → de generatie draait **async via een job-queue** met live progress-bar → draft staat ~1-3 min later onder Blogs met featured image, in-body afbeeldingen (stockfoto's óf AI-gegenereerd via Gemini, zie §0L), RankMath SEO velden, FAQ JSON-LD, interne + externe link-suggesties en `_db_ai_*` audit-meta. FAQ JSON-LD wordt site-breed geïnjecteerd op élke post met een `veelgestelde_vragen` block.
 
-Alle 7 bouwstappen uit sectie 14 (V1) zijn gerealiseerd. De latere iteraties staan in §0B t/m §0I.
+Alle 7 bouwstappen uit sectie 14 (V1) zijn gerealiseerd. De latere iteraties staan in §0B t/m §0O.
 
-> **Onderhoud van dit document:** §0B–§0I en §4 zijn het meest aan verloop onderhevig. Bij elke nieuwe feature: voeg een §0-subsectie toe **en** werk de structuurboom in §4 bij. Laatste sync van §4 met de werkelijke `includes/`-map: **2026-06-04**.
+> **Onderhoud van dit document:** §0B–§0O en §4 zijn het meest aan verloop onderhevig. Bij elke nieuwe feature: voeg een §0-subsectie toe **en** werk de structuurboom in §4 bij. Laatste sync van §4 met de werkelijke `includes/`-map: **2026-06-10**.
 
 ### Afwijkingen van de originele brief (bevestigd, in code verwerkt)
 
 | # | Onderwerp | Origineel | Werkelijk | Reden |
 |---|---|---|---|---|
 | 1 | post_type voor gegenereerde drafts | `post` | `blog` (CPT) | Site draait redactioneel op `blog` CPT (geregistreerd via ACF post-types UI, slug `blog`, label "Blogs"). Bevestigd 2026-05-19. |
-| 2 | Admin menu locatie | Berichten | Alleen Blogs | Stond tot 2026-05-28 op Berichten **én** Blogs; op verzoek teruggebracht naar alleen Blogs. Filterbaar via `db_ai_admin_menu_parents`. |
+| 2 | Admin menu locatie | Berichten | Eigen top-level menu **"Generator"** | Berichten → alleen Blogs (28-05) → eigen top-level menu met submenu's Creatie/Plan/Instellingen (v2.3.0, 10-06, zie §0N). Filterbaar via `db_ai_admin_menu_parent` (enkelvoud). |
 | 3 | AI provider (V1) | OpenAI gpt-4o | Anthropic `claude-sonnet-4-6` | User had geen OpenAI billing maar wel Anthropic. Bevestigd 2026-05-19. OpenAI-provider op 2026-05-28 volledig verwijderd (zie sectie 0G). |
 | 4 | ACF field group toepassingen | `page`, `post`, `project` | + `blog` | Field group bleek in DB ook aan `blog` gekoppeld. Code leest dynamisch dus geen aanpassing nodig — alleen sectie 5 inhoudelijk gecorrigeerd. |
 
@@ -328,11 +328,189 @@ Hookt `YahnisElsts/plugin-update-checker` (`vendor/plugin-update-checker/`) op W
 
 ---
 
+## 0J. v2.1.0 — Layout-calibratie + kleurpalet (2026-05-30)
+
+Nieuwe class `DB_AI_Layout_Calibration` (`includes/class-db-ai-layout-calibration.php`) + Settings-tab **"Layout-calibratie"**. De generator weet hierdoor per blok hoe het er op dít theme uitziet en wanneer je het inzet; die guidance gaat mee in elke generatie-prompt.
+
+- **Fase 1 (deterministisch):** leidt uit de theme-templates af welke velden bij welke `weergave` renderen. Lost op dat de generator content in een veld zet dat de gekozen weergave niet toont (lege kolommen/secties), bv. `tekst_weergaves` → `tekst-alternatief` rendert de body uit `tekst_kolom_2`, niet `tekst`. Confidence-gating voorkomt foute guidance bij lastig te parsen templates.
+- **Fase 2 (AI + review):** een "Calibreren"-knop laat Claude per layout stijl/gebruik-guidance schrijven op basis van templates, het echte kleurpalet en enkele bestaande pagina's; bewerkbaar en op te slaan in Settings. Staleness-waarschuwing als de templates sinds de laatste calibratie zijn gewijzigd.
+- **Kleurpalet-extractie:** leest de echte merkkleuren + semantische toewijzingen uit de theme-stylesheet (ook `.less`), zodat de generator weet welke kleuren waar voor gebruikt worden.
+
+---
+
+## 0K. v2.1.1 & v2.1.2 — SEO-prompt + langere, diepere blogs (2026-05-31 / 2026-06-08)
+
+**v2.1.1 — RankMath-feedback:** featured-image alt bevat nu verplicht het exacte hoofdzoekwoord (RankMath's "afbeelding met focus keyword als alt"-check). Eerste aanscherping van de zoekwoorddichtheid (later vervangen, zie §0M).
+
+**v2.1.2 — Langere, diepgaandere blogs:**
+- Streeflengte van 1200-1800 → **2500-3200 woorden** (idealiter 9-13 blocks). De generator bedenkt eerst alle relevante invalshoeken (achtergrond, aanpak, kosten, valkuilen, voorbeelden, FAQ) en werkt die met diepgang uit.
+- **Geen filler:** lengte mag nooit met herhaling of holle frasen gevuld worden; smalle onderwerpen mogen korter (1500-2000 woorden) blijven.
+- `DEFAULT_MAX_TOKENS` 16000 → **20000** zodat de langere output niet afgekapt wordt.
+
+> De §9 system-prompt en §18 "1200-1800 woorden" zijn hierdoor verouderd — de gezagvolle lengte/dichtheid-instructies staan in `build_system_prompt()` van de Anthropic-provider. §9 is bewaard als historische basis.
+
+---
+
+## 0L. v2.2.0 — Gemini AI-afbeeldingen + één zoekwoordenonderzoek + timeout-fix (2026-06-08/09)
+
+**AI-gegenereerde afbeeldingen via Google Gemini (nieuw):**
+- Nieuwe Settings-tab **Afbeeldingen** met een keuze voor de afbeeldingsbron: `Stockfoto's` (Pexels/Unsplash — default, ongewijzigd gedrag), `AI: alleen coverfoto`, of `AI: alle afbeeldingen`. Plus een **beeldstijl**-veld dat vóór elke generatie-prompt wordt geplakt voor een consistente huisstijl.
+- Geïmplementeerd ín `DB_AI_Image_Service` (géén nieuwe class): `find_and_import()` is nu een orchestrator met een optionele `opts['role']` (featured/block). Bij een AI-modus genereert hij via `gemini-2.5-flash-image` (base64 → sideload), aspect ratio per rol (coverfoto 16:9, blocks 4:3). De post-creator geeft de rol mee bij de twee aanroepen.
+- **Automatische fallback naar stock** als generatie mislukt → een blog komt nooit zonder beeld. Alt-teksten blijven behouden (RankMath).
+- Gemini API-key onder **API-keys** (`DB_AI_GEMINI_API_KEY` constant, of veld in Settings). Settings: `image_source` (modus) + `image_style` (beeldstijl).
+- Filters: `db_ai_image_source`, `db_ai_gemini_image_model`, `db_ai_gemini_image_prompt`, `db_ai_gemini_aspect_ratio`.
+
+**Eén zoekwoordenonderzoek tegelijk:** een nieuwe upload **vervangt** voortaan het bestaande onderzoek (`DB_AI_Keyword_Research::save()` roept `delete_all()` aan na validatie). De generator laadt het ene onderzoek **automatisch** bij openen (geen dropdown meer); de Instellingen-UI is naar enkelvoud aangepast. Vervangt de "kies uit lijst"-flow uit §0I.
+
+**Timeout-fix lange generaties:** de Anthropic-call had een vaste 120s-timeout, wat bij uitgebreide blogs (20k max_tokens, niet-streamend) "cURL error 28 — 0 bytes received" gaf. Verhoogd naar **300s** en filterbaar via `db_ai_anthropic_http_timeout`. Veilig omdat de generatie async via Action Scheduler draait (geen browser/FastCGI-limiet eraan vast); let wel op de Action Scheduler queue-runner time-limit (~300s) bij de állergrootste artikelen.
+
+---
+
+## 0M. v2.2.1 & v2.2.2 — Zoekwoorddichtheid omhoog + RankMath-bridge $post-fix (2026-06-09/10)
+
+**v2.2.1 — Zoekwoorddichtheid omhoog (bleef "te laag"):** de prompt maakt nu expliciet dat RankMath de dichtheid UITSLUITEND op het **exacte** focus keyword meet — varianten/synoniemen tellen niet mee voor die meter (ze zijn nu "extra bovenop", niet "in plaats van"). Dat was de hoofdoorzaak. Doel verhoogd van ±1% naar **1,8-2,2%** van het exacte keyword (≈ 50-65× bij 2500-3200 woorden), als ondergrens-doel, met vangrails: nooit onder ~1,5% en niet boven ~2,5% (over-optimalisatie).
+
+**v2.2.2 — RankMath-bridge vervuilde `global $post` (fix):** bij het bewerken van een pagina opende soms een custom post type (bv. een medewerker) i.p.v. de pagina zelf. Oorzaak: de bridge rendert de echte front-end-blokken voor RankMath's analyzer, maar blok-templates draaien eigen `WP_Query`-loops die `global $post` niet resetten. `render_via_theme_templates()` bewaart nu de globale post-context vóór het renderen en herstelt die erna (ook bij een fout in een template).
+
+---
+
+## 0N. v3.0.0 — Strategische Plan-laag + eigen top-level menu (2026-06-10)
+
+> **MAJOR release.** V3.0.0 voegt de strategische laag toe die het zoekwoordenonderzoek omzet in een **contentplan** (clusters → pillars → supporting posts) vóórdat er een blog wordt geschreven, plus een **eigen top-level menu** "Generator" om Creatie, Plan en Instellingen op één plek te brengen. Het menu en de Plan-laag horen bij elkaar: het menu bestaat om de Plan-laag een thuis te geven. De volledige build-spec van de Plan-laag staat in **§0O**; deze sectie beschrijft de menu-herstructurering.
+
+Tot v2.2.2 was de generator-UI verspreid over twee plekken: het generatie-scherm hing als submenu onder **Blogs**, en de instellingen onder **Instellingen → Generator**. Dat was verwarrend (de twee horen bij elkaar) en bood geen plek voor de nieuwe **Plan**-laag. Vanaf v3.0.0 heeft de generator een **eigen top-level menu** in de admin-zijbalk met drie submenu's.
+
+### Nieuwe menustructuur
+
+```
+Generator  (top-level, eigen icoon)
+├── Creatie        ← genereren (was: Blogs → AI Blog Genereren)
+├── Plan           ← contentplan / strategie (NIEUW — zie §0O)
+└── Instellingen   ← API-keys, TOV, ACF, afbeeldingen (was: Instellingen → Generator)
+```
+
+- **Top-level**: `add_menu_page()` met slug `db-ai` (parent voor alle drie). Label **"Generator"**, capability `publish_posts`, dashicon `dashicons-edit-page` (filterbaar). Positie net onder Blogs/Berichten.
+- **Creatie** (`db-ai` / eerste submenu): het bestaande generatie-scherm (upload → keyword → genereren). WordPress toont het eerste submenu op dezelfde slug als de parent, dus dit is de default-pagina bij klik op "Generator".
+- **Plan** (`db-ai-plan`): nieuw scherm voor de strategische laag (intentie-classificatie → clusters → pillar/supporting → dekkingsstatus). Volledig functioneel in v3.0.0, zie §0O.
+- **Instellingen** (`db-ai-settings`): de bestaande Settings-page, **verplaatst** van onder `options-general.php` naar dit menu. De Settings API-registratie zelf verandert niet — alleen de menu-parent.
+
+### Wat verandert in code
+
+- **`DB_AI_Admin_Page`**: registreert nu de top-level `add_menu_page( 'db-ai', ... )` + `add_submenu_page( 'db-ai', ... )` voor Creatie. De oude `add_submenu_page( 'edit.php?post_type=blog', ... )` is vervangen.
+- **`DB_AI_Settings`**: de menu-registratie verhuist van `add_options_page()` / `add_submenu_page( 'options-general.php', ... )` naar `add_submenu_page( 'db-ai', ... )` met slug `db-ai-settings`. Settings-velden, opslag (`db_ai_settings` option) en helpers blijven identiek.
+- **Nieuw: `DB_AI_Plan_Page`** (`includes/class-db-ai-plan-page.php`): rendert het Plan-submenu (overzicht + acties). Werkt samen met `DB_AI_Planner` (§0O).
+- **Menu-volgorde afgedwongen**: submenu's verschijnen in registratie-volgorde Creatie → Plan → Instellingen. De parent-slug van `add_menu_page` moet gelijk zijn aan de slug van het Creatie-submenu zodat er geen dubbel "Generator"-item ontstaat.
+
+### Filters (gewijzigd / nieuw)
+
+```php
+// GEWIJZIGD — was [ 'edit.php', 'edit.php?post_type=blog' ], nu het top-level menu.
+apply_filters( 'db_ai_admin_menu_parent', 'db-ai' );        // top-level slug
+apply_filters( 'db_ai_admin_menu_icon', 'dashicons-edit-page' );
+apply_filters( 'db_ai_admin_menu_position', 26 );           // net onder Berichten (25)
+apply_filters( 'db_ai_admin_menu_capability', 'publish_posts' );
+```
+
+> De oude filter `db_ai_admin_menu_parents` (meervoud, array) is **deprecated** — het submenu hangt niet langer onder bestaande WP-menu's. Een no-op shim blijft staan zodat bestaande `functions.php`-overrides geen fatal geven; verwijderen kan in een latere MAJOR.
+
+### Migratie-impact
+
+De menu-verplaatsing is puur admin-UI — geen data, geen post-meta, geen generatie-logica raakt dit. Bestaande bookmarks naar `?page=db-ai-generator` (oude Creatie-slug onder Blogs) en `options-general.php?page=db-ai-settings` breken; de plugin registreert daarom een lichte redirect van de oude slugs naar de nieuwe (`admin_init`, alleen als `?page=` exact de oude waarde is). De Plan-laag voegt wél nieuwe post-meta toe op `db_ai_kwo` — zie §0O.
+
+---
+
+## 0O. v3.0.0 — Plan-laag: van zoekwoordenonderzoek naar contentplan (2026-06-10)
+
+> Onderdeel van de **v3.0.0 MAJOR** (samen met het menu, §0N). Dit is de strategische laag die het zoekwoordenonderzoek omzet in een contentplan vóórdat er een blog wordt geschreven. De bestaande generator (Creatie) blijft inhoudelijk ongewijzigd; de Plan-laag voedt 'm met context (cluster, rol, pillar-referentie, vermijd-overlap).
+>
+> **Nieuwe classes:** `DB_AI_Planner` (de strateeg) + `DB_AI_Plan_Page` (het Plan-submenu uit §0N). **Build-spec + acceptatiecriteria:** zie de nieuwe **§14 Stap 8** — dat is de implementatie-opdracht; deze sectie is de inhoudelijke achtergrond.
+
+### Probleem dat dit oplost
+
+De generator schrijft per los gekozen keyword een blog. Zonder strategische laag leidt dat tot (a) blogs voor zoekwoorden die eigenlijk een dienst-/lokale pagina horen te zijn, (b) kannibalisatie wanneer meerdere bijna-identieke keywords elk een eigen post krijgen, en (c) ontbrekende interne-link-structuur tussen samenhangende posts.
+
+### De pijplijn (stap 0 → contentplan)
+
+```
+Zoekwoordenonderzoek (db_ai_kwo CPT)
+  → Stap 0: intentie-classificatie per keyword
+        informatief        → gaat de blog-pijplijn in
+        commercieel-koop   → vaste dienstenpagina (linkdoel, geen blog)
+        lokaal-transactioneel → vaste lokale landingspagina (geen blog)
+  → Clustering: groepeer informatieve keywords op zoekintentie (zelfde gewenste antwoord)
+  → Pillar-bepaling: breedste / hoogste-volume term per cluster = pillar;
+        die pillar BUNDELT alle synonieme varianten op één pagina
+  → Supporting-bepaling: deelvragen met een eigen, ander antwoord → eigen post
+  → Funnel-inkadering: per informatief keyword bepaal de ANGLE + het FUNNEL_TARGET
+        (zie "Funnel-brug" hieronder) — zo wordt een los informatief keyword
+        een dienst-voedende post i.p.v. een platte informatieve post
+  → Link-relaties: supporting → pillar, + kruislinks tussen clusters,
+        + funnel-link naar de dienst die het funnel_target aanwijst
+  → Dekkingsstatus: welke posts bestaan al (anti-kannibalisatie + pillar-eerst)
+```
+
+### Funnel-brug (cruciaal — waarom "laag volume / geen CPC" niet betekent "schrappen")
+
+Een informatief keyword kan op zichzelf ver van een dienst af lijken te staan en tóch waardevol zijn — afhankelijk van de **hoek** waarmee je de post schrijft. Het keyword bepaalt waaróp je rankt; de hoek bepaalt of de lezer naar een dienst beweegt.
+
+Voorbeeld — `snelheid website testen` (480, normaal, lage CPC):
+- *Platte hoek* — "5 manieren om je websitesnelheid te testen" → trekt verkeer, beantwoordt de vraag, lezer loopt weg. Zwakke funnel.
+- *Inkaderende hoek* — "Test je snelheid: deze signalen zeggen dat je site toe is aan vernieuwing" → ditzelfde testen, maar geframed als **diagnose vóór een redesign**. De trage site wordt een symptoom; de dienst (redesign) is de oplossing. Sterke funnel.
+
+De planner kiest dus per informatief keyword:
+- **`angle`** — de inkaderende invalshoek/titelrichting die de vraag eerlijk beantwoordt én naar een dienst leidt.
+- **`funnel_target`** — naar welke commerciële intentie/pillar/dienst de post doorlinkt (bv. `redesign`, `dienst-websites`, `dienst-webshops`).
+- **`bridge`** — de eerlijke logische verbinding ertussen (bv. "traag = vaak verouderd = redesign overwegen").
+
+**Eerlijkheids-grens (de planner moet dit bewaken):** de brug moet een echte, logische connectie zijn (trage site ↔ redesign = legitiem). Een geforceerde brug naar een irrelevante dienst (snelheid testen ↔ "koop daarom een webshop") is mismatch — de lezer ruikt het en bounce't. Bij geen eerlijke brug: `funnel_target = null` en de post blijft puur informatief (mag, maar lagere prioriteit).
+
+> Dit is ook het antwoord op "te weinig blogvoer": je herlabelt géén koop-termen naar blogs (dat sloopt conversie), je **kadert informatieve termen in** richting bestaande commerciële intenties. Daarmee wordt een berg ogenschijnlijk losse zoekwoorden funnel-voedend, zonder de scheiding blog/landingspagina te schenden.
+
+### Classificatie-prioriteit (volgorde toepassen, eerste match wint)
+
+1. Bevat een **plaatsnaam/regio**? → `lokaal` (vaste lokale pagina).
+2. Begint met / draait om een **vraag** (wat/hoe/waarom/hoeveel/kosten/prijs)? → `informatief` (blog), ook al zit er een koopterm in. De blog linkt door naar de dienstenpagina.
+3. Anders, met **laten maken/bouwen/professioneel/maatwerk/bureau**? → `commercieel-koop` (dienstenpagina).
+
+Trefwoord-signalen zijn een hulpmiddel, geen wet: de classificatie laat de AI het eindoordeel vellen op randgevallen (bv. "waarom een website" = informatief zonder klassiek vraagsignaal). Eén AI-call op de hele lijst, output = JSON met per keyword `{ intent, cluster, role: pillar|supporting, pillar_ref, angle, funnel_target, bridge, reason }` (de funnel-velden `angle`/`funnel_target`/`bridge` alleen voor `informatief` — zie "Funnel-brug").
+
+### Pillar-regel (essentieel)
+
+Een **pillar** is geen los keyword maar de **pagina die alle bijna-identieke varianten van één zoekvraag bundelt** — het hoogste-volume keyword wordt de titel, de rest landt als H2's/zinnen op dezelfde pagina. Aparte posts voor synonieme varianten (bv. "website laten maken kosten" naast "website maken kosten") concurreren met zichzelf → samenvoegen. Een **supporting** post pakt een wezenlijk **andere deelvraag** (bv. "wat kost onderhoud"), niet een herformulering.
+
+**Pillar-eerst**: binnen een cluster mag een supporting post niet gegenereerd worden vóór de pillar bestaat (anders is er geen link-target). De Plan-laag dwingt deze volgorde af als sorteer-/prioriteitsregel.
+
+### Voorgestelde data-opslag
+
+Per keyword-regel in het plan (post-meta op `db_ai_kwo`, of eigen kolom in de geparseerde JSON):
+
+| Veld | Inhoud |
+|---|---|
+| `_db_ai_intent` | `informatief` \| `commercieel` \| `lokaal` |
+| `_db_ai_cluster` | cluster-id / onderwerp |
+| `_db_ai_role` | `pillar` \| `supporting` \| `—` (niet-blog) |
+| `_db_ai_pillar_ref` | keyword/slug van de pillar (bij supporting) |
+| `_db_ai_angle` | inkaderende invalshoek/titelrichting (alleen informatief) |
+| `_db_ai_funnel_target` | dienst/pillar waar de post naartoe linkt, of `null` (alleen informatief) |
+| `_db_ai_bridge` | de eerlijke logische brug keyword → dienst (alleen informatief) |
+| `_db_ai_status` | `open` \| `gegenereerd` \| `gepubliceerd` |
+| `_db_ai_post_id` | gekoppelde draft/post zodra gegenereerd |
+
+### Automatiseringstrap (oplopend — begin onderaan)
+
+1. **Geassisteerd** — Plan toont het geclusterde, geprioriteerde overzicht; redacteur kiest een regel → "Genereer" stuurt het keyword mét plan-context (cluster, rol, pillar_ref, vermijd-overlap) de bestaande Creatie-flow in.
+2. **Voorgesteld** — Plan bepaalt zelf het volgende beste onderwerp (prioriteit × nog-niet-gedekt × pillar-eerst) en zet een draft klaar; redacteur keurt.
+3. **Volledig** — WP-Cron draait 2×/maand op de job-queue (§0F) en vult het plan af; redacteur krijgt drafts ter goedkeuring. **Blijft draft-only** — de publiceer-klik blijft menselijk.
+
+> Bouwvolgorde: eerst de classificatie/clustering als losse, testbare stap (input `db_ai_kwo`-rijen, output plan-JSON), vóór koppeling met de generator — conform de incrementele werkwijze van §14.
+
+---
+
 ## 1. Projectoverzicht
 
 ### Wat bouwen we
 
-Een WordPress plugin (`digitale-bazen-ai-module`) die in het admin paneel onder **Blogs → AI Blog Genereren** een interface aanbiedt waarmee redacteuren in één klik een complete, SEO-geoptimaliseerde blogpost-draft kunnen genereren op basis van een hoofdzoekwoord uit een zoekwoordenonderzoek (CSV).
+Een WordPress plugin (`digitale-bazen-ai-module`) die in het admin paneel een **eigen top-level menu "Generator"** aanbiedt (submenu's **Creatie / Plan / Instellingen**, zie §0N) waarmee redacteuren in één klik een complete, SEO-geoptimaliseerde blogpost-draft kunnen genereren op basis van een hoofdzoekwoord uit een zoekwoordenonderzoek (CSV). Het genereren zelf zit onder **Generator → Creatie**.
 
 De gegenereerde post:
 - Wordt opgeslagen als **draft** (nooit direct gepubliceerd)
@@ -376,11 +554,12 @@ De gegenereerde post:
 ### wp-config.php constants (door developer aan te maken)
 
 ```php
-// API keys — kunnen ook via Instellingen → Generator → API-keys.
+// API keys — kunnen ook via Generator → Instellingen → API-keys.
 // wp-config wint altijd (veld wordt dan disabled met "Ingesteld via wp-config.php").
-define( 'DB_AI_ANTHROPIC_API_KEY', 'sk-ant-...' ); // verplicht (enige provider sinds v2.0.2)
+define( 'DB_AI_ANTHROPIC_API_KEY', 'sk-ant-...' ); // verplicht (enige tekst-provider sinds v2.0.2)
 define( 'DB_AI_PEXELS_API_KEY',    '...' );
 define( 'DB_AI_UNSPLASH_API_KEY',  '...' ); // optioneel (Pexels-fallback)
+define( 'DB_AI_GEMINI_API_KEY',    '...' ); // optioneel — alleen nodig voor AI-gegenereerde afbeeldingen (v2.2.0, §0L)
 
 // Auto-update vanuit private GitHub repo (zie DEPLOYMENT.md)
 define( 'DB_AI_GITHUB_REPO_URL', 'https://github.com/DigitaleBazen/digitale-bazen-ai-module/' );
@@ -414,14 +593,15 @@ Plugin controleert de keys bij activatie/gebruik en geeft een duidelijke melding
 - **plugin-update-checker** (YahnisElsts, MIT) — `vendor/plugin-update-checker/`. Runtime geladen door `DB_AI_Updater` voor auto-updates via GitHub Releases. MOET meegecommit worden (zie DEPLOYMENT.md). Ondanks de `vendor/`-naam is dit géén Composer-package.
 
 ### Externe APIs (HTTP via `wp_remote_*`)
-- Anthropic API — `https://api.anthropic.com/v1/messages` (enige AI-provider; OpenAI verwijderd in v2.0.2)
-- Pexels API — `https://api.pexels.com/v1/search` (primair)
+- Anthropic API — `https://api.anthropic.com/v1/messages` (enige tekst-provider; OpenAI verwijderd in v2.0.2)
+- Pexels API — `https://api.pexels.com/v1/search` (primair, stockfoto's)
 - Unsplash API — `https://api.unsplash.com/search/photos` (fallback, optioneel)
+- Google Gemini API — `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent` (optioneel — AI-gegenereerde afbeeldingen, v2.2.0 §0L)
 - GitHub Releases API — via plugin-update-checker, voor auto-updates (DEPLOYMENT.md)
 
 ---
 
-## 4. Plugin folder structuur (actueel, gesynct 2026-06-04 — v2.0.7)
+## 4. Plugin folder structuur (actueel, gesynct 2026-06-10 — v2.2.2)
 
 ```
 digitale-bazen-ai-module/
@@ -434,18 +614,21 @@ digitale-bazen-ai-module/
 ├── includes/
 │   ├── class-db-ai-plugin.php                  # Singleton, init, activation/deactivation, db-version check
 │   ├── class-db-ai-acf-discovery.php           # Auto-detectie van ACF flex field groups (multi-site) — §0I
-│   ├── class-db-ai-settings.php                # Settings API page onder Instellingen + key-helpers + field-group-resolver
+│   ├── class-db-ai-settings.php                # Settings API page onder Generator → Instellingen + key-helpers + field-group-resolver + image_source/image_style — §0L/§0N
+│   ├── class-db-ai-layout-calibration.php      # Theme-template + kleurpalet-analyse → per-layout guidance in de prompt — §0J
 │   ├── class-db-ai-style-profile.php           # V2.1: TOV/context/rules + referentie-post text → SYSTEM prompt
 │   ├── class-db-ai-blog-input.php              # Per-blog input (funnel/must-include/doelgroep) → USER prompt — §0I
 │   ├── class-db-ai-internal-links.php          # Interne-link pool + scoring + prompt + opschoning + CTA-whitelist — §0H/§0I
 │   ├── class-db-ai-external-links.php          # Externe-link suggesties: prompt + validatie + HEAD-check — §0D
 │   ├── class-db-ai-external-links-metabox.php  # Metabox die suggesties toont + op verzoek invoegt — §0D
 │   ├── class-db-ai-past-blogs-context.php      # Recente blog-titels/keywords → prompt (anti-herhaling) — §0I
-│   ├── class-db-ai-admin-page.php              # Submenu (alleen Blogs) + asset enqueue (filemtime cache-bust) + nonce localize
+│   ├── class-db-ai-admin-page.php              # Top-level menu "Generator" + submenu Creatie + asset enqueue (filemtime cache-bust) + nonce localize — §0N
+│   ├── class-db-ai-plan-page.php               # Submenu "Plan": contentplan-overzicht + acties (job-trigger, genereer-knoppen) — §0N/§0O/§14-8c
+│   ├── class-db-ai-planner.php                 # De strateeg: intentie-classificatie + clustering + pillar/supporting → plan-JSON — §0O/§14-8b
 │   ├── class-db-ai-keyword-importer.php        # CSV parsing + grouping + secundaire keywords
 │   ├── class-db-ai-keyword-research.php        # Persistente onderzoeken als CPT `db_ai_kwo` — §0I
 │   ├── class-db-ai-acf-mapper.php              # Field group dynamisch inlezen + layout spec + validator + write_blocks_to_post + sanitize_link_value
-│   ├── class-db-ai-image-service.php           # Pexels → Unsplash fallback + download_url + media_handle_sideload
+│   ├── class-db-ai-image-service.php           # Orchestrator: stock (Pexels→Unsplash) óf AI-generatie (Gemini) + sideload, met stock-fallback — §0L
 │   ├── class-db-ai-seo-mapper.php              # RankMath meta velden
 │   ├── class-db-ai-faq-schema.php              # FAQPage JSON-LD op wp_head (site-breed)
 │   ├── class-db-ai-logger.php                  # Custom DB tabel `wp_db_ai_generations` + dbDelta
@@ -462,6 +645,7 @@ digitale-bazen-ai-module/
 │   ├── admin.js                                # Vanilla JS — Excel/CSV wizard + mapping + dispatch + job-status polling + progress-bar
 │   ├── admin.css                               # Generator-page styling (wizard, mapping-table, progress-bar)
 │   ├── settings.js / settings.css              # Settings-page (tabs, key-velden, reference-post selector)
+│   ├── plan.js / plan.css                      # Plan-page (cluster-overzicht, pillar/supporting, genereer-knoppen) — §14-8c
 │   ├── rankmath-bridge.js                      # Feedt gerenderde ACF-HTML aan RankMath's editor-analyzer — §0D
 │   ├── external-links-metabox.js               # Metabox-interactie (status, insert-AJAX) — §0D
 │   ├── banner-1544x500.png / banner-772x250.png# Plugin-header banners (WP plugin listing)
@@ -473,7 +657,7 @@ digitale-bazen-ai-module/
     └── plugin-update-checker/                  # YahnisElsts PUC (MIT), runtime geladen door DB_AI_Updater
 ```
 
-**Status:** 28 eigen PHP-files (excl. `vendor/`), PHP-lint schoon op PHP 7.4. Bij toevoegen/hernoemen van een class: werk deze boom **en** de require-lijst in `digitale-bazen-ai-module.php` bij.
+**Status:** 30 eigen PHP-files (excl. `vendor/`), PHP-lint schoon op PHP 7.4. Bij toevoegen/hernoemen van een class: werk deze boom **en** de require-lijst in `digitale-bazen-ai-module.php` bij. *(28 vóór v3.0.0; +`DB_AI_Plan_Page` +`DB_AI_Planner`.)*
 
 ---
 
@@ -722,11 +906,13 @@ content-type: application/json
 ```json
 {
   "model": "claude-sonnet-4-6",
-  "max_tokens": 16000,
+  "max_tokens": 20000,
   "system": "<system prompt — sectie 9>",
   "messages": [{ "role": "user", "content": "<user prompt — sectie 9>" }]
 }
 ```
+
+> `max_tokens` is sinds v2.1.2 **20000** (was 16000) voor de langere blogs (§0K). De HTTP-timeout is sinds v2.2.0 **300s** (was 120s), filterbaar via `db_ai_anthropic_http_timeout` — een niet-streamende call met hoge `max_tokens` kapte anders af met "cURL error 28 — 0 bytes received" (§0L).
 
 **Response parsing:**
 - `content[0].text` bevat de JSON string (eerste `text`-type block — skipt thinking blocks indien aanwezig)
@@ -1179,17 +1365,25 @@ define( 'DB_AI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DB_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 ```
 
-**Menu**:
+**Menu** (v2.3.0 — eigen top-level, zie §0N; V1 hing dit als submenu onder Berichten/Blogs):
 ```php
-add_submenu_page(
-    'edit.php',                          // Parent = Berichten
-    'AI Blog Genereren',                 // Page title
-    'AI Blog Genereren',                 // Menu title
-    'publish_posts',                     // Capability
-    'db-ai-generator',                   // Slug
-    [ $this, 'render_admin_page' ]       // Callback
+// Top-level "Generator" — parent voor alle submenu's
+add_menu_page(
+    'Generator',                                       // Page title
+    'Generator',                                       // Menu title
+    apply_filters( 'db_ai_admin_menu_capability', 'publish_posts' ),
+    'db-ai',                                           // Top-level slug
+    [ $this, 'render_admin_page' ],                    // Default = Creatie
+    apply_filters( 'db_ai_admin_menu_icon', 'dashicons-edit-page' ),
+    apply_filters( 'db_ai_admin_menu_position', 26 )   // net onder Berichten (25)
 );
+// Submenu 1 — Creatie (zelfde slug als parent → wordt de default-pagina)
+add_submenu_page( 'db-ai', 'Creatie', 'Creatie', 'publish_posts', 'db-ai', [ $this, 'render_admin_page' ] );
+// Submenu 2 — Plan (DB_AI_Plan_Page) en Submenu 3 — Instellingen (DB_AI_Settings)
+// worden door hun eigen classes geregistreerd op parent-slug 'db-ai'.
 ```
+
+> `DB_AI_Settings` registreert het Instellingen-submenu (`db-ai-settings`) en `DB_AI_Plan_Page` het Plan-submenu (`db-ai-plan`), beide op parent `db-ai`. Volgorde van registratie bepaalt de weergavevolgorde: Creatie → Plan → Instellingen.
 
 **Activatie check**:
 - Check of ACF Pro actief is (`class_exists('ACF')` of `function_exists('get_field')`)
@@ -1198,7 +1392,7 @@ add_submenu_page(
 
 **Acceptatiecriteria**:
 - Plugin activeert zonder errors
-- Menu-item "AI Blog Genereren" verschijnt onder Berichten
+- Top-level menu **"Generator"** verschijnt in de zijbalk met submenu's Creatie / Plan / Instellingen (v2.3.0; V1 toonde "AI Blog Genereren" onder Berichten)
 - Klik op menu toont placeholder pagina ("Hier komt de AI generator")
 - Bij ontbreken van ACF of field group: duidelijke melding
 
@@ -1319,7 +1513,7 @@ CREATE TABLE {$wpdb->prefix}db_ai_generations (
 **Rate limiting**: 10 per user per day, gebruik transients of count uit logger table.
 
 **Acceptatiecriteria**:
-- Volledige flow werkt: CSV upload → keyword select → genereer → draft verschijnt in Berichten
+- Volledige flow werkt: CSV upload → keyword select → genereer → draft verschijnt onder Blogs (`blog` CPT)
 - Draft heeft titel, excerpt, alle blocks correct gevuld
 - Featured image gezet
 - RankMath velden ingevuld
@@ -1338,6 +1532,95 @@ CREATE TABLE {$wpdb->prefix}db_ai_generations (
 - `uninstall.php` — drop tabel + verwijder option/transients, **bewaart** user-data (posts, attachments, meta)
 - `readme.txt` — V1 minimal
 - Quota counter ("X van 10 generaties vandaag gebruikt") in admin UI, updatet na elke run
+
+---
+
+### Stap 8: Strategische Plan-laag (v3.0.0)  ✅ GEBOUWD (2026-06-11)
+
+> **Dit is de V3-bouwopdracht.** Achtergrond + ontwerp staan in **§0N (menu)** en **§0O (Plan-laag)**. Werk strikt incrementeel: bouw 8a → 8b → 8c → 8d in volgorde, stop en test na elke deelstap. 8a is volledig los testbaar (input → JSON, geen UI). Raak de bestaande generatie-logica in `DB_AI_Post_Creator` NIET aan — de Plan-laag voegt alleen context tóe aan de prompt-input.
+
+**Bestanden**:
+- `includes/class-db-ai-plan-page.php`  (NIEUW — Plan-submenu, §0N)
+- `includes/class-db-ai-planner.php`     (NIEUW — de strateeg: classificeren + clusteren)
+- `assets/plan.js` / `assets/plan.css`   (NIEUW — Plan-overzicht UI)
+- wijzig `includes/class-db-ai-admin-page.php`  (top-level menu, §0N)
+- wijzig `includes/class-db-ai-settings.php`    (menu-parent → `db-ai`, §0N)
+- wijzig `digitale-bazen-ai-module.php`         (requires voor de 2 nieuwe classes + redirect-shim oude slugs)
+
+---
+
+#### Stap 8a — Menu-herstructurering (§0N)
+
+Bouw eerst alleen het menu om; nog geen Plan-inhoud.
+
+- `DB_AI_Admin_Page`: vervang `add_submenu_page('edit.php?post_type=blog', ...)` door top-level `add_menu_page('db-ai', ...)` + `add_submenu_page('db-ai', ..., 'db-ai', ...)` voor Creatie (zie code in §14 Stap 1).
+- `DB_AI_Settings`: verplaats registratie naar `add_submenu_page('db-ai', 'Instellingen', 'Instellingen', 'manage_options', 'db-ai-settings', ...)`. Velden/opslag/helpers ONGEWIJZIGD.
+- Redirect-shim in `admin_init`: `?page=db-ai-generator` → `?page=db-ai`; `options-general.php?page=db-ai-settings` → `?page=db-ai-settings`.
+- Deprecate `db_ai_admin_menu_parents` (no-op shim), introduceer `db_ai_admin_menu_parent` (enkelvoud) + `_icon` / `_position` / `_capability`.
+
+**Acceptatie 8a**: top-level menu "Generator" verschijnt met Creatie + Instellingen (Plan komt in 8c); beide schermen werken identiek als voorheen; oude bookmarks redirecten; geen PHP-notices.
+
+---
+
+#### Stap 8b — `DB_AI_Planner`: classificeren + clusteren (de strateeg, los testbaar)
+
+Eén publieke methode, bv. `build_plan( array $rows ) : array`. Input = geparseerde `db_ai_kwo`-rijen (keyword + volume + evt. concurrentie). Output = plan-array met per keyword de plan-velden.
+
+Interne pijplijn (zie §0O):
+1. **Intentie-classificatie** per keyword via prioriteitsregels (plaatsnaam → `lokaal`; vraag/kosten → `informatief`; laten maken/bureau → `commercieel`). Laat de AI het eindoordeel op randgevallen vellen.
+2. **Clustering** van alleen de `informatief`-keywords op zoekintentie (zelfde gewenste antwoord).
+3. **Pillar-bepaling**: hoogste-volume / breedste term per cluster = `pillar`; synonieme varianten worden NIET eigen post maar landen ín de pillar (markeer als `role: pillar` met de varianten in een veld `bundled_keywords`).
+4. **Supporting-bepaling**: wezenlijk andere deelvraag → `role: supporting` + `pillar_ref`.
+5. **Funnel-inkadering** (alleen informatief, zie §0O "Funnel-brug"): bepaal per keyword `angle` (inkaderende hoek die de vraag eerlijk beantwoordt én naar een dienst leidt), `funnel_target` (de dienst/pillar waar het naartoe linkt, of `null` als er geen eerlijke brug is), en `bridge` (de logische connectie). Forceer GEEN brug naar een irrelevante dienst.
+6. **Niet-blog** (`commercieel` / `lokaal`) → `role: —`, met `link_target_hint` (welke dienst-/lokale pagina het voedt).
+
+**AI-call**: één call op de hele lijst. Strikte JSON-output, geen proza. Verplicht schema per keyword:
+```json
+{
+  "keyword": "snelheid website testen",
+  "intent": "informatief",
+  "cluster": "redesign",
+  "role": "supporting",
+  "pillar_ref": "website redesign",
+  "bundled_keywords": [],
+  "angle": "Test je snelheid: deze signalen zeggen dat je site toe is aan vernieuwing",
+  "funnel_target": "redesign",
+  "bridge": "Een trage site is vaak een verouderde site → redesign overwegen.",
+  "reason": "Informatieve diagnose-vraag; eerlijk in te kaderen richting de redesign-dienst."
+}
+```
+Voor `commercieel`/`lokaal` keywords zijn `angle`/`funnel_target`/`bridge` leeg/`null` en is `role: —` + `link_target_hint` gevuld. Voor een pillar die synoniemen bundelt: `bundled_keywords` gevuld.
+Gebruik de bestaande `DB_AI_Anthropic_Provider` (geen nieuwe provider). Parse defensief (strip ```json fences, valideer schema, faal met duidelijke melding bij malformed output — net als `validate_ai_output()` in de ACF-mapper).
+
+**Acceptatie 8b**: een WP-CLI/debug-aanroep met een echte `db_ai_kwo`-rij-set geeft valide plan-JSON terug; elk keyword heeft een `intent` + (indien blog) een `cluster` + `role`; synoniemen zitten gebundeld onder hun pillar, niet als losse supporting; elk `informatief` keyword heeft een `angle` + `funnel_target` (of expliciet `null` met onderbouwing in `reason`) + `bridge`; commerciële/lokale keywords hebben `role: —` + `link_target_hint`. Een keyword als "snelheid website testen" landt in een dienst-voedend cluster met een inkaderende angle, niet als losse platte post. Nog geen opslag, geen UI.
+
+---
+
+#### Stap 8c — Opslag + Plan-overzicht UI (`DB_AI_Plan_Page`)
+
+- **Opslag**: schrijf de plan-velden als post-meta op de `db_ai_kwo`-CPT (`_db_ai_intent`, `_db_ai_cluster`, `_db_ai_role`, `_db_ai_pillar_ref`, `_db_ai_angle`, `_db_ai_funnel_target`, `_db_ai_bridge`, `_db_ai_status` default `open`, `_db_ai_post_id`). Bundled keywords in `_db_ai_bundled` (JSON). Voeg een `_db_ai_plan_version` toe zodat herclassificatie zichtbaar is.
+- **Trigger**: knop "Analyseer onderzoek" op het Plan-scherm draait `DB_AI_Planner::build_plan()` op het actieve onderzoek via de **job-queue** (§0F) — classificatie van een grote lijst kan >30s duren, dus async met progress, net als generatie. Nieuw `job_type: 'plan'`.
+- **UI** (`assets/plan.js/.css`): toon het plan gegroepeerd per cluster. Per cluster eerst de pillar, daaronder de supporting-rijen. Kolommen: keyword, volume, rol, **angle** (de voorgestelde inkaderende titelrichting), **funnel-doel**, status. Niet-blog-keywords (commercieel/lokaal) in een aparte sectie "Vaste pagina's (geen blog)". Per blog-rij een **"Genereer"-knop** die naar 8d leidt. De `angle` is inline bewerkbaar zodat de redacteur de hoek kan bijsturen vóór generatie.
+- **Pillar-eerst afdwingen in UI**: supporting-"Genereer"-knoppen zijn disabled zolang de pillar van dat cluster `status: open` is, met tooltip "Genereer eerst de pillar".
+
+**Acceptatie 8c**: "Analyseer onderzoek" vult het plan en toont het geclusterde overzicht; status-kolom klopt; supporting-knoppen blokkeren tot de pillar gegenereerd is; herhaald analyseren overschrijft netjes (geen dubbele meta).
+
+---
+
+#### Stap 8d — Plan-context doorgeven aan Creatie (koppeling)
+
+De bestaande generatie-flow blijft, maar krijgt plan-context mee wanneer 'ie vanuit Plan wordt gestart.
+
+- "Genereer" vanuit Plan geeft mee: `cluster`, `role`, `pillar_ref` (+ de pillar-post-URL als die al bestaat, voor interne link), `angle` (de inkaderende hoek — stuurt de titel/insteek van de post), `funnel_target` + `bridge` (zodat de post eerlijk naar de juiste dienst toeschrijft en doorlinkt), en `avoid_overlap` (titels/keywords van reeds-gegenereerde posts in hetzelfde cluster).
+- Deze context landt in de **user-prompt** via het bestaande `DB_AI_Blog_Input`-mechanisme (§0I) — NIET in `DB_AI_Post_Creator` zelf. Voeg een paar velden toe aan `DB_AI_Blog_Input` (`cluster_role`, `pillar_url`, `angle`, `funnel_target`, `bridge`, `avoid_titles`). De `angle`/`bridge` sturen de invalshoek; `funnel_target`/`pillar_url` sturen de interne link + CTA-richting.
+- Na succesvolle generatie: zet de plan-rij op `status: gegenereerd` + koppel `_db_ai_post_id`. Bij publicatie (transition_post_status → publish) → `status: gepubliceerd`.
+- **Automatiseringsniveau v3.0.0 = "Geassisteerd"** (trap 1 uit §0O): mens kiest de rij. Niveau 2/3 (voorgesteld/volledig via cron) blijft V3-backlog.
+
+**Acceptatie 8d**: een blog gegenereerd vanuit Plan bevat in z'n prompt de cluster-rol, de `angle` als sturende invalshoek, en (bij een funnel_target) een eerlijke doorverwijzing + interne link naar de betreffende dienst/pillar; bij een supporting met pillar een interne link naar de pillar; de plan-status springt naar `gegenereerd` met gekoppelde post-id; een tweede supporting in hetzelfde cluster krijgt de eerste als `avoid_overlap` mee; bestaande directe Creatie-flow (zonder Plan) werkt ongewijzigd. Concrete test: "snelheid website testen" met angle/redesign-target levert een post op die de testvraag beantwoordt én naar de redesign-dienst leidt — niet een platte how-to zonder funnel.
+
+---
+
+> **Out of scope voor v3.0.0** (blijft V3-backlog, §17): autonome onderwerpkeuze (trap 2), cron-gedreven bulk (trap 3), en kruislink-automatisering tussen clusters. v3.0.0 levert de classificatie, het plan, de UI en de geassisteerde koppeling.
 
 ---
 
@@ -1362,7 +1645,8 @@ Filters en actions die V1 daadwerkelijk biedt:
 ```php
 // Filters — provider (Anthropic; OpenAI verwijderd 2026-05-28, zie sectie 0G)
 apply_filters( 'db_ai_anthropic_model', 'claude-sonnet-4-6' );
-apply_filters( 'db_ai_anthropic_max_tokens', 16000 );
+apply_filters( 'db_ai_anthropic_max_tokens', 20000 );            // v2.1.2: 16000 → 20000
+apply_filters( 'db_ai_anthropic_http_timeout', 300 );            // v2.2.0: 120 → 300 (§0L)
 
 // Filters — prompts
 apply_filters( 'db_ai_system_prompt', $system_prompt );
@@ -1373,8 +1657,19 @@ apply_filters( 'db_ai_rate_limit_per_day', 10 );
 apply_filters( 'db_ai_image_orientation', 'landscape' );
 apply_filters( 'db_ai_allowed_layouts', [ 'banner', 'tekst_met_afbeelding', 'tekst_weergaves', 'usps', 'veelgestelde_vragen', 'fotogalerij' ] );
 apply_filters( 'db_ai_post_type', 'blog' );
-apply_filters( 'db_ai_admin_menu_parents', [ 'edit.php', 'edit.php?post_type=blog' ] );
+// Admin-menu (v2.3.0 — eigen top-level menu, zie §0N)
+apply_filters( 'db_ai_admin_menu_parent', 'db-ai' );            // top-level slug
+apply_filters( 'db_ai_admin_menu_icon', 'dashicons-edit-page' );
+apply_filters( 'db_ai_admin_menu_position', 26 );
+apply_filters( 'db_ai_admin_menu_capability', 'publish_posts' );
+// DEPRECATED: db_ai_admin_menu_parents (meervoud, array) — no-op shim sinds v2.3.0
 apply_filters( 'db_ai_reference_post_types', [ 'page', 'post', 'blog' ] ); // V2.1 — post types in reference-posts selector
+
+// Filters — AI-afbeeldingen (Gemini, v2.2.0 — §0L)
+apply_filters( 'db_ai_image_source', 'stock' );                  // 'stock' | 'ai_featured' | 'ai_all'
+apply_filters( 'db_ai_gemini_image_model', 'gemini-2.5-flash-image' );
+apply_filters( 'db_ai_gemini_image_prompt', $prompt, $query, $alt, $role );
+apply_filters( 'db_ai_gemini_aspect_ratio', $aspect, $role );    // featured 16:9, block 4:3
 
 // Actions
 do_action( 'db_ai_before_generate', $main_keyword, $secondary_keywords, $user_id );
@@ -1408,12 +1703,21 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 - ✅ Per-generatie input via "Geavanceerd (optioneel)" (`DB_AI_Blog_Input`, §0I) — los van Settings-default
 - ✅ Persistente zoekwoordenonderzoeken (`DB_AI_Keyword_Research` CPT, §0I)
 
+### Sinds afgerond (v2.1.0 – v2.3.0)
+- ✅ Layout-calibratie + kleurpalet-extractie (`DB_AI_Layout_Calibration`, §0J)
+- ✅ Langere, diepere blogs + max_tokens 20k (§0K)
+- ✅ AI-gegenereerde afbeeldingen via Gemini, met stock-fallback (§0L)
+- ✅ Eén zoekwoordenonderzoek tegelijk + auto-laden in de generator (§0L) — vervangt de "kies uit lijst"-flow
+- ✅ Zoekwoorddichtheid op exact keyword, doel 1,8-2,2% (§0M)
+- ✅ Eigen top-level menu "Generator" met submenu's Creatie / Plan / Instellingen (§0N)
+
 ### V3 — backlog (nog niet ingepland)
+- **Plan-laag — INGEPLAND als v3.0.0, build-spec in §14 Stap 8** (achtergrond §0N/§0O). Intentie-classificatie → clusters → pillar/supporting → dekkingsstatus + geassisteerde koppeling naar Creatie. Resterend ná v3.0.0 (échte backlog): autonome onderwerpkeuze (trap 2), cron-gedreven bulk (trap 3), kruislink-automatisering tussen clusters.
 - Per-block regeneratie (alleen FAQ opnieuw als die zwak is) — bouwt op de job-queue
 - Bulk generatie van meerdere posts — bouwt op de job-queue
 - Image preview met handmatige selectie (3-5 thumbnails per slot, redacteur kiest)
 - Categorie/tag automatisch via AI
-- Gemini provider (interface `DB_AI_Provider` ligt klaar; Anthropic is enige implementatie sinds v2.0.2)
+- Gemini als **tekst**-provider (interface `DB_AI_Provider` ligt klaar; Anthropic is enige tekst-implementatie). NB: Gemini wordt sinds v2.2.0 al wél gebruikt voor **afbeeldingen** (§0L) — dat staat los van de tekst-provider-interface.
 - Onderbroken/paused rijen filteren in Excel-wizard (checkbox in mapping-UI)
 - Streaming UI tijdens generatie (tokens live tonen i.p.v. progress-bar)
 - Per-generatie TOV-overrides (i.p.v. alleen Settings-default)
@@ -1429,7 +1733,7 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 - Pexels primair, Unsplash fallback
 - Draft mode altijd
 - Post type: `blog` (CPT) — bevestigd 2026-05-19, wijkt af van origineel `post`
-- Admin submenu: alleen onder Blogs (was Berichten én Blogs tot 2026-05-28). Filterbaar via `db_ai_admin_menu_parents`.
+- Admin menu: **eigen top-level menu "Generator"** met submenu's Creatie / Plan / Instellingen (v2.3.0). Was Berichten → Blogs → eigen menu. Filterbaar via `db_ai_admin_menu_parent` (enkelvoud); oude `db_ai_admin_menu_parents` is deprecated. Zie §0N.
 - Capability: `publish_posts`
 - Provider: Anthropic Claude (`claude-sonnet-4-6`) — bevestigd 2026-05-19, enige provider sinds 2026-05-28 (OpenAI verwijderd, zie sectie 0G). Opus 4.7 startte ook werkend maar liep tegen MAMP's 30s FastCGI idle-timeout. Sonnet 4.6 is sneller (~15-25s), goedkoper (~$0.05-0.10/blog) en ruim voldoende voor blogs. MAMP `FastCgiServer -idle-timeout 180` toegevoegd in `/Applications/MAMP/conf/apache/httpd.conf` zodat ook zwaardere modellen passen.
 - API keys in `wp-config.php`
@@ -1438,5 +1742,6 @@ do_action( 'db_ai_generation_failed', $error, $main_keyword, $user_id );
 - FAQ JSON-LD injectie door plugin
 - `usps[].icoon_content` leeg in V1
 - Categorie/tags handmatig achteraf
-- 1200-1800 woorden target
-- Geen internal/external auto-linking in V1
+- Lengte-target: **2500-3200 woorden** (9-13 blocks) sinds v2.1.2 — smalle onderwerpen mogen korter (1500-2000). Was 1200-1800 in V1 (§0K). Hardcoded in `build_system_prompt()`.
+- Afbeeldingsbron: default **stockfoto's** (Pexels→Unsplash); optioneel AI-generatie via Gemini per Settings-keuze, met stock als fallback (v2.2.0, §0L).
+- Geen internal/external auto-linking in V1 (inmiddels wel — §0D/§0I)

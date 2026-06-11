@@ -39,6 +39,10 @@ final class DB_AI_Plugin {
 		// context (worker draait buiten admin). Zie PROJECT_BRIEF.md sectie 0F.
 		DB_AI_Job_Queue::register();
 
+		// Plan-job-handler (§14 Stap 8c) — moet óók in de non-admin worker-context
+		// beschikbaar zijn, dus buiten de is_admin()-gate registreren.
+		DB_AI_Plan_Page::register_worker();
+
 		// Quote-/testimonial-achtige layouts centraal uitsluiten van generatie:
 		// de AI zou daar verzonnen citaten + namen invullen (nep sociaal bewijs).
 		// Late prioriteit (99) zodat dit ná de Settings-keuze draait en altijd wint.
@@ -54,6 +58,9 @@ final class DB_AI_Plugin {
 		if ( is_admin() ) {
 			$this->admin_page = new DB_AI_Admin_Page();
 			$this->admin_page->register();
+
+			$this->plan_page = new DB_AI_Plan_Page();
+			$this->plan_page->register();
 
 			$this->rankmath_bridge = new DB_AI_Rankmath_Bridge();
 			$this->rankmath_bridge->register();

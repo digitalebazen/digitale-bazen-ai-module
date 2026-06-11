@@ -1,0 +1,203 @@
+/* Plan-overzicht (v3.0.0, §0O / §14 Stap 8c) */
+
+.db-ai-plan-toolbar {
+	margin: 16px 0 24px;
+	padding: 12px 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.db-ai-plan-toolbar p {
+	margin: 6px 0;
+}
+
+.db-ai-plan-meta {
+	color: #646970;
+	font-weight: 400;
+}
+
+.db-ai-plan-io {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.db-ai-status {
+	margin-left: 8px;
+	font-size: 13px;
+	min-height: 1.4em;
+}
+
+.db-ai-status.is-loading { color: #1d2327; }
+.db-ai-status.is-success { color: #007017; }
+.db-ai-status.is-error   { color: #b32d2e; }
+
+.db-ai-cluster {
+	margin-bottom: 28px;
+}
+
+.db-ai-cluster h3 {
+	margin-bottom: 6px;
+	text-transform: capitalize;
+}
+
+.db-ai-plan-table {
+	margin-top: 4px;
+	table-layout: fixed;
+}
+
+.db-ai-plan-table th,
+.db-ai-plan-table td {
+	vertical-align: middle;
+	overflow-wrap: break-word;
+}
+
+/* Blog-clusters (5 kolommen) — identieke breedtes zodat alle clusters uitlijnen. */
+.db-ai-plan-table--blog th:nth-child(1),
+.db-ai-plan-table--blog td:nth-child(1) { width: 42%; }
+.db-ai-plan-table--blog th:nth-child(2),
+.db-ai-plan-table--blog td:nth-child(2) { width: 11%; }
+.db-ai-plan-table--blog th:nth-child(3),
+.db-ai-plan-table--blog td:nth-child(3) { width: 14%; }
+.db-ai-plan-table--blog th:nth-child(4),
+.db-ai-plan-table--blog td:nth-child(4) { width: 16%; }
+.db-ai-plan-table--blog th:nth-child(5),
+.db-ai-plan-table--blog td:nth-child(5) { width: 17%; text-align: right; }
+
+/* Vaste pagina's (4 kolommen). */
+.db-ai-plan-table--pages th:nth-child(1),
+.db-ai-plan-table--pages td:nth-child(1) { width: 34%; }
+.db-ai-plan-table--pages th:nth-child(2),
+.db-ai-plan-table--pages td:nth-child(2) { width: 11%; }
+.db-ai-plan-table--pages th:nth-child(3),
+.db-ai-plan-table--pages td:nth-child(3) { width: 18%; }
+.db-ai-plan-table--pages th:nth-child(4),
+.db-ai-plan-table--pages td:nth-child(4) { width: 37%; }
+
+/* Bundelde-lijst onder de pillar mag niet meebreken in de smalle kolom-breedte. */
+.db-ai-plan-table .db-ai-bundled summary {
+	white-space: nowrap;
+}
+
+.db-ai-bundled {
+	margin-top: 6px;
+	font-size: 12px;
+	color: #646970;
+}
+
+.db-ai-bundled > summary {
+	cursor: pointer;
+	color: #2271b1;
+	list-style: revert;
+}
+
+.db-ai-bundled ul {
+	margin: 6px 0 2px 16px;
+	list-style: disc;
+}
+
+.db-ai-bundled li {
+	margin: 2px 0;
+}
+
+.db-ai-bundled-vol {
+	display: inline-block;
+	min-width: 32px;
+	padding: 0 6px;
+	margin-left: 4px;
+	background: #f0f0f1;
+	border-radius: 8px;
+	color: #50575e;
+	text-align: right;
+}
+
+.db-ai-bundled-note {
+	margin: 4px 0 6px;
+	font-size: 12px;
+	font-style: italic;
+	color: #646970;
+}
+
+.db-ai-bundled-gen {
+	margin-left: 8px;
+	font-size: 11px;
+	text-decoration: none;
+}
+
+.db-ai-bundled-gen.disabled {
+	color: #a7aaad;
+	cursor: not-allowed;
+}
+
+/* Funnel-hoek per rij — standaard ingeklapt, klik om te bewerken. */
+.db-ai-angle {
+	margin-top: 6px;
+	font-size: 12px;
+}
+
+.db-ai-angle > summary {
+	cursor: pointer;
+	color: #2271b1;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	list-style: revert;
+}
+
+.db-ai-funnel {
+	color: #0a4b78;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.db-ai-angle-input {
+	width: 100%;
+	margin-top: 4px;
+	font-size: 12px;
+	padding: 3px 6px;
+}
+
+.db-ai-companion-action {
+	margin-top: 6px;
+}
+
+.db-ai-angle-input.is-saving { opacity: 0.6; }
+.db-ai-angle-input.is-saved  { border-color: #007017; box-shadow: 0 0 0 1px #007017; }
+
+.db-ai-role {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.db-ai-role-pillar {
+	background: #e6f0fb;
+	color: #0a4b78;
+}
+
+.db-ai-role-supporting {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+.db-ai-status-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+}
+
+.db-ai-status-open         { background: #f6f7f7; color: #50575e; }
+.db-ai-status-gegenereerd  { background: #fcf3d7; color: #7a5c00; }
+.db-ai-status-gepubliceerd { background: #e5f5e8; color: #007017; }
+
+.db-ai-plan-table .button.disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: none;
+}
