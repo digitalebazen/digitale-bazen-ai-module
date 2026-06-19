@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.1.1
+Stable tag: 3.2.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,21 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 3.2.0 =
+* **Fix — ongeldige JSON van de AI ("AI gaf geen geldig JSON-object terug;
+  Syntax error"):** de blog-generatie liep stuk wanneer Claude rechte dubbele
+  aanhalingstekens om een woord of citaat in lopende tekst zette (bv. `als "wij
+  leveren kwaliteit" en`). Die rauwe `"` sloot de JSON-string voortijdig af. De
+  parser repareert dit nu robuust (losse quotes binnen strings worden ge-escaped)
+  én de prompt instrueert de AI om in lopende tekst geen rechte dubbele quotes te
+  gebruiken. Draait alleen als de normale parse faalt, dus geldige output blijft
+  ongewijzigd.
+* **WebP-afbeeldingen:** stockfoto's van Pexels/Unsplash worden bij het importeren
+  automatisch naar WebP geconverteerd (kleinere bestanden, sneller laden). Valt
+  veilig terug op de originele JPG als de server geen WebP ondersteunt of de
+  conversie faalt. Stuurbaar via de filters `db_ai_image_convert_webp` (aan/uit)
+  en `db_ai_image_webp_quality` (kwaliteit, default 82).
 
 = 3.1.1 =
 * **Inklapbare clusters op het Plan:** elk cluster is nu een uitklapbaar paneel

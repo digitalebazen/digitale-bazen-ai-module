@@ -227,8 +227,18 @@ class DB_AI_Image_Service {
 			return $tmp;
 		}
 
+		// Converteer de gedownloade JPG naar WebP. Lukt dat niet (server zonder
+		// WebP-support of conversiefout), dan blijft het origineel behouden.
+		$ext  = 'jpg';
+		$webp = $this->convert_to_webp( $tmp );
+		if ( ! is_wp_error( $webp ) ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			$tmp = $webp;
+			$ext = 'webp';
+		}
+
 		$file_array = [
-			'name'     => sanitize_file_name( $query . '-' . wp_generate_password( 6, false ) . '.jpg' ),
+			'name'     => sanitize_file_name( $query . '-' . wp_generate_password( 6, false ) . '.' . $ext ),
 			'tmp_name' => $tmp,
 		];
 
@@ -250,6 +260,46 @@ class DB_AI_Image_Service {
 		update_post_meta( $attachment_id, '_db_ai_source_provider', sanitize_key( $photo['provider'] ) );
 
 		return $attachment_id;
+	}
+
+	/**
+	 * Converteer een gedownloade afbeelding (JPG/PNG) naar WebP. Geeft het pad naar
+	 * een nieuw tijdelijk .webp-bestand terug, of een WP_Error wanneer conversie niet
+	 * mogelijk is — de caller valt dan terug op het origineel zodat er nooit een
+	 * blog zonder beeld ontstaat.
+	 *
+	 * Filters:
+	 *   - `db_ai_image_convert_webp` (bool)  conversie globaal aan/uit (default true)
+	 *   - `db_ai_image_webp_quality` (int)   WebP-kwaliteit 1-100 (default 82)
+	 *
+	 * @return string|WP_Error  Pad naar het WebP-bestand
+	 */
+	private function convert_to_webp( string $source_path ) {
+		if ( ! apply_filters( 'db_ai_image_convert_webp', true ) ) {
+			return new WP_Error( 'db_ai_webp_disabled', __( 'WebP-conversie is uitgeschakeld.', 'digitale-bazen-ai-module' ) );
+		}
+
+		if ( ! wp_image_editor_supports( [ 'mime_type' => 'image/webp' ] ) ) {
+			return new WP_Error( 'db_ai_webp_unsupported', __( 'De server ondersteunt geen WebP (GD/Imagick zonder WebP-support).', 'digitale-bazen-ai-module' ) );
+		}
+
+		$editor = wp_get_image_editor( $source_path );
+		if ( is_wp_error( $editor ) ) {
+			return $editor;
+		}
+
+		$quality = (int) apply_filters( 'db_ai_image_webp_quality', 82 );
+		if ( $quality >= 1 && $quality <= 100 ) {
+			$editor->set_quality( $quality );
+		}
+
+		$target = $source_path . '.webp';
+		$saved  = $editor->save( $target, 'image/webp' );
+		if ( is_wp_error( $saved ) ) {
+			return $saved;
+		}
+
+		return $saved['path'];
 	}
 
 	// ─── Gemini (AI-gegenereerde afbeeldingen) ─────────────────────────────

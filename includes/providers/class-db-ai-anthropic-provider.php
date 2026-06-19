@@ -311,9 +311,92 @@ class DB_AI_Anthropic_Provider implements DB_AI_Provider {
 					return $decoded;
 				}
 			}
+
+			// Sterkste reparatie: escape óók losse dubbele quotes BINNEN strings
+			// (bv. Claude schrijft `als "wij leveren kwaliteit" en` in lopende
+			// tekst). Draait alleen als de mildere strategieën al faalden.
+			$repaired = $this->repair_json_strings( $candidate );
+			if ( $repaired !== $candidate ) {
+				$decoded = json_decode( $repaired, true );
+				if ( is_array( $decoded ) ) {
+					return $decoded;
+				}
+			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Robuuste string-reparatie: escapet zowel rauwe control-chars als losse dubbele
+	 * quotes die BINNEN een JSON-string staan. Een `"` wordt alleen als afsluiter
+	 * gezien wanneer het eerstvolgende niet-whitespace teken structureel is
+	 * (`:` `,` `}` `]`) of het einde van de input — anders wordt hij ge-escaped tot
+	 * `\"`. Vangt het klassieke geval waarbij Claude aanhalingstekens om een woord of
+	 * citaat in lopende tekst zet zonder te escapen.
+	 *
+	 * Werkt op byte-niveau; multibyte UTF-8 (hoge bytes) blijft onaangeroerd.
+	 */
+	private function repair_json_strings( string $json ): string {
+		$out       = '';
+		$in_string = false;
+		$escaped   = false;
+		$len       = strlen( $json );
+
+		for ( $i = 0; $i < $len; $i++ ) {
+			$ch = $json[ $i ];
+
+			if ( $in_string ) {
+				if ( $escaped ) {
+					$out    .= $ch;
+					$escaped = false;
+					continue;
+				}
+				if ( '\\' === $ch ) {
+					$out    .= $ch;
+					$escaped = true;
+					continue;
+				}
+				if ( "\n" === $ch ) {
+					$out .= '\\n';
+					continue;
+				}
+				if ( "\r" === $ch ) {
+					$out .= '\\r';
+					continue;
+				}
+				if ( "\t" === $ch ) {
+					$out .= '\\t';
+					continue;
+				}
+				if ( '"' === $ch ) {
+					// Peek naar het eerstvolgende betekenisvolle teken.
+					$j = $i + 1;
+					while ( $j < $len && ( ' ' === $json[ $j ] || "\n" === $json[ $j ] || "\r" === $json[ $j ] || "\t" === $json[ $j ] ) ) {
+						$j++;
+					}
+					$next = $j < $len ? $json[ $j ] : '';
+					if ( '' === $next || ':' === $next || ',' === $next || '}' === $next || ']' === $next ) {
+						// Echte string-afsluiter.
+						$out      .= '"';
+						$in_string = false;
+					} else {
+						// Ingesloten quote → escapen.
+						$out .= '\\"';
+					}
+					continue;
+				}
+				$out .= $ch;
+				continue;
+			}
+
+			if ( '"' === $ch ) {
+				$in_string = true;
+			}
+			$out .= $ch;
+		}
+
+		return $out;
 	}
 
 	/**
@@ -403,6 +486,11 @@ OUTPUTREGELS:
    enkele quotes, NOOIT dubbele. Dus schrijf <a href='https://voorbeeld.nl/pad/'>tekst</a>,
    NOOIT <a href="...">. Dubbele quotes in attribuutwaarden botsen met de JSON-string-
    delimiters en maken het hele JSON-object ongeldig. Dit geldt voor href en elk ander attribuut.
+5b. KRITIEK VOOR GELDIGE JSON — dubbele quotes in lopende tekst: zet NOOIT een recht
+   dubbel aanhalingsteken (") om een woord, citaat of voorbeeld binnen een tekstwaarde.
+   Schrijf dus 'wij leveren kwaliteit' met enkele quotes, of gebruik typografische
+   aanhalingstekens („ "), maar nooit "...". Een rauwe " midden in een zin sluit de
+   JSON-string voortijdig af en maakt het hele object ongeldig.
 6. Geen externe links naar concurrenten of onbekende bronnen.
 7. Geen verzonnen statistieken of percentages.
 
