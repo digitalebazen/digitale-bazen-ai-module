@@ -181,6 +181,60 @@
 	margin-bottom: 8px;
 }
 
+.db-ai-source-choice {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 0 0 20px;
+}
+
+.db-ai-source-option {
+	flex: 1 1 240px;
+	display: block;
+	font-weight: 400;
+	margin: 0;
+	padding: 12px 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.db-ai-source-option:hover {
+	border-color: #2271b1;
+}
+
+.db-ai-source-option:has(input:checked) {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+	background: #f0f6fc;
+}
+
+.db-ai-source-option input {
+	margin-right: 8px;
+}
+
+.db-ai-source-option-title {
+	font-weight: 600;
+}
+
+.db-ai-source-option-desc {
+	display: block;
+	margin-top: 4px;
+	margin-left: 24px;
+	color: #50575e;
+	font-size: 13px;
+}
+
+.db-ai-source-heading {
+	margin-top: 0;
+}
+
+.db-ai-required {
+	color: #b32d2e;
+}
+
 .db-ai-kwo-current {
 	margin-bottom: 16px;
 	padding: 12px 16px;

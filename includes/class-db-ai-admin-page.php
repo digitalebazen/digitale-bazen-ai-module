@@ -160,6 +160,7 @@ class DB_AI_Admin_Page {
 				'plan'           => $plan,
 				'i18n'           => [
 					'choosePlaceholder' => __( '— Kies een hoofdzoekwoord —', 'digitale-bazen-ai-module' ),
+						'customTopicRequired' => __( 'Vul eerst een onderwerp in.', 'digitale-bazen-ai-module' ),
 					'previewTitle'      => __( 'Geselecteerd', 'digitale-bazen-ai-module' ),
 					'mainLabel'         => __( 'Hoofdzoekwoord:', 'digitale-bazen-ai-module' ),
 					'topicLabel'        => __( 'Onderwerp:', 'digitale-bazen-ai-module' ),

@@ -66,7 +66,23 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 			</ol>
 
 			<section class="db-ai-wizard-pane is-active" data-step="1">
-				<h2><?php esc_html_e( '1. Kies of upload zoekwoordenonderzoek', 'digitale-bazen-ai-module' ); ?></h2>
+				<h2><?php esc_html_e( '1. Kies je startpunt', 'digitale-bazen-ai-module' ); ?></h2>
+
+				<div class="db-ai-source-choice" role="radiogroup" aria-label="<?php echo esc_attr__( 'Startpunt', 'digitale-bazen-ai-module' ); ?>">
+					<label class="db-ai-source-option">
+						<input type="radio" name="db-ai-source" value="research" checked>
+						<span class="db-ai-source-option-title"><?php esc_html_e( 'Uit zoekwoordenonderzoek', 'digitale-bazen-ai-module' ); ?></span>
+						<span class="db-ai-source-option-desc"><?php esc_html_e( 'Kies een zoekwoord uit je geüploade onderzoek.', 'digitale-bazen-ai-module' ); ?></span>
+					</label>
+					<label class="db-ai-source-option">
+						<input type="radio" name="db-ai-source" value="custom">
+						<span class="db-ai-source-option-title"><?php esc_html_e( 'Eigen onderwerp', 'digitale-bazen-ai-module' ); ?></span>
+						<span class="db-ai-source-option-desc"><?php esc_html_e( 'Geef zelf een onderwerp op, zonder onderzoek.', 'digitale-bazen-ai-module' ); ?></span>
+					</label>
+				</div>
+
+				<div class="db-ai-source-research">
+				<h3 class="db-ai-source-heading"><?php esc_html_e( 'Kies of upload zoekwoordenonderzoek', 'digitale-bazen-ai-module' ); ?></h3>
 
 				<?php if ( ! empty( $saved_kwos ) ) : ?>
 					<?php $current_kwo = $saved_kwos[0]; ?>
@@ -150,6 +166,48 @@ if ( $internal_links_enabled && ! empty( $link_post_types ) ) {
 						</button>
 					</p>
 				</div>
+
+				<p class="db-ai-research-nav">
+					<button type="button" id="db-ai-research-continue" class="button button-primary" disabled>
+						<?php esc_html_e( 'Volgende →', 'digitale-bazen-ai-module' ); ?>
+					</button>
+				</p>
+				</div><!-- .db-ai-source-research -->
+
+				<div class="db-ai-source-custom" hidden>
+					<h3 class="db-ai-source-heading"><?php esc_html_e( 'Eigen onderwerp', 'digitale-bazen-ai-module' ); ?></h3>
+					<p class="description">
+						<?php esc_html_e( 'Geef zelf een onderwerp op. De generator schrijft de blog rond dit onderwerp — precies zoals bij een zoekwoord uit je onderzoek. Extra sturing (funnel, awareness, moet-benoemen, enz.) geef je zo dadelijk onder "Geavanceerd".', 'digitale-bazen-ai-module' ); ?>
+					</p>
+
+					<div class="db-ai-field-wrap">
+						<label for="db-ai-custom-keyword"><?php esc_html_e( 'Onderwerp', 'digitale-bazen-ai-module' ); ?> <span class="db-ai-required">*</span></label>
+						<input
+							type="text"
+							id="db-ai-custom-keyword"
+							class="large-text"
+							placeholder="<?php echo esc_attr__( 'Bv: duurzaam bouwen met houtskeletbouw', 'digitale-bazen-ai-module' ); ?>"
+						>
+					</div>
+
+					<div class="db-ai-field-wrap">
+						<label for="db-ai-custom-description"><?php esc_html_e( 'Beschrijving (optioneel)', 'digitale-bazen-ai-module' ); ?></label>
+						<textarea
+							id="db-ai-custom-description"
+							rows="4"
+							class="large-text"
+							placeholder="<?php echo esc_attr__( 'Extra context over het onderwerp: invalshoek, doelgroep, punten die aan bod moeten komen…', 'digitale-bazen-ai-module' ); ?>"
+						></textarea>
+						<p class="description"><?php esc_html_e( 'Vrije toelichting bij het onderwerp. Wordt aan de prompt toegevoegd. Laat leeg als je niets extra kwijt wilt.', 'digitale-bazen-ai-module' ); ?></p>
+					</div>
+
+					<p>
+						<button type="button" id="db-ai-custom-continue" class="button button-primary">
+							<?php esc_html_e( 'Volgende → Genereer', 'digitale-bazen-ai-module' ); ?>
+						</button>
+						<span id="db-ai-custom-status" class="db-ai-status" role="status" aria-live="polite"></span>
+					</p>
+				</div><!-- .db-ai-source-custom -->
 			</section>
 
 			<section class="db-ai-wizard-pane" data-step="2">

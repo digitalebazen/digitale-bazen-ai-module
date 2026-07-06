@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.2.0
+Stable tag: 3.3.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -64,6 +64,21 @@ Optionele constants:
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
 
 == Changelog ==
+
+= 3.3.0 =
+* **Nieuw — "Eigen onderwerp" bij Creatie:** stap 1 geeft nu de keuze tussen
+  *Uit zoekwoordenonderzoek* (bestaande flow, blijft de standaard) of *Eigen
+  onderwerp*. Bij "Eigen onderwerp" geef je zelf een **Onderwerp** op plus een
+  optionele **Beschrijving** (vrije toelichting die als extra context in de
+  prompt belandt), en spring je direct door naar Genereren — zonder onderzoek te
+  hoeven uploaden. De generator draait door dezelfde pijplijn als een gekozen
+  zoekwoord; alle "Geavanceerd"-sturing (funnel, awareness, moet-benoemen/
+  vermijden, verplichte links, extra instructies) blijft voor beide modi werken.
+* **Verbetering — Creatie opent nu rustig op stap 1:** bij het openen van Creatie
+  wordt je opgeslagen onderzoek geladen, maar blijf je op het startpunt met een
+  **"Volgende →"**-knop in plaats van meteen door te springen naar de
+  zoekwoord-keuze. Genereren vanuit het **Plan**-scherm (met voorgeselecteerd
+  zoekwoord) gaat wél direct door, zoals voorheen.
 
 = 3.2.0 =
 * **Fix — ongeldige JSON van de AI ("AI gaf geen geldig JSON-object terug;

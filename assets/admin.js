@@ -5,6 +5,13 @@
 	let rows = [];
 	let currentSecondary = [];
 
+	// Startpunt-modus in stap 1: 'research' (kies uit zoekwoordenonderzoek, huidig
+	// gedrag) of 'custom' (eigen vrij onderwerp). In custom-modus komt het keyword
+	// uit het losse invoerveld i.p.v. de onderzoek-select.
+	let creationMode = 'research';
+	let customKeyword = '';
+	let customDescription = '';
+
 	// Doelschema voor de Excel/CSV import wizard. Volgorde bepaalt CSV header-volgorde.
 	const TARGET_FIELDS = [
 		{ key: 'Zoekwoord',          required: true,  synonyms: ['zoekwoord','keyword','search term','search query','query','term','keywords'] },
@@ -434,7 +441,9 @@
 				);
 				renderSecondaryPreview('');
 
-				// Wizard: ontgrendel stap 2 en spring er naartoe.
+				// Wizard: ontgrendel stap 2 en spring er naartoe (upload is een
+				// expliciete actie → direct door). Knop ook aan voor terug-navigatie.
+				setResearchContinueEnabled(true);
 				wizardUnlockStep(STEP_KEYWORD);
 				wizardGoTo(STEP_KEYWORD);
 			})
@@ -499,13 +508,16 @@
 					kwSelect.value = preselect;
 				}
 				if (preselect && kwSelect && kwSelect.value === preselect) {
+					// Vanaf het Plan-scherm: keyword staat al vast → direct doorspringen.
 					renderSecondaryPreview(preselect);
 					wizardUnlockStep(STEP_GENERATE);
 					wizardGoTo(STEP_GENERATE);
 				} else {
+					// Normaal openen van Creatie: onderzoek is geladen, maar blijf op
+					// stap 1. De gebruiker gaat zelf verder via de "Volgende →"-knop.
 					renderSecondaryPreview('');
 					wizardUnlockStep(STEP_KEYWORD);
-					wizardGoTo(STEP_KEYWORD);
+					setResearchContinueEnabled(true);
 				}
 			})
 			.catch(function () {
@@ -517,8 +529,71 @@
 	}
 
 	function getCurrentKeyword() {
+		if (creationMode === 'custom') {
+			return customKeyword;
+		}
 		const select = $('#db-ai-keyword-select');
 		return select ? select.value : '';
+	}
+
+	/** Enable/disable de "Volgende →"-knop in de research-modus van stap 1. */
+	function setResearchContinueEnabled(enabled) {
+		const btn = $('#db-ai-research-continue');
+		if (btn) btn.disabled = !enabled;
+	}
+
+	/**
+	 * Wissel tussen 'research' en 'custom' startpunt. Toont/verbergt de bijbehorende
+	 * blokken in stap 1 en herstelt de generate-knop naar de juiste toestand voor de
+	 * gekozen modus (research: afhankelijk van keyword-selectie; custom: pas na
+	 * "Volgende → Genereer").
+	 */
+	function setCreationMode(mode) {
+		creationMode = (mode === 'custom') ? 'custom' : 'research';
+
+		const researchWrap = $('.db-ai-source-research');
+		const customWrap    = $('.db-ai-source-custom');
+		if (researchWrap) researchWrap.hidden = (creationMode === 'custom');
+		if (customWrap)   customWrap.hidden   = (creationMode !== 'custom');
+
+		const generateBtn = $('#db-ai-generate-btn');
+
+		if (creationMode === 'custom') {
+			// Nog geen bevestigd onderwerp → generatie geblokkeerd tot "Volgende".
+			currentSecondary = [];
+			if (generateBtn) generateBtn.disabled = (customKeyword.trim() === '');
+		} else {
+			// Terug naar research: herstel de preview/knop op basis van de selectie.
+			const select = $('#db-ai-keyword-select');
+			renderSecondaryPreview(select ? select.value : '');
+		}
+	}
+
+	/** Custom-modus: onderwerp bevestigen en doorspringen naar de Genereer-stap. */
+	function confirmCustomTopic() {
+		const kwEl   = $('#db-ai-custom-keyword');
+		const descEl = $('#db-ai-custom-description');
+		const keyword = kwEl ? kwEl.value.trim() : '';
+
+		if (!keyword) {
+			setStatus('#db-ai-custom-status', config.i18n.customTopicRequired || 'Vul eerst een onderwerp in.', 'error');
+			if (kwEl) kwEl.focus();
+			return;
+		}
+
+		customKeyword = keyword;
+		customDescription = descEl ? descEl.value.trim() : '';
+		// Eigen onderwerp kent geen secundaire zoekwoorden — de beschrijving gaat als
+		// extra context mee in de prompt (zie generateBlog → extra_instructions).
+		currentSecondary = [];
+
+		setStatus('#db-ai-custom-status', '', '');
+
+		const generateBtn = $('#db-ai-generate-btn');
+		if (generateBtn) generateBtn.disabled = false;
+
+		wizardUnlockStep(STEP_GENERATE);
+		wizardGoTo(STEP_GENERATE);
 	}
 
 	/**
@@ -589,9 +664,18 @@
 			formData.append('plan_research', config.plan.research);
 		}
 
+		// Extra instructies = de vrije beschrijving uit "Eigen onderwerp" (indien
+		// aanwezig) gecombineerd met het Geavanceerd-veld, zodat beide meegaan.
+		const extraParts = [];
+		if (creationMode === 'custom' && customDescription) {
+			extraParts.push(customDescription);
+		}
 		const extraEl = $('#db-ai-extra-instructions');
 		if (extraEl && extraEl.value.trim() !== '') {
-			formData.append('extra_instructions', extraEl.value);
+			extraParts.push(extraEl.value.trim());
+		}
+		if (extraParts.length) {
+			formData.append('extra_instructions', extraParts.join('\n\n'));
 		}
 
 		// Stap 3 input velden — alleen meesturen als ze gevuld zijn.
@@ -799,9 +883,43 @@
 		$$('.db-ai-wizard-progress li[data-step]').forEach(function (li) {
 			li.addEventListener('click', function () {
 				if (!li.classList.contains('is-enabled')) return;
-				wizardGoTo(parseInt(li.dataset.step, 10));
+				const step = parseInt(li.dataset.step, 10);
+				// In custom-modus is de "Kies zoekwoord"-stap niet van toepassing.
+				if (creationMode === 'custom' && step === STEP_KEYWORD) return;
+				wizardGoTo(step);
 			});
 		});
+
+		// Startpunt-keuze (stap 1): research vs. eigen onderwerp.
+		$$('input[name="db-ai-source"]').forEach(function (radio) {
+			radio.addEventListener('change', function () {
+				if (radio.checked) setCreationMode(radio.value);
+			});
+		});
+
+		// Research-modus: "Volgende →" gaat van startpunt naar de keyword-keuze.
+		const researchContinue = $('#db-ai-research-continue');
+		if (researchContinue) {
+			researchContinue.addEventListener('click', function () {
+				wizardUnlockStep(STEP_KEYWORD);
+				wizardGoTo(STEP_KEYWORD);
+			});
+		}
+
+		// Custom-modus: "Volgende → Genereer" bevestigt het onderwerp.
+		const customContinue = $('#db-ai-custom-continue');
+		if (customContinue) customContinue.addEventListener('click', confirmCustomTopic);
+
+		// Enter in het onderwerp-veld bevestigt (i.p.v. formulier-submit).
+		const customKeywordEl = $('#db-ai-custom-keyword');
+		if (customKeywordEl) {
+			customKeywordEl.addEventListener('keydown', function (e) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					confirmCustomTopic();
+				}
+			});
+		}
 
 		// Er is altijd maar één opgeslagen zoekwoordenonderzoek — laad het automatisch
 		// bij openen van de generator (ontgrendelt + springt naar de keyword-stap).
