@@ -1,0 +1,874 @@
+<meta charset="utf-8">
+<title>Van Zoekwoord naar Blog</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+:root{
+  --paper:#FBFAF7; --card:#FFFFFF; --sunk:#F4F2EC;
+  --ink:#1B1B1D; --ink-2:#4A4B4E; --ink-3:#7A7B7E;
+  --rule:#E4E2DB; --rule-2:#CFCDC5;
+  --gold:#A27900; --gold-2:#B78800; --gold-wash:#FBF6E7; --gold-edge:#E6D194;
+  --blue:#004A88; --blue-2:#005DAA; --blue-wash:#F1F6FB; --blue-edge:#BBD5EA;
+  --warn:#A9500E; --warn-wash:#FDF2E8; --warn-edge:#EFC69C;
+  --ok:#2E7D32; --ok-wash:#EDF6ED; --ok-edge:#B4D6B6;
+  --display:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --body:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#151517; --card:#1D1D21; --sunk:#202024;
+    --ink:#EDEBE6; --ink-2:#B7B5AF; --ink-3:#8B8985;
+    --rule:#2E2E33; --rule-2:#3E3E44;
+    --gold:#DFB444; --gold-2:#E8C260; --gold-wash:#26200F; --gold-edge:#4A3D18;
+    --blue:#7FB6E4; --blue-2:#9CC8EE; --blue-wash:#13212C; --blue-edge:#294055;
+    --warn:#EE9552; --warn-wash:#2B1C11; --warn-edge:#4D3320;
+    --ok:#6BC96F; --ok-wash:#152615; --ok-edge:#2B4A2D;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151517; --card:#1D1D21; --sunk:#202024;
+  --ink:#EDEBE6; --ink-2:#B7B5AF; --ink-3:#8B8985;
+  --rule:#2E2E33; --rule-2:#3E3E44;
+  --gold:#DFB444; --gold-2:#E8C260; --gold-wash:#26200F; --gold-edge:#4A3D18;
+  --blue:#7FB6E4; --blue-2:#9CC8EE; --blue-wash:#13212C; --blue-edge:#294055;
+  --warn:#EE9552; --warn-wash:#2B1C11; --warn-edge:#4D3320;
+  --ok:#6BC96F; --ok-wash:#152615; --ok-edge:#2B4A2D;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.doc{max-width:47rem;margin:0 auto;padding:4rem 1.75rem 6rem}
+p{margin:0 0 1em;max-width:66ch}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;color:var(--ink)}
+a{color:var(--blue);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px;border-radius:2px}
+
+/* ── Cover ───────────────────────────────────────── */
+.cover{border-bottom:3px solid var(--ink);padding-bottom:2.25rem;margin-bottom:2.75rem}
+.eyebrow{
+  font-family:var(--display);font-size:.72rem;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gold);margin:0 0 1.25rem
+}
+.cover h1{
+  font-size:clamp(2.6rem,7vw,3.9rem);font-weight:700;line-height:1.02;
+  letter-spacing:-.028em;margin:0 0 .75rem
+}
+.cover .sub{font-size:1.2rem;color:var(--ink-2);margin:0 0 1.75rem;max-width:34ch}
+.badges{display:flex;flex-wrap:wrap;gap:.5rem;font-family:var(--mono);font-size:.75rem}
+.badge{
+  border:1px solid var(--rule-2);border-radius:999px;padding:.28rem .7rem;
+  color:var(--ink-2);background:var(--card)
+}
+.badge--live{border-color:var(--gold-edge);background:var(--gold-wash);color:var(--gold)}
+
+/* ── Lede ────────────────────────────────────────── */
+.lede{font-size:1.12rem;color:var(--ink-2);max-width:62ch}
+.lede strong{color:var(--ink);font-weight:600}
+
+.rule-note{
+  margin:2rem 0 0;padding:1.1rem 1.25rem;background:var(--gold-wash);
+  border:1px solid var(--gold-edge);border-radius:3px
+}
+.rule-note p{margin:0;max-width:none}
+.rule-note strong{font-family:var(--display);font-weight:700;color:var(--gold)}
+
+/* ── Legend ──────────────────────────────────────── */
+.legend{
+  margin:2.5rem 0 0;padding:.85rem 1.1rem;background:var(--sunk);
+  border-left:3px solid var(--blue);font-size:.9rem;color:var(--ink-2)
+}
+.legend p{margin:0;max-width:none}
+
+/* ── TOC ─────────────────────────────────────────── */
+.toc{margin:3.25rem 0 0;break-inside:avoid;border-top:1px solid var(--rule);padding-top:1.5rem}
+.toc h2{
+  font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 1.1rem
+}
+.toc-part{
+  font-family:var(--display);font-size:.7rem;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gold);margin:1.5rem 0 .4rem
+}
+.toc-part:first-of-type{margin-top:0}
+.toc-list{list-style:none;margin:0;padding:0;display:grid;gap:.1rem}
+.toc-list li{display:flex;gap:.9rem;align-items:baseline;padding:.38rem 0;border-bottom:1px solid var(--rule)}
+.toc-list li:last-child{border-bottom:none}
+.toc .n{
+  font-family:var(--mono);font-size:.78rem;color:var(--gold);
+  min-width:1.6rem;font-variant-numeric:tabular-nums
+}
+.toc .n--ref{color:var(--blue)}
+.toc a{color:var(--ink);text-decoration:none;font-weight:600;font-family:var(--display);font-size:.98rem}
+.toc a:hover{color:var(--gold)}
+
+/* ── Chapters ────────────────────────────────────── */
+.part{
+  font-family:var(--display);font-size:.72rem;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);
+  margin:4.5rem 0 0;padding-bottom:.5rem;border-bottom:1px solid var(--rule-2)
+}
+.ch{margin-top:3.25rem}
+.ch > h2{
+  font-size:1.85rem;font-weight:700;letter-spacing:-.02em;line-height:1.16;
+  margin:0 0 1.25rem;display:flex;gap:.9rem;align-items:baseline
+}
+.ch > h2 .num{
+  font-family:var(--mono);font-size:1rem;font-weight:500;color:var(--gold);
+  flex:none;padding-top:.15rem
+}
+.ch > h2 .num--ref{color:var(--blue)}
+h3{
+  font-size:1.06rem;font-weight:600;letter-spacing:-.008em;
+  margin:2.25rem 0 .7rem;color:var(--ink)
+}
+h4{font-size:.94rem;font-weight:600;margin:1.5rem 0 .45rem;color:var(--ink-2)}
+
+/* ── UI tokens ───────────────────────────────────── */
+.ui{
+  font-family:var(--mono);font-size:.855em;color:var(--blue);
+  background:var(--blue-wash);border:1px solid var(--blue-edge);
+  border-radius:3px;padding:.06em .38em;white-space:nowrap
+}
+code{
+  font-family:var(--mono);font-size:.85em;color:var(--ink-2);
+  background:var(--sunk);border-radius:3px;padding:.06em .35em
+}
+
+/* ── Steps ───────────────────────────────────────── */
+ol.steps{counter-reset:s;list-style:none;margin:1.25rem 0;padding:0;display:grid;gap:1rem}
+ol.steps > li{counter-increment:s;position:relative;padding-left:2.6rem}
+ol.steps > li::before{
+  content:counter(s);position:absolute;left:0;top:.05rem;
+  width:1.75rem;height:1.75rem;border-radius:50%;
+  background:var(--ink);color:var(--paper);
+  font-family:var(--mono);font-size:.8rem;font-weight:500;
+  display:flex;align-items:center;justify-content:center
+}
+ol.steps > li > strong{
+  display:block;font-family:var(--display);font-weight:600;
+  font-size:1rem;margin-bottom:.15rem
+}
+ol.steps p{margin:.3rem 0 0}
+
+ul.plain{margin:.75rem 0 1.25rem;padding-left:1.15rem}
+ul.plain li{margin-bottom:.42rem;max-width:64ch}
+ul.plain li::marker{color:var(--gold)}
+
+/* ── Callouts ────────────────────────────────────── */
+.note{
+  margin:1.5rem 0;padding:1rem 1.15rem;border-radius:3px;
+  border:1px solid var(--rule-2);background:var(--card);font-size:.95rem
+}
+.note p{margin:0 0 .6em;max-width:none}
+.note p:last-child{margin-bottom:0}
+.note .lab{
+  display:block;font-family:var(--display);font-size:.68rem;font-weight:700;
+  letter-spacing:.13em;text-transform:uppercase;margin-bottom:.45rem
+}
+.note--tip{background:var(--gold-wash);border-color:var(--gold-edge)}
+.note--tip .lab{color:var(--gold)}
+.note--warn{background:var(--warn-wash);border-color:var(--warn-edge)}
+.note--warn .lab{color:var(--warn)}
+.note--why{background:var(--blue-wash);border-color:var(--blue-edge)}
+.note--why .lab{color:var(--blue)}
+
+/* ── Tables ──────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;margin:1.4rem 0;border:1px solid var(--rule-2);border-radius:3px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--card)}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:var(--display);font-size:.7rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);background:var(--sunk);
+  border-bottom:1px solid var(--rule-2);white-space:nowrap
+}
+tbody tr:last-child td{border-bottom:none}
+td .ui,td code{white-space:normal}
+.num-col{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Checklist ───────────────────────────────────── */
+ul.check{list-style:none;margin:1.25rem 0;padding:0;display:grid;gap:.6rem}
+ul.check li{display:flex;gap:.75rem;align-items:flex-start;font-size:.96rem}
+ul.check li::before{
+  content:"";flex:none;width:1.05rem;height:1.05rem;margin-top:.32rem;
+  border:1.5px solid var(--rule-2);border-radius:2px;background:var(--card)
+}
+ul.check strong{font-weight:600}
+
+/* ── Glossary ────────────────────────────────────── */
+dl.gloss{margin:1.25rem 0;display:grid;gap:1rem}
+dl.gloss dt{
+  font-family:var(--display);font-weight:600;font-size:.98rem;color:var(--ink)
+}
+dl.gloss dd{margin:.15rem 0 0;color:var(--ink-2);font-size:.95rem;max-width:64ch}
+
+/* ── Footer ──────────────────────────────────────── */
+.foot{
+  margin-top:5rem;padding-top:1.5rem;border-top:1px solid var(--rule-2);
+  font-size:.85rem;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:.5rem 1.5rem
+}
+.foot span{font-family:var(--mono)}
+
+/* ── Print ───────────────────────────────────────── */
+@page{size:A4;margin:19mm 17mm 16mm}
+@media print{
+  :root{
+    --paper:#FFFFFF; --card:#FFFFFF; --sunk:#F5F3ED;
+    --ink:#141416; --ink-2:#3F4043; --ink-3:#6E6F72;
+  }
+  body{font-size:10.4pt;line-height:1.52;background:#fff}
+  .doc{max-width:none;padding:0}
+  .cover{padding-bottom:1.5rem;margin-bottom:1.75rem}
+  .cover h1{font-size:30pt}
+  .cover .sub{font-size:12pt}
+  .part{break-before:page;margin-top:0;padding-top:0}
+  .ch{break-before:page;margin-top:0}
+  .part + .ch{break-before:avoid;margin-top:1.5rem}
+  .ch > h2{font-size:16pt}
+  h3{font-size:11.4pt;break-after:avoid}
+  h4{break-after:avoid}
+  p,li{orphans:3;widows:3}
+  .note,.tbl-wrap,ol.steps > li,ul.check li,dl.gloss > div{break-inside:avoid}
+  thead{display:table-header-group}
+  tr{break-inside:avoid}
+  a{color:var(--ink);text-decoration:none}
+  .toc a{color:var(--ink)}
+  .foot{break-inside:avoid}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="doc">
+
+<header class="cover">
+  <p class="eyebrow">Digitale Bazen &middot; Handleiding</p>
+  <h1>Van zoekwoord<br>naar blog</h1>
+  <p class="sub">Werken met de Generator in WordPress</p>
+  <div class="badges">
+    <span class="badge badge--live">Pilot</span>
+    <span class="badge">AI Module v3.3.0</span>
+    <span class="badge">Augustus 2026</span>
+  </div>
+</header>
+
+<p class="lede">De Generator schrijft complete blogartikelen voor je website: tekst, tussenkoppen, afbeeldingen, SEO-velden en veelgestelde vragen. <strong>Jij bepaalt waarover, jij keurt goed, jij publiceert.</strong> Deze handleiding loopt de hele route met je door, van het instellen tot het publiceren van je eerste artikel.</p>
+
+<div class="rule-note">
+  <p><strong>De gouden regel.</strong> De Generator publiceert nooit zelf. Alles wat hij maakt komt als <em>concept</em> in je Blogs te staan. Er verschijnt niets op je website zonder dat jij op Publiceren klikt.</p>
+</div>
+
+<div class="legend">
+  <p>Alles wat er <span class="ui">zo uitziet</span> is een knop, veld, tab of menu-item dat je letterlijk zo in WordPress terugvindt.</p>
+</div>
+
+<nav class="toc">
+  <h2>Inhoud</h2>
+
+  <p class="toc-part">Deel één &middot; Voordat je begint</p>
+  <ol class="toc-list">
+    <li><span class="n">01</span><a href="#h1">Wat de Generator doet</a></li>
+    <li><span class="n">02</span><a href="#h2">Eenmalig instellen</a></li>
+  </ol>
+
+  <p class="toc-part">Deel twee &middot; De werkwijze</p>
+  <ol class="toc-list">
+    <li><span class="n">03</span><a href="#h3">Zoekwoordenonderzoek uploaden</a></li>
+    <li><span class="n">04</span><a href="#h4">Het Plan maken</a></li>
+    <li><span class="n">05</span><a href="#h5">Een blog genereren</a></li>
+    <li><span class="n">06</span><a href="#h6">De draft nakijken</a></li>
+    <li><span class="n">07</span><a href="#h7">Publiceren</a></li>
+    <li><span class="n">08</span><a href="#h8">Werkritme in de pilot</a></li>
+  </ol>
+
+  <p class="toc-part">Deel drie &middot; Naslag</p>
+  <ol class="toc-list">
+    <li><span class="n n--ref">A</span><a href="#ra">Limieten en kosten</a></li>
+    <li><span class="n n--ref">B</span><a href="#rb">Problemen oplossen</a></li>
+    <li><span class="n n--ref">C</span><a href="#rc">Woordenlijst</a></li>
+    <li><span class="n n--ref">D</span><a href="#rd">Wie doet wat</a></li>
+  </ol>
+</nav>
+
+<p class="part">Deel één &middot; Voordat je begint</p>
+
+<section class="ch" id="h1">
+  <h2><span class="num">01</span>Wat de Generator doet</h2>
+
+  <p>In de linkerbalk van WordPress staat een menu-item <span class="ui">Generator</span>. Daaronder vind je drie schermen, en samen vormen ze je werkplek:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Scherm</th><th>Waarvoor</th><th>Hoe vaak</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ui">Creatie</span></td><td>Eén blog laten schrijven</td><td>Elke keer</td></tr>
+      <tr><td><span class="ui">Plan</span></td><td>Bepalen wélke blogs je maakt, en in welke volgorde</td><td>Eens per onderzoek</td></tr>
+      <tr><td><span class="ui">Instellingen</span></td><td>Wie je bent, hoe je schrijft, wat de Generator mag</td><td>Eenmalig, daarna bijschaven</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Wat je terugkrijgt per artikel</h3>
+  <ul class="plain">
+    <li>Een artikel van <strong>2.500 tot 3.200 woorden</strong>, verdeeld over ongeveer 9 tot 13 blokken, opgebouwd met de blokken die je site al gebruikt.</li>
+    <li>Een <strong>titel</strong> met je zoekwoord, een krachtwoord en een getal erin, omdat de SEO-checker daar op let.</li>
+    <li>De <strong>SEO-velden</strong> van RankMath: focus-zoekwoord, SEO-titel en meta-omschrijving.</li>
+    <li><strong>Afbeeldingen</strong>: een coverfoto en beelden in de tekst, met alt-teksten.</li>
+    <li>Een <strong>vragen-blok</strong>, dat automatisch als FAQ-opmaak aan Google wordt doorgegeven.</li>
+    <li><strong>Interne links</strong> naar bestaande pagina's van je site, en <strong>voorstellen</strong> voor externe bronnen.</li>
+  </ul>
+
+  <div class="note note--why">
+    <span class="lab">Waarom dit werkt</span>
+    <p>De Generator verzint de opbouw niet uit het niets. Hij leest de blokken die jouw thema echt heeft en vult precies de velden die daarbij horen. Daardoor ziet een gegenereerd artikel eruit als een artikel dat een redacteur met de hand heeft opgebouwd, en niet als een lap tekst.</p>
+  </div>
+
+  <h3>Wat hij bewust níét doet</h3>
+  <ul class="plain">
+    <li><strong>Publiceren.</strong> Nooit. Alles blijft concept tot jij anders beslist.</li>
+    <li><strong>Klantcitaten of reviews verzinnen.</strong> Blokken met quotes en testimonials worden altijd overgeslagen, zodat er geen nep sociaal bewijs ontstaat.</li>
+    <li><strong>Cijfers verzinnen.</strong> Hij mag geen statistieken of percentages opvoeren die hij niet kent.</li>
+    <li><strong>Links naar niet-bestaande pagina's zetten.</strong> Verzonnen interne links worden na het schrijven automatisch opgeruimd.</li>
+  </ul>
+</section>
+
+<section class="ch" id="h2">
+  <h2><span class="num">02</span>Eenmalig instellen</h2>
+
+  <p>Dit hoofdstuk is de belangrijkste van de hele handleiding. Het verschil tussen een artikel dat klinkt als &ldquo;een willekeurig bedrijf&rdquo; en een artikel dat klinkt als jóuw bedrijf, zit vrijwel volledig in deze instellingen. Je vult ze één keer in en schaaft ze daarna bij op basis van wat je terugkrijgt.</p>
+
+  <p>Je vindt ze onder <span class="ui">Generator</span> &rsaquo; <span class="ui">Instellingen</span>, verdeeld over tabbladen aan de linkerkant. Vergeet niet onderaan op <span class="ui">Opslaan</span> te klikken; zolang er wijzigingen openstaan zie je bovenin het label <span class="ui">Niet opgeslagen</span>.</p>
+
+  <div class="note note--tip">
+    <span class="lab">Begin hier</span>
+    <p>Heb je weinig tijd? Vul dan in deze volgorde in. De opbrengst neemt per stap af:</p>
+    <p><strong>1.</strong> Site-context, met een expliciet lijstje &ldquo;wat niet doen&rdquo; &nbsp;&middot;&nbsp; <strong>2.</strong> Referentie-posts &nbsp;&middot;&nbsp; <strong>3.</strong> Bedrijf en Doelgroep &nbsp;&middot;&nbsp; <strong>4.</strong> Stijlregels</p>
+  </div>
+
+  <h3>Bedrijf</h3>
+  <p>Bedrijfsnaam, branche, wat je levert, je USP's en je concurrenten. Die laatste worden <em>nooit</em> in een artikel genoemd; ze helpen de Generator alleen om jouw sterke punten scherper neer te zetten.</p>
+  <p>Wees concreet bij <span class="ui">Diensten / producten</span>. Dit voorkomt dat er dingen beloofd worden die je niet doet.</p>
+
+  <h3>Doelgroep</h3>
+  <p>Voor wie schrijf je, welke bezwaren moet je wegnemen, waar lopen ze tegenaan, en waar letten ze op als ze kiezen. Onderaan kies je het <span class="ui">Taalniveau</span>: gemiddeld, eenvoudig of expert.</p>
+
+  <div class="note note--why">
+    <span class="lab">Waarom dit werkt</span>
+    <p>Bezwaren en frustraties zijn de sterkste velden van dit tabblad. Een artikel dat onderweg terloops een twijfel wegneemt (&ldquo;dat kan ik zelf ook wel&rdquo;) leest als geschreven door iemand die de markt kent. Zonder die input blijft het bij algemeenheden.</p>
+  </div>
+
+  <h3>Tone of voice</h3>
+  <p>Vier velden, elk met een eigen rol:</p>
+  <ul class="plain">
+    <li><span class="ui">Merkstem</span> &mdash; hoe je klinkt. Bijvoorbeeld: warm en uitnodigend, aanspreken met &ldquo;je&rdquo;, korte zinnen.</li>
+    <li><span class="ui">Site-context</span> &mdash; wie je bent, voor wie je werkt, en vooral een kopje <strong>WAT NIET DOEN</strong> met concrete verboden. Dit is het krachtigste veld van alle instellingen.</li>
+    <li><span class="ui">Stijl- / formatregels</span> &mdash; harde regels. Bijvoorbeeld: maximaal 25 woorden per zin, geen &ldquo;fantastisch&rdquo; of &ldquo;uniek&rdquo;, alinea's van hoogstens vier zinnen.</li>
+    <li><span class="ui">Referentie-posts</span> &mdash; kies maximaal vijf bestaande pagina's die klinken zoals je wilt. De Generator leest daar een stuk tekst uit en matcht toon, ritme en zinslengte.</li>
+  </ul>
+
+  <div class="note note--tip">
+    <span class="lab">Tip</span>
+    <p>Concrete verboden werken veel beter dan algemene wensen. &ldquo;Noem geen levertijden en geen prijzen&rdquo; levert meer op dan &ldquo;wees voorzichtig met beloftes&rdquo;.</p>
+  </div>
+
+  <h3>Anti-generiek</h3>
+  <p>Drie vinkjes die de tekst scherper maken: expliciet een standpunt innemen, met praktijkvoorbeelden werken, en ook nadelen of beperkingen benoemen. Dat laatste voelt tegennatuurlijk, maar het is precies wat een tekst betrouwbaar maakt.</p>
+
+  <h3>Interne links</h3>
+  <p>Aan of uit, hoeveel links per blog (2 tot 5, drie is het advies) en uit welke soorten pagina's geput mag worden. De Generator zoekt zelf de meest relevante pagina's erbij.</p>
+
+  <h3>Externe bronnen</h3>
+  <p>Of de Generator externe bronnen mag voorstellen, en hoeveel (2 tot 5, vier is het advies). Hij plaatst ze niet zelf: je krijgt ze als suggestie te zien bij het nakijken en kiest er zelf uit. Zie hoofdstuk 6.</p>
+
+  <h3>Afbeeldingen</h3>
+  <p>Drie mogelijkheden:</p>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Keuze</th><th>Wat je krijgt</th><th class="num-col">Kosten per blog</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ui">Stockfoto's</span></td><td>Echte foto's van Pexels, met Unsplash als reserve</td><td class="num-col">Gratis</td></tr>
+      <tr><td><span class="ui">AI: alleen coverfoto</span></td><td>Gegenereerde coverfoto, stockfoto's in de tekst</td><td class="num-col">± $0,04</td></tr>
+      <tr><td><span class="ui">AI: alle afbeeldingen</span></td><td>Alles gegenereerd, in één consistente stijl</td><td class="num-col">± $0,15 – $0,35</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Kies je voor AI, vul dan ook <span class="ui">Beeldstijl</span> in. Die beschrijving wordt vóór elke beeldopdracht geplakt, zodat alle afbeeldingen op elkaar lijken. Bijvoorbeeld: <em>professionele B2B-bedrijfsfotografie, warm natuurlijk licht, ingetogen kleuren, echte mensen op de werkvloer.</em></p>
+
+  <div class="note note--why">
+    <span class="lab">Geen zorgen bij storing</span>
+    <p>Mislukt het genereren van een afbeelding, dan pakt de Generator automatisch een stockfoto. Een blog komt dus nooit zonder beeld te staan.</p>
+  </div>
+
+  <h3>Layouts en Layout-calibratie</h3>
+  <p>Onder <span class="ui">Layouts</span> vink je aan welke blokken gebruikt mogen worden. Standaard staat alles aan, behalve quote- en testimonial-achtige blokken; die zijn permanent uitgesloten.</p>
+  <p>Onder <span class="ui">Layout-calibratie</span> zit een knop <span class="ui">Calibreren</span>. Daarmee bekijkt de Generator je thema en schrijft per blok op hoe het eruitziet en wanneer je het inzet. Je leest het na, past aan waar nodig en slaat op. Doe dit één keer bij aanvang, en opnieuw als je thema verbouwd wordt.</p>
+
+  <div class="note note--warn">
+    <span class="lab">Let op</span>
+    <p>Het tabblad Instellingen is alleen zichtbaar voor beheerders. Werk je als redacteur, dan zie je <span class="ui">Creatie</span> en <span class="ui">Plan</span> wel, maar Instellingen niet. Laat een beheerder dit hoofdstuk doorlopen voordat je begint.</p>
+  </div>
+</section>
+
+<p class="part">Deel twee &middot; De werkwijze</p>
+
+<section class="ch" id="h3">
+  <h2><span class="num">03</span>Zoekwoordenonderzoek uploaden</h2>
+
+  <p>Het zoekwoordenonderzoek is je grondstof: de lijst met zoektermen waar je op gevonden wilt worden, meestal met maandvolume erbij. Je uploadt hem één keer; daarna kiest de Generator er telkens uit.</p>
+
+  <h3>Waar je uploadt</h3>
+  <p>Bij voorkeur onder <span class="ui">Generator</span> &rsaquo; <span class="ui">Instellingen</span> &rsaquo; <span class="ui">Zoekwoorden</span>. Daar wordt het onderzoek bewaard, zodat je het terugvindt in zowel <span class="ui">Creatie</span> als <span class="ui">Plan</span>.</p>
+  <p>Op het scherm <span class="ui">Creatie</span> kun je ook eenmalig een bestand inlezen zonder het te bewaren. Handig om iets snel te proberen, maar zo'n eenmalige upload verschijnt niet in het Plan.</p>
+
+  <h3>Bestandsformaat</h3>
+  <p>Toegestaan zijn <code>.xlsx</code>, <code>.xls</code>, <code>.csv</code> en <code>.ods</code>. Je browser leest het bestand en zet het om; er hoeft niets geïnstalleerd te worden. Maximaal 1 MB.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Kolom</th><th>Nodig?</th><th>Waarvoor</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ui">Zoekwoord</span></td><td><strong>Verplicht</strong></td><td>De zoekterm zelf</td></tr>
+      <tr><td><span class="ui">Maandelijks volume</span></td><td>Optioneel</td><td>Bepaalt prioriteit en welke term de pillar wordt</td></tr>
+      <tr><td><span class="ui">Pagina</span></td><td>Optioneel</td><td>Groepering in de keuzelijst</td></tr>
+      <tr><td><span class="ui">Onderwerp</span></td><td>Optioneel</td><td>Bepaalt de secundaire zoekwoorden per blog</td></tr>
+      <tr><td><span class="ui">Concurrentie</span></td><td>Optioneel</td><td>Context voor het Plan</td></tr>
+      <tr><td><span class="ui">CPC laag</span> / <span class="ui">CPC hoog</span></td><td>Optioneel</td><td>Context voor het Plan</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note note--tip">
+    <span class="lab">Tip</span>
+    <p>Vul <span class="ui">Onderwerp</span> zo goed mogelijk in. Alle zoekwoorden met hetzelfde onderwerp worden automatisch de <em>secundaire zoekwoorden</em> van elkaar, en die verwerkt de Generator natuurlijk in de tekst. Zonder onderwerp krijg je per artikel één los zoekwoord.</p>
+    <p>Geen onderzoek bij de hand? Gebruik <span class="ui">Download lege template (.csv)</span> op het Creatie-scherm voor een bestand met de juiste kolomkoppen.</p>
+  </div>
+
+  <h3>De kolom-mapping</h3>
+  <ol class="steps">
+    <li><strong>Kies je bestand</strong><p>De koppen worden automatisch herkend, ook als er lege regels of samenvattingsregels boven staan &mdash; zoals bij een export uit Google Ads.</p></li>
+    <li><strong>Controleer de koppeling</strong><p>Je ziet een tabel met links het veld dat de Generator verwacht en rechts de kolom uit jouw bestand. Corrigeer wat niet klopt. Alleen <span class="ui">Zoekwoord</span> is verplicht.</p></li>
+    <li><strong>Bekijk de voorbeeldregels</strong><p>Klap <span class="ui">Preview eerste 5 rijen</span> open. Hier zie je meteen of er iets misgaat, nog vóór je uploadt.</p></li>
+    <li><strong>Klik op <span class="ui">Mapping toepassen en doorgaan</span></strong><p>Totaalregels worden overgeslagen en notaties als <code>[zoekterm]</code> of <code>+zoekterm</code> worden opgeschoond.</p></li>
+  </ol>
+
+  <div class="note note--warn">
+    <span class="lab">Let op</span>
+    <p>Er is altijd maar <strong>één onderzoek tegelijk</strong>. Upload je een nieuw bestand, dan vervangt het de zoekwoorden van het bestaande onderzoek.</p>
+    <p>Goed nieuws: je Plan, de statussen en de koppelingen met al gemaakte artikelen blijven daarbij gewoon staan. Een nieuwe upload is dus een verversing, geen schone lei. Zoekwoorden die je al hebt gemaakt houden hun status <span class="ui">Gegenereerd</span> of <span class="ui">Gepubliceerd</span>, ook als je later opnieuw laat analyseren.</p>
+  </div>
+</section>
+
+<section class="ch" id="h4">
+  <h2><span class="num">04</span>Het Plan maken</h2>
+
+  <p>Zonder plan schrijf je per los zoekwoord een blog. Dat gaat drie keer mis: je maakt artikelen voor zoektermen die eigenlijk een dienstenpagina horen te zijn, je maakt twee bijna identieke artikelen die met elkaar concurreren, en er ontstaat geen samenhang tussen artikelen over hetzelfde thema.</p>
+  <p>Het scherm <span class="ui">Plan</span> lost dat op. Eén klik zet je zoekwoordenlijst om in een contentplan.</p>
+
+  <h3>De analyse starten</h3>
+  <p>Klik op <span class="ui">Analyseer onderzoek</span>. Bij een grote lijst duurt dat een paar minuten; je ziet de voortgang lopen. Als het klaar is ververst de pagina zichzelf.</p>
+
+  <div class="note note--why">
+    <span class="lab">Goed om te weten</span>
+    <p>Een analyse telt <strong>niet</strong> mee voor je dagelijkse limiet van tien generaties. Analyseren is geen schrijven, dus je kunt gerust opnieuw analyseren als je onderzoek is bijgewerkt.</p>
+  </div>
+
+  <h3>Wat je terugkrijgt</h3>
+  <p>Elk zoekwoord krijgt eerst een <strong>zoekintentie</strong>:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Intentie</th><th>Wat de zoeker wil</th><th>Wat je ermee doet</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Informatief</strong></td><td>Leren, vergelijken, oriënteren</td><td>Hier maak je een blog van</td></tr>
+      <tr><td><strong>Commercieel</strong></td><td>Nu een leverancier of offerte</td><td>Hoort op een vaste dienstenpagina</td></tr>
+      <tr><td><strong>Lokaal</strong></td><td>Een aanbieder in de buurt</td><td>Hoort op een lokale landingspagina</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>De informatieve zoekwoorden worden gegroepeerd in <strong>clusters</strong> rond hetzelfde thema. Binnen elk cluster krijgt elk zoekwoord een rol:</p>
+
+  <ul class="plain">
+    <li><strong>Pillar</strong> &mdash; het brede hoofdartikel van dat cluster. Eén per cluster. Alle bijna-identieke varianten van dezelfde vraag worden hierin gebundeld, zodat je geen twee artikelen maakt die met elkaar concurreren.</li>
+    <li><strong>Supporting</strong> &mdash; een artikel over één specifieke deelvraag die een echt ander antwoord verdient. Linkt terug naar de pillar.</li>
+  </ul>
+
+  <div class="note note--warn">
+    <span class="lab">Pillar eerst</span>
+    <p>Binnen een cluster maak je altijd eerst de pillar. Zolang die er niet is, staan de <span class="ui">Genereer</span>-knoppen van de supporting-artikelen uitgeschakeld. Dat is met opzet: zonder pillar is er geen artikel om naartoe te linken.</p>
+  </div>
+
+  <h3>De funnel-hoek</h3>
+  <p>Onder elk zoekwoord staat een ingeklapt kopje <span class="ui">Hoek</span>. Daar staat de invalshoek die de Generator voor dat artikel voorstelt, en waar hij de lezer naartoe leidt.</p>
+  <p>Het verschil is groot. Neem het zoekwoord <em>snelheid website testen</em>:</p>
+  <ul class="plain">
+    <li>Vlakke hoek: &ldquo;5 manieren om je websitesnelheid te testen.&rdquo; Levert bezoek op, beantwoordt de vraag, lezer vertrekt.</li>
+    <li>Inkaderende hoek: &ldquo;Test je snelheid: deze signalen zeggen dat je site toe is aan vernieuwing.&rdquo; Dezelfde vraag, eerlijk beantwoord, maar de trage site wordt een symptoom en jouw dienst de oplossing.</li>
+  </ul>
+  <p>Je kunt de hoek gewoon overschrijven. Klap <span class="ui">Hoek</span> open, pas de tekst aan, klik ergens anders en het is opgeslagen. Doe dit vóórdat je genereert.</p>
+
+  <div class="note note--tip">
+    <span class="lab">Dit is je grootste stuurknop</span>
+    <p>Als je één ding aanpast in het Plan, maak het dan de hoek. Het zoekwoord bepaalt waarop je gevonden wordt; de hoek bepaalt of de lezer daarna verder klikt.</p>
+  </div>
+
+  <h3>Aanbevolen om nu te maken</h3>
+  <p>Bovenaan het Plan staat een lijstje met de beste volgende artikelen, met per regel de reden erbij. De redenering: maak eerst een cluster áf waar je al aan begonnen bent, en start daarna het cluster met de meeste zoekvolume-waarde. Elke regel heeft een directe <span class="ui">Genereer</span>-knop.</p>
+  <p>Twijfel je waar je moet beginnen? Pak gewoon de bovenste.</p>
+
+  <h3>De overige onderdelen van het scherm</h3>
+  <ul class="plain">
+    <li><strong>Gebundelde zoektermen</strong> &mdash; onder een pillar staat welke synoniemen al door dat artikel gedekt worden. Wil je er tóch een los artikel over? Klik <span class="ui">+ verwant artikel</span>; het wordt dan een supporting-artikel dat naar de pillar linkt en overlap vermijdt.</li>
+    <li><strong>+ blog-invalshoek</strong> &mdash; bij een commerciële of lokale term. Het zoekwoord zelf blijft een vaste pagina, maar er is een informatieve invalshoek over hetzelfde onderwerp die wél een goede blog oplevert en naar de dienst leidt.</li>
+    <li><strong>Statussen</strong> &mdash; <span class="ui">Open</span>, <span class="ui">Gegenereerd</span> of <span class="ui">Gepubliceerd</span>. Deze lopen automatisch mee.</li>
+    <li><strong>Exporteer plan</strong> / <strong>Importeer plan</strong> &mdash; een plan meenemen naar een andere site. De indeling reist mee, de statussen beginnen opnieuw.</li>
+  </ul>
+</section>
+
+<section class="ch" id="h5">
+  <h2><span class="num">05</span>Een blog genereren</h2>
+
+  <p>Ga naar <span class="ui">Generator</span> &rsaquo; <span class="ui">Creatie</span>, of klik een <span class="ui">Genereer</span>-knop in het Plan. Kom je vanuit het Plan, dan staat het zoekwoord al klaar en spring je meteen door naar stap 3, mét de plan-context erbij: het cluster, de rol, de link naar de pillar en de instructie om overlap met bestaande artikelen te vermijden.</p>
+
+  <h3>Stap 1 &mdash; Kies je startpunt</h3>
+  <p>Twee mogelijkheden:</p>
+  <ul class="plain">
+    <li><span class="ui">Uit zoekwoordenonderzoek</span> &mdash; de normale route. Je opgeslagen onderzoek wordt geladen; klik <span class="ui">Volgende →</span>.</li>
+    <li><span class="ui">Eigen onderwerp</span> &mdash; je typt zelf een onderwerp in, met eventueel een toelichting. Geen onderzoek nodig. Handig voor een actualiteit, een klantvraag of een seizoensartikel.</li>
+  </ul>
+
+  <h3>Stap 2 &mdash; Kies het hoofdzoekwoord</h3>
+  <p>Kies uit de lijst, gegroepeerd per pagina. Daaronder verschijnen de secundaire zoekwoorden die meegenomen worden: alle andere termen met hetzelfde onderwerp.</p>
+
+  <h3>Stap 3 &mdash; Genereren</h3>
+  <p>Je kunt direct op <span class="ui">Genereer blogpost</span> klikken. Wil je bijsturen, klap dan eerst <span class="ui">Geavanceerd (optioneel)</span> open:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Veld</th><th>Wanneer gebruik je het</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ui">Funnel-fase</span></td><td>Om te bepalen hoe verkoopgericht het artikel mag zijn. <em>Top</em> = uitleggen zonder te verkopen, <em>Middle</em> = opties afwegen, <em>Bottom</em> = vertrouwen en een duidelijke actie.</td></tr>
+      <tr><td><span class="ui">Awareness-niveau</span></td><td>Hoeveel de lezer al weet. Kent hij het probleem nog niet, dan begin je met een herkenbare situatie in plaats van met de oplossing.</td></tr>
+      <tr><td><span class="ui">Belangrijke punten</span></td><td>Wat er per se in moet. Bijvoorbeeld: alleen WordPress, vaste prijs per maand, 24/7 support.</td></tr>
+      <tr><td><span class="ui">Onderwerpen die vermeden moeten worden</span></td><td>Wat er absoluut niet in mag. Bijvoorbeeld: geen prijsindicaties, geen levertijden.</td></tr>
+      <tr><td><span class="ui">Wat moet deze blog beter doen?</span></td><td>Jouw voorsprong op de huidige top 3 in Google. Bijvoorbeeld: minder jargon, met een concrete checklist, sneller ter zake.</td></tr>
+      <tr><td><span class="ui">Verplicht linken naar</span></td><td>Pagina's die zeker gelinkt moeten worden. Ze krijgen voorrang boven de automatische selectie.</td></tr>
+      <tr><td><span class="ui">Extra instructies</span></td><td>Alles wat je voor déze ene blog kwijt wilt en niet in de algemene instellingen thuishoort.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note note--why">
+    <span class="lab">Deze velden onthouden zich niet</span>
+    <p>Wat je hier invult geldt alleen voor deze ene generatie. Merk je dat je steeds hetzelfde intypt? Verhuis het dan naar <span class="ui">Instellingen</span>, dan geldt het voortaan overal.</p>
+  </div>
+
+  <h3>Tijdens het wachten</h3>
+  <p>Er verschijnt een voortgangsbalk met de echte stand van zaken: <em>Zoekwoord-context verzamelen</em> &rarr; <em>Generator schrijft je blog</em> &rarr; <em>Output valideren</em> &rarr; <em>Afbeeldingen ophalen</em> &rarr; <em>Coverfoto kiezen</em> &rarr; <em>Blocks invullen</em> &rarr; <em>Afronden</em>.</p>
+  <p>Reken op één tot drie minuten. Het schrijven gebeurt op de achtergrond, dus een trage verbinding of een dichtgeklapte laptop breekt het proces niet af.</p>
+
+  <div class="note note--tip">
+    <span class="lab">Je kunt gerust wegklikken</span>
+    <p>Sluit je het tabblad, dan loopt de generatie gewoon door. Je vindt het concept daarna terug onder <span class="ui">Blogs</span>. Je verliest alleen de voortgangsbalk uit het oog.</p>
+  </div>
+
+  <h3>Als het klaar is</h3>
+  <p>Je krijgt een kaartje met het post-nummer, het aantal gebruikte tokens en twee knoppen: <span class="ui">Open draft in nieuwe tab</span> en <span class="ui">Preview</span>. Daarnaast zie je hoeveel generaties je vandaag nog over hebt.</p>
+</section>
+
+<section class="ch" id="h6">
+  <h2><span class="num">06</span>De draft nakijken</h2>
+
+  <p>Een gegenereerd artikel is een goed eerste concept, geen eindproduct. Reken op tien tot twintig minuten nakijken. Loop deze lijst af.</p>
+
+  <h3>Lezen</h3>
+  <ul class="check">
+    <li><strong>Klopt het inhoudelijk?</strong> Let vooral op cijfers, jaartallen en vakinhoudelijke uitspraken. De Generator mag niets verzinnen, maar controleren blijft mensenwerk.</li>
+    <li><strong>Klinkt het als jullie?</strong> Zo niet, dan is dat feedback voor je instellingen, niet iets om per artikel recht te breien.</li>
+    <li><strong>Staan er beloftes in die je niet waarmaakt?</strong> Levertijden, garanties, prijzen. Voeg ze anders toe aan het lijstje &ldquo;wat niet doen&rdquo; in de Site-context.</li>
+    <li><strong>Is de titel goed?</strong> Hij bevat bewust een krachtwoord en een getal. Vind je hem geforceerd, pas hem dan gewoon aan.</li>
+  </ul>
+
+  <h3>SEO controleren</h3>
+  <p>Rechts in het scherm zit het RankMath-paneel met de score. De Generator vult die velden al in, maar loop ze na:</p>
+  <ul class="check">
+    <li><strong>Focus-zoekwoord</strong> staat gevuld en klopt.</li>
+    <li><strong>SEO-titel</strong> is niet langer dan ongeveer 60 tekens.</li>
+    <li><strong>Meta-omschrijving</strong> is niet langer dan ongeveer 155 tekens en eindigt met een uitnodiging.</li>
+    <li><strong>Zoekwoorddichtheid</strong> is groen. Zit hij te laag, voeg het zoekwoord dan letterlijk een paar keer extra toe in de lopende tekst.</li>
+  </ul>
+
+  <div class="note note--why">
+    <span class="lab">Waarom de dichtheid soms tegenvalt</span>
+    <p>RankMath telt uitsluitend het <em>exacte</em> zoekwoord. Synoniemen en verbuigingen tellen niet mee voor die meter, hoe goed ze ook lezen. Vandaar dat de Generator het zoekwoord vaker letterlijk laat terugkomen dan je misschien zou verwachten.</p>
+  </div>
+
+  <h3>Afbeeldingen</h3>
+  <ul class="check">
+    <li><strong>Passen de beelden bij het onderwerp?</strong> Vervang ze anders via de mediabibliotheek.</li>
+    <li><strong>Heeft de coverfoto het zoekwoord in de alt-tekst?</strong> Dat vult de Generator in, maar controleer het bij twijfel.</li>
+    <li><strong>Staat er geen tekst in een gegenereerde afbeelding?</strong> Dat wordt tegengegaan, maar kan af en toe misgaan. Genereer dan opnieuw of kies een stockfoto.</li>
+  </ul>
+
+  <h3>Externe bronnen</h3>
+  <p>In de rechterkolom staat het blok <span class="ui">AI — Externe bronnen</span> met drie tot vijf voorstellen. Bij elke link is gecontroleerd of hij bereikbaar is:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Teken</th><th>Betekenis</th><th>Doen</th></tr></thead>
+    <tbody>
+      <tr><td class="num-col">✓</td><td>Bereikbaar</td><td>Veilig te gebruiken</td></tr>
+      <tr><td class="num-col">↪</td><td>Doorgestuurd</td><td>Even openen en kijken waar hij uitkomt</td></tr>
+      <tr><td class="num-col">?</td><td>Controle geblokkeerd</td><td>Zelf openen; veel grote sites weigeren zo'n controle</td></tr>
+      <tr><td class="num-col">⏱</td><td>Duurde te lang</td><td>Zelf openen</td></tr>
+      <tr><td class="num-col">✗</td><td>Onbereikbaar</td><td>Niet gebruiken, klik <span class="ui">Verwerpen</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Vink aan wat je wilt en klik <span class="ui">Geselecteerde invoegen</span>. De link wordt in de lopende tekst geplaatst.</p>
+
+  <h3>Als er waarschuwingen zijn</h3>
+  <p>Zag de Generator onderweg iets dat niet lukte, dan meldt hij dat bij het resultaat. Meestal is het klein werk: een blok waar één punt te weinig in staat, of een afbeelding die niet gevonden werd. Beginnen ze met <em>&ldquo;Aanvullen in editor&rdquo;</em>, dan is het concept gewoon bruikbaar en vul je het in de editor even aan.</p>
+</section>
+
+<section class="ch" id="h7">
+  <h2><span class="num">07</span>Publiceren</h2>
+
+  <ol class="steps">
+    <li><strong>Zet het concept op de goede plek</strong><p>Controleer categorie, eventuele tags en de datum.</p></li>
+    <li><strong>Klik op <span class="ui">Publiceren</span></strong><p>Dit is het enige moment waarop iets live gaat, en het is altijd een mens die erop klikt.</p></li>
+    <li><strong>Controleer de pagina op de site</strong><p>Bekijk hem één keer als bezoeker: kloppen de blokken, staan de afbeeldingen goed, werken de links.</p></li>
+  </ol>
+
+  <p>Zodra je publiceert springt de status in het Plan automatisch van <span class="ui">Gegenereerd</span> naar <span class="ui">Gepubliceerd</span>. Was het een pillar, dan komen op datzelfde moment de supporting-artikelen van dat cluster vrij.</p>
+
+  <div class="note note--tip">
+    <span class="lab">Het vragen-blok</span>
+    <p>Staat er een blok met veelgestelde vragen in het artikel, dan wordt de FAQ-opmaak voor Google automatisch meegestuurd. Je hoeft daar niets voor te doen. Google toont die vragen soms direct in de zoekresultaten.</p>
+  </div>
+</section>
+
+<section class="ch" id="h8">
+  <h2><span class="num">08</span>Werkritme in de pilot</h2>
+
+  <p>De verleiding is groot om in week één twintig artikelen te maken. Doe dat niet. De kwaliteit van artikel twintig hangt af van wat je leert van artikel één tot en met vijf.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Wanneer</th><th>Wat je doet</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Week 1</strong></td><td>Instellingen invullen. Onderzoek uploaden. Plan analyseren. <strong>Eén</strong> pillar genereren en die grondig nakijken.</td></tr>
+      <tr><td><strong>Week 1, daarna</strong></td><td>Verwerk wat je bij het nakijken tegenkwam in de instellingen. Genereer diezelfde pillar nog eens en vergelijk.</td></tr>
+      <tr><td><strong>Week 2</strong></td><td>Twee tot drie artikelen: de pillar en de eerste supporting-artikelen van hetzelfde cluster. Zo bouw je aan één thema.</td></tr>
+      <tr><td><strong>Week 3 en verder</strong></td><td>Twee tot vier per week, telkens het cluster afmaken voordat je een nieuw cluster begint. Volg de aanbevelingen op het Plan.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note note--why">
+    <span class="lab">Waarom cluster voor cluster</span>
+    <p>Google beloont sites die één onderwerp compleet behandelen. Vijf artikelen over hetzelfde thema, onderling gelinkt, doen meer dan vijf artikelen over vijf losse onderwerpen. Daarom stelt het Plan altijd voor om eerst af te maken waar je aan begonnen bent.</p>
+  </div>
+
+  <h3>Bijsturen op basis van wat je terugkrijgt</h3>
+  <ul class="plain">
+    <li>Te generiek? &rarr; Vul de Site-context aan en kies betere referentie-posts.</li>
+    <li>Verkeerde toon? &rarr; Merkstem en Stijlregels.</li>
+    <li>Steeds dezelfde titelopbouw? &rarr; De Generator kijkt naar je eerdere titels en varieert vanzelf zodra er meer artikelen staan.</li>
+    <li>Verkeerde blokken? &rarr; Zet ze uit onder <span class="ui">Layouts</span>, of draai de <span class="ui">Calibreren</span>-knop opnieuw.</li>
+    <li>Te weinig verkoopgerichtheid? &rarr; Scherp de hoek aan in het Plan.</li>
+  </ul>
+</section>
+
+<p class="part">Deel drie &middot; Naslag</p>
+
+<section class="ch" id="ra">
+  <h2><span class="num num--ref">A</span>Limieten en kosten</h2>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Onderwerp</th><th>Waarde</th><th>Toelichting</th></tr></thead>
+    <tbody>
+      <tr><td>Blogs per dag</td><td class="num-col">10 per gebruiker</td><td>Lopende generaties tellen mee. De teller loopt per kalenderdag.</td></tr>
+      <tr><td>Plan-analyses</td><td class="num-col">Onbeperkt</td><td>Tellen niet mee voor de daglimiet.</td></tr>
+      <tr><td>Duur per blog</td><td class="num-col">1 – 3 minuten</td><td>Langer bij zeer uitgebreide artikelen.</td></tr>
+      <tr><td>Lengte per blog</td><td class="num-col">2.500 – 3.200 woorden</td><td>Smalle onderwerpen mogen korter, ongeveer 1.500 – 2.000.</td></tr>
+      <tr><td>Bestandsgrootte onderzoek</td><td class="num-col">Max. 1 MB</td><td>Ruim voldoende voor enkele duizenden zoekwoorden.</td></tr>
+      <tr><td>Zoekwoorden per analyse</td><td class="num-col">Max. 400</td><td>Grote lijsten worden in delen verwerkt.</td></tr>
+      <tr><td>Referentie-posts</td><td class="num-col">Max. 5</td><td>Meer voegt weinig toe.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Kosten</h3>
+  <p>De tekst wordt geschreven door Anthropic Claude; die kosten lopen via de afspraken met Digitale Bazen. Bij afbeeldingen kun je zelf sturen:</p>
+  <ul class="plain">
+    <li><strong>Stockfoto's</strong> &mdash; gratis.</li>
+    <li><strong>AI: alleen coverfoto</strong> &mdash; ongeveer $0,04 per blog.</li>
+    <li><strong>AI: alle afbeeldingen</strong> &mdash; ongeveer $0,15 tot $0,35 per blog, afhankelijk van het aantal beelden.</li>
+  </ul>
+  <p>Voor een pilot is <em>AI: alleen coverfoto</em> vaak de mooiste balans: een eigen, herkenbare coverfoto tegen verwaarloosbare kosten, en gratis stockfoto's in de tekst.</p>
+</section>
+
+<section class="ch" id="rb">
+  <h2><span class="num num--ref">B</span>Problemen oplossen</h2>
+
+  <p>Vrijwel alle meldingen zijn onschuldig en zelf op te lossen. Hieronder de meldingen die je in de praktijk tegenkomt.</p>
+
+  <h3>Bij het genereren</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Melding</th><th>Wat er aan de hand is</th><th>Wat je doet</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><em>Je hebt je dagelijkse generatie-limiet bereikt</em></td>
+        <td>Tien blogs vandaag, inclusief nog lopende.</td>
+        <td>Wacht tot morgen, of vraag Digitale Bazen de limiet te verhogen.</td>
+      </tr>
+      <tr>
+        <td><em>AI gaf geen geldig JSON-object terug</em></td>
+        <td>Het antwoord kwam beschadigd binnen. Komt zelden voor.</td>
+        <td>Klik gewoon opnieuw op <span class="ui">Genereer blogpost</span>. Dit lost zichzelf vrijwel altijd op.</td>
+      </tr>
+      <tr>
+        <td><em>Het AI-antwoord werd afgekapt</em></td>
+        <td>Het artikel werd zó lang dat het niet meer paste.</td>
+        <td>Probeer opnieuw. Blijft het gebeuren, geef dan een smaller onderwerp op of meld het bij ons.</td>
+      </tr>
+      <tr>
+        <td><em>Duurt onverwacht lang</em></td>
+        <td>De voortgangsbalk gaf het op, maar het schrijven loopt op de achtergrond mogelijk door.</td>
+        <td>Kijk eerst onder <span class="ui">Blogs</span> of het concept er alsnog staat. Zo niet, probeer opnieuw.</td>
+      </tr>
+      <tr>
+        <td><em>Job vastgelopen</em></td>
+        <td>De generatie is halverwege gestopt.</td>
+        <td>Opnieuw proberen. Gebeurt het vaker op een dag, meld het dan.</td>
+      </tr>
+      <tr>
+        <td><em>AI-output is onbruikbaar</em></td>
+        <td>Er kwam te weinig bruikbaars terug om een concept van te maken.</td>
+        <td>Opnieuw proberen. Blijft het misgaan bij hetzelfde zoekwoord, kies dan een andere hoek in het Plan.</td>
+      </tr>
+      <tr>
+        <td><em>Nonce ongeldig. Herlaad de pagina.</em></td>
+        <td>Het scherm stond te lang open.</td>
+        <td>Ververs de pagina en probeer opnieuw.</td>
+      </tr>
+      <tr>
+        <td><em>Anthropic API-sleutel ontbreekt</em></td>
+        <td>De sleutel staat niet ingevuld.</td>
+        <td>Dit is voor Digitale Bazen; geef het bij ons door.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Bij het uploaden</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Melding</th><th>Wat je doet</th></tr></thead>
+    <tbody>
+      <tr><td><em>Bestand is te groot (max 1 MB)</em></td><td>Verwijder overbodige kolommen of splits de lijst.</td></tr>
+      <tr><td><em>Alleen .csv bestanden zijn toegestaan</em></td><td>Je browser had het bestand nog niet omgezet. Ververs de pagina en probeer opnieuw; wacht bij een groot bestand even tot <em>Bestand lezen…</em> weg is.</td></tr>
+      <tr><td><em>Geen zoekwoorden gevonden in het bestand</em></td><td>De kolom <span class="ui">Zoekwoord</span> is niet gekoppeld, of hij is leeg. Controleer de mapping.</td></tr>
+      <tr><td><em>Selecteer een bron-kolom voor &ldquo;Zoekwoord&rdquo;</em></td><td>Kies in de mapping-tabel welke kolom je zoektermen bevat.</td></tr>
+      <tr><td><em>Opgeslagen rijen zijn corrupt</em></td><td>Upload het onderzoek opnieuw.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Bij het Plan</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Situatie</th><th>Wat je doet</th></tr></thead>
+    <tbody>
+      <tr><td>De <span class="ui">Genereer</span>-knop is grijs</td><td>Dat is de pillar-eerst-regel. Maak eerst de pillar van dat cluster; de rest komt daarna vanzelf vrij.</td></tr>
+      <tr><td><em>Geen zoekwoordenonderzoek om te analyseren</em></td><td>Upload er eerst één onder <span class="ui">Instellingen</span> &rsaquo; <span class="ui">Zoekwoorden</span>.</td></tr>
+      <tr><td><em>De planner gaf geen geldige zoekwoorden-lijst terug</em></td><td>Klik nog eens op <span class="ui">Analyseer onderzoek</span>.</td></tr>
+      <tr><td>Een zoekwoord staat in het verkeerde cluster</td><td>Pas de <span class="ui">Hoek</span> aan, of gebruik bij het genereren het veld <span class="ui">Extra instructies</span> om bij te sturen.</td></tr>
+      <tr><td>Ik mis een zoekwoord in het plan</td><td>Kijk onder de pillar bij de gebundelde zoektermen. Wil je er tóch een eigen artikel over, klik dan <span class="ui">+ verwant artikel</span>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Bij afbeeldingen</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Situatie</th><th>Wat je doet</th></tr></thead>
+    <tbody>
+      <tr><td><em>Geen afbeelding gevonden via Pexels of Unsplash</em></td><td>Het onderwerp was te specifiek. Kies zelf een beeld uit de mediabibliotheek, of zet de afbeeldingsbron tijdelijk op AI.</td></tr>
+      <tr><td>Er staat tekst in een gegenereerde afbeelding</td><td>Genereer het artikel opnieuw, of vervang alleen dat beeld met de hand.</td></tr>
+      <tr><td>Er is geen uitgelichte afbeelding</td><td>De Generator meldt dit als waarschuwing. Stel er zelf één in bovenin het bewerkscherm.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note note--warn">
+    <span class="lab">Wanneer meld je het bij ons</span>
+    <p>Bij een melding over API-sleutels, over ACF-veldgroepen, of als dezelfde fout drie keer achter elkaar terugkomt. Stuur dan de exacte tekst van de melding mee en het zoekwoord waarmee je bezig was.</p>
+  </div>
+</section>
+
+<section class="ch" id="rc">
+  <h2><span class="num num--ref">C</span>Woordenlijst</h2>
+
+  <dl class="gloss">
+    <div><dt>Cluster</dt><dd>Een groep zoekwoorden die om hetzelfde thema draaien en samen één samenhangend geheel artikelen vormen.</dd></div>
+    <div><dt>Pillar</dt><dd>Het brede hoofdartikel van een cluster. Behandelt het onderwerp compleet en op overzichtsniveau. Eén per cluster.</dd></div>
+    <div><dt>Supporting</dt><dd>Een artikel over één specifieke deelvraag uit een cluster, dat terugverwijst naar de pillar.</dd></div>
+    <div><dt>Zoekintentie</dt><dd>Wat iemand eigenlijk wil bereiken met een zoekopdracht: leren, kopen, of iemand in de buurt vinden.</dd></div>
+    <div><dt>Funnel-hoek</dt><dd>De invalshoek waarmee je een informatief onderwerp beschrijft, zodat je de vraag eerlijk beantwoordt én de lezer een logische vervolgstap biedt.</dd></div>
+    <div><dt>Top / middle / bottom of funnel</dt><dd>Hoe ver iemand is in zijn beslissing. Bovenin ontdekt hij het probleem, in het midden vergelijkt hij oplossingen, onderin kiest hij een aanbieder.</dd></div>
+    <div><dt>Awareness-niveau</dt><dd>Hoeveel de lezer al weet: niets van het probleem, wel het probleem maar geen oplossing, de oplossingen maar nog geen keuze, of jouw aanbod maar nog met twijfels.</dd></div>
+    <div><dt>Focus-zoekwoord</dt><dd>De ene zoekterm waarop dit artikel gevonden moet worden. RankMath beoordeelt het artikel hierop.</dd></div>
+    <div><dt>Zoekwoorddichtheid</dt><dd>Hoe vaak het exacte focus-zoekwoord letterlijk in de tekst staat, als percentage van het totaal aantal woorden.</dd></div>
+    <div><dt>Krachtwoord</dt><dd>Een woord als <em>bewezen</em>, <em>praktische</em> of <em>effectieve</em> in de titel. RankMath herkent een vaste lijst van deze woorden en rekent ze mee in de score.</dd></div>
+    <div><dt>Secundaire zoekwoorden</dt><dd>Verwante zoektermen die natuurlijk in de tekst verwerkt worden. Ze komen automatisch uit de zoekwoorden met hetzelfde onderwerp.</dd></div>
+    <div><dt>Blok</dt><dd>Een bouwsteen van een pagina, zoals een tekst met afbeelding, een rij voordelen of een vragen-blok. Je site heeft een eigen set blokken en de Generator gebruikt precies die.</dd></div>
+    <div><dt>Concept</dt><dd>Een artikel dat wel bestaat maar nog niet op de website staat. Alles wat de Generator maakt begint als concept.</dd></div>
+    <div><dt>Alt-tekst</dt><dd>De beschrijving bij een afbeelding, voor mensen die de afbeelding niet zien en voor Google.</dd></div>
+    <div><dt>FAQ-opmaak</dt><dd>Onzichtbare code bij een vragen-blok waarmee Google die vragen direct in de zoekresultaten kan tonen.</dd></div>
+    <div><dt>Token</dt><dd>De rekeneenheid van de tekstgenerator. Het aantal per artikel is puur informatief.</dd></div>
+  </dl>
+</section>
+
+<section class="ch" id="rd">
+  <h2><span class="num num--ref">D</span>Wie doet wat</h2>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Onderwerp</th><th>Jij</th><th>Digitale Bazen</th></tr></thead>
+    <tbody>
+      <tr><td>Installatie en updates</td><td>&mdash;</td><td>✓</td></tr>
+      <tr><td>API-sleutels</td><td>&mdash;</td><td>✓</td></tr>
+      <tr><td>Koppeling met je thema en blokken</td><td>&mdash;</td><td>✓</td></tr>
+      <tr><td>Layout-calibratie na een verbouwing</td><td>&mdash;</td><td>✓</td></tr>
+      <tr><td>Bedrijf, doelgroep en tone of voice invullen</td><td>✓</td><td>Denkt mee</td></tr>
+      <tr><td>Zoekwoordenonderzoek aanleveren</td><td>✓</td><td>Kan het leveren</td></tr>
+      <tr><td>Plan analyseren en hoeken bijsturen</td><td>✓</td><td>Denkt mee</td></tr>
+      <tr><td>Artikelen genereren</td><td>✓</td><td>&mdash;</td></tr>
+      <tr><td>Nakijken en publiceren</td><td>✓</td><td>&mdash;</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Vragen tijdens de pilot</h3>
+  <p>Loop je vast of twijfel je over de kwaliteit van wat je terugkrijgt? Neem contact op met je contactpersoon bij Digitale Bazen. Stuur bij een probleem altijd mee: het zoekwoord waarmee je bezig was, de exacte melding die je zag, en of het één keer of vaker gebeurde.</p>
+
+  <div class="note note--tip">
+    <span class="lab">Waar we in de pilot op letten</span>
+    <p>Herkenbaarheid van de toon, de bruikbaarheid van het Plan, en hoeveel tijd het nakijken je kost. Houd dat laatste losjes bij; het is het beste ijkpunt voor of dit werkt.</p>
+  </div>
+</section>
+
+<footer class="foot">
+  <span>Digitale Bazen AI Module v3.3.0</span>
+  <span>Handleiding &middot; augustus 2026</span>
+  <span>Pilot-versie</span>
+</footer>
+
+</div>

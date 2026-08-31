@@ -11,57 +11,139 @@ Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
 
 == Description ==
 
-Onder **Blogs → AI Blog Genereren** krijgen redacteuren
-een 1-klik flow:
+De plugin heeft een eigen top-level menu **Generator** in de admin-zijbalk, met
+drie submenu's: **Creatie**, **Plan** en **Instellingen**.
 
-1. Upload xlsx/xls/csv/ods met zoekwoordenonderzoek (verplichte kolom-mapping
-   naar `Zoekwoord` via een wizard met auto-suggesties).
-2. Kies een hoofdzoekwoord.
-3. De plugin roept Anthropic Claude aan, valideert
-   de output tegen het bestaande ACF flexible-content schema (`paginacontent`),
-   downloadt featured + block-afbeeldingen via Pexels (fallback Unsplash),
-   schrijft RankMath SEO velden en injecteert FAQPage JSON-LD voor élke post
-   met een `veelgestelde_vragen` block (site-breed).
-4. De draft verschijnt onder Blogs ter review en handmatige publicatie.
+**Generator → Creatie** — de generatie-wizard in drie stappen:
 
-Configuratie via **Instellingen → AI Module**: API keys, provider
-keuze, tone of voice, business-context, stijlregels, referentie-posts,
-en welke ACF-layouts de AI mag gebruiken.
+1. **Kies je startpunt.** Óf een zoekwoord uit je opgeslagen zoekwoordenonderzoek
+   (upload xlsx/xls/csv/ods, met een kolom-mapping-wizard en auto-detectie van de
+   header-rij), óf een **eigen onderwerp** met een vrije beschrijving — dan is er
+   geen onderzoek nodig.
+2. **Kies het hoofdzoekwoord.** Secundaire keywords worden automatisch afgeleid
+   uit hetzelfde onderwerp in het onderzoek.
+3. **Genereer.** Optioneel stuur je bij onder "Geavanceerd": funnel-fase,
+   awareness-niveau, wat wel/niet benoemd moet worden, wat de blog beter moet
+   doen dan de concurrentie, verplichte interne links en extra instructies.
 
-Daglimiet per gebruiker: 10 generaties (filterbaar).
+De generatie draait **asynchroon via een job-queue** (Action Scheduler indien
+aanwezig, anders WP-Cron), zodat host-timeouts geen rol spelen. De browser toont
+de echte server-voortgang in een progress-bar. Wat de generator doet:
+
+* Roept Anthropic Claude aan en valideert de output tegen het ACF
+  flexible-content schema van de gekozen field group (dynamisch ingelezen).
+* Haalt featured + block-afbeeldingen op: stockfoto's via Pexels (fallback
+  Unsplash, automatisch naar WebP geconverteerd) óf AI-gegenereerd via Google
+  Gemini, in te stellen per rol (alleen coverfoto of alle afbeeldingen). Mislukt
+  de AI-generatie, dan valt de plugin automatisch terug op stock.
+* Schrijft de RankMath SEO-velden (focus keyword, meta title, meta description).
+* Injecteert FAQPage JSON-LD voor élke post met een `veelgestelde_vragen` block
+  (site-breed, niet alleen AI-gegenereerde posts).
+* Voegt interne links toe uit een gescoorde pool van bestaande pagina's, en stelt
+  externe bronnen voor die je per stuk vanuit een metabox kunt invoegen.
+* Slaat `_db_ai_*` audit-meta op en logt elke generatie.
+
+De draft verschijnt onder Blogs ter review. **Publiceren blijft altijd
+handmatig** — de plugin publiceert nooit zelf.
+
+**Generator → Plan** — de strategische laag. Eén klik op "Analyseer onderzoek"
+zet het zoekwoordenonderzoek om in een contentplan: per zoekwoord de zoekintentie
+(informatief / commercieel / lokaal), clusters met één pillar die synoniemen
+bundelt en supporting-artikelen voor echte deelvragen, plus per informatief
+zoekwoord een funnel-hoek (invalshoek, doel-dienst en de eerlijke brug ertussen).
+Het scherm toont aanbevelingen ("Aanbevolen om nu te maken") met onderbouwing,
+dwingt pillar-eerst af, en genereert met plan-context (cluster, rol, link naar de
+pillar, vermijd-overlap). Plannen zijn te exporteren en importeren als JSON.
+
+**Generator → Instellingen** — API-keys, bedrijfsinformatie, doelgroep, tone of
+voice, anti-generieke content, interne links, externe bronnen, afbeeldingen,
+zoekwoordenonderzoeken, toegestane ACF-layouts, layout-calibratie en de ACF
+field group / flex-veld keuze.
+
+Daglimiet per gebruiker: 10 generaties (filterbaar). Lopende jobs tellen mee.
 
 == Requires ==
 
 * WordPress 6.0+
 * PHP 7.4+
-* ACF Pro (met minstens één field group die een flexible content veld bevat — kiesbaar in Instellingen → AI Module)
-* RankMath SEO (free of Pro)
-* API keys via Settings-page of `wp-config.php` constants:
-    * `DB_AI_ANTHROPIC_API_KEY` (verplicht)
-    * `DB_AI_PEXELS_API_KEY` (verplicht)
-    * `DB_AI_UNSPLASH_API_KEY` (optioneel — fallback)
+* ACF Pro — met minstens één field group die een flexible content veld bevat.
+  Welke group en welk flex-veld de generator gebruikt kies je in
+  **Generator → Instellingen → ACF integratie**. Zonder bruikbare field group
+  weigert de plugin te activeren.
+* RankMath SEO (free of Pro) — voor de SEO-velden en de content-bridge die de
+  ACF-flex zichtbaar maakt voor RankMath's analyzer. De plugin draait ook zonder,
+  maar dan doet de SEO-integratie niets.
+* API keys via **Generator → Instellingen → API-keys** of `wp-config.php`
+  constants (de constant wint altijd van de opgeslagen waarde):
+    * `DB_AI_ANTHROPIC_API_KEY` (verplicht — de tekstgeneratie)
+    * `DB_AI_PEXELS_API_KEY` (verplicht bij de standaard afbeeldingsbron
+      "Stockfoto's", en als fallback bij de AI-modi)
+    * `DB_AI_UNSPLASH_API_KEY` (optioneel — fallback op Pexels)
+    * `DB_AI_GEMINI_API_KEY` (alleen nodig bij AI-gegenereerde afbeeldingen)
 
 Optionele constants:
 
+* `DB_AI_ACF_FIELD_GROUP_KEY` — default field group als er geen keuze gemaakt is
 * `DB_AI_GITHUB_REPO_URL` — voor auto-update vanuit een eigen GitHub repo
-* `DB_AI_GITHUB_TOKEN` — Personal Access Token voor private GitHub repo
+* `DB_AI_GITHUB_TOKEN` — Personal Access Token voor een private GitHub repo
 
 == Filters ==
 
-* `db_ai_post_type`, `db_ai_admin_menu_parents`
-* `db_ai_anthropic_model`, `db_ai_anthropic_max_tokens`
+Menu & post type:
+
+* `db_ai_post_type` — post type voor gegenereerde drafts (default `blog`)
+* `db_ai_admin_menu_parent` — slug van het top-level menu (default `db-ai`)
+* `db_ai_admin_menu_icon`, `db_ai_admin_menu_position`, `db_ai_admin_menu_capability`
+
+> De oude filter `db_ai_admin_menu_parents` (meervoud, array) is sinds v3.0.0
+> deprecated en wordt niet meer aangeroepen.
+
+AI-provider & prompts:
+
+* `db_ai_anthropic_model`, `db_ai_anthropic_max_tokens`, `db_ai_anthropic_http_timeout`
 * `db_ai_system_prompt`, `db_ai_user_prompt`
-* `db_ai_image_orientation`, `db_ai_rate_limit_per_day`, `db_ai_allowed_layouts`
-* `db_ai_reference_post_types`
-* `db_ai_field_group_key`, `db_ai_flex_field_name`, `db_ai_always_empty_fields`
+* `db_ai_past_blogs_limit` — hoeveel eerdere blog-titels als anti-herhaling-context mee gaan
+
+ACF & layouts:
+
+* `db_ai_field_group_key`, `db_ai_flex_field_name`
+* `db_ai_allowed_layouts` — welke layouts de generator mag gebruiken
+* `db_ai_blocked_layout_pattern` — regex van layouts die altijd uitgesloten zijn
+  (default quote-/testimonial-achtig, tegen verzonnen sociaal bewijs)
+* `db_ai_always_empty_fields` — velden die per layout altijd leeg blijven
+* `db_ai_layout_guidance` — de layout-calibratie-tekst in de prompt
+
+Afbeeldingen:
+
+* `db_ai_image_source` — `stock` | `ai_featured` | `ai_all`
+* `db_ai_image_orientation` — oriëntatie bij stock-zoekopdrachten
+* `db_ai_image_convert_webp`, `db_ai_image_webp_quality`
+* `db_ai_gemini_image_model`, `db_ai_gemini_image_prompt`, `db_ai_gemini_aspect_ratio`
+
+Overig:
+
+* `db_ai_rate_limit_per_day` — daglimiet per gebruiker
+* `db_ai_reference_post_types` — post types in de referentie-posts selector
+* `db_ai_external_links_post_types` — post types met de externe-bronnen metabox
 * `db_ai_github_repo_url`, `db_ai_update_branch`
+
+Debug (default uit — aanzetten in een mu-plugin):
+
+* `db_ai_debug_raw_response` — log de rauwe AI-content bij een JSON-parse-fout
+* `db_ai_debug_write_blocks` — log de blocks die naar ACF geschreven worden
+* `db_ai_debug_external_links_insert` — log het invoegen van externe links
 
 == Actions ==
 
-* `db_ai_before_generate( $main_keyword, $secondary, $user_id )`
+* `db_ai_before_generate( $main_keyword, $secondary_keywords, $user_id )`
 * `db_ai_after_ai_response( $ai_output, $main_keyword )`
 * `db_ai_after_post_created( $post_id, $ai_output, $user_id )`
 * `db_ai_generation_failed( $wp_error, $main_keyword, $user_id )`
+
+Diagnostisch (no-op, handig bij het debuggen van de Plan-laag):
+
+* `db_ai_planner_debug_prompts( $system_prompt, $user_prompt )`
+* `db_ai_planner_debug_result( $result )`
 
 == Changelog ==
 

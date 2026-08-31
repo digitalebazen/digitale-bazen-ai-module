@@ -1,0 +1,221 @@
+<meta charset="utf-8">
+<title>Je Eerste Blog</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+:root{
+  --paper:#FBFAF7; --card:#FFFFFF; --sunk:#F4F2EC;
+  --ink:#1B1B1D; --ink-2:#4A4B4E; --ink-3:#7A7B7E;
+  --rule:#E4E2DB; --rule-2:#CFCDC5;
+  --gold:#A27900; --gold-wash:#FBF6E7; --gold-edge:#E6D194;
+  --blue:#004A88; --blue-wash:#F1F6FB; --blue-edge:#BBD5EA;
+  --warn:#A9500E; --warn-wash:#FDF2E8; --warn-edge:#EFC69C;
+  --display:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --body:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#151517; --card:#1D1D21; --sunk:#202024;
+    --ink:#EDEBE6; --ink-2:#B7B5AF; --ink-3:#8B8985;
+    --rule:#2E2E33; --rule-2:#3E3E44;
+    --gold:#DFB444; --gold-wash:#26200F; --gold-edge:#4A3D18;
+    --blue:#7FB6E4; --blue-wash:#13212C; --blue-edge:#294055;
+    --warn:#EE9552; --warn-wash:#2B1C11; --warn-edge:#4D3320;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151517; --card:#1D1D21; --sunk:#202024;
+  --ink:#EDEBE6; --ink-2:#B7B5AF; --ink-3:#8B8985;
+  --rule:#2E2E33; --rule-2:#3E3E44;
+  --gold:#DFB444; --gold-wash:#26200F; --gold-edge:#4A3D18;
+  --blue:#7FB6E4; --blue-wash:#13212C; --blue-edge:#294055;
+  --warn:#EE9552; --warn-wash:#2B1C11; --warn-edge:#4D3320;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased
+}
+.card-doc{max-width:52rem;margin:0 auto;padding:3rem 1.5rem 4rem}
+p{margin:0 0 .7em}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+
+/* Header */
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1.5rem;
+  border-bottom:3px solid var(--ink);padding-bottom:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.top .eyebrow{font-family:var(--display);font-size:.66rem;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gold);margin:0 0 .4rem}
+.top h1{font-size:2.5rem;font-weight:700;letter-spacing:-.028em;line-height:1}
+.top .meta{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);text-align:right;line-height:1.7}
+
+.golden{background:var(--gold-wash);border:1px solid var(--gold-edge);border-radius:3px;
+  padding:.75rem 1rem;margin-bottom:1.75rem;font-size:.95rem}
+.golden p{margin:0}
+.golden strong{font-family:var(--display);color:var(--gold)}
+
+.ui{font-family:var(--mono);font-size:.83em;color:var(--blue);background:var(--blue-wash);
+  border:1px solid var(--blue-edge);border-radius:3px;padding:.05em .35em;white-space:nowrap}
+
+h2.sec{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 .8rem;padding-bottom:.35rem;border-bottom:1px solid var(--rule-2)}
+.block{margin-bottom:1.75rem}
+.cols > .block{break-inside:avoid}
+h2.sec{break-after:avoid}
+
+/* Vooraf */
+ul.pre{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+ul.pre li{position:relative;padding-left:1.6rem;font-size:.93rem;color:var(--ink-2)}
+ul.pre li::before{content:"";position:absolute;left:0;top:.3rem;
+  width:.95rem;height:.95rem;border:1.5px solid var(--rule-2);
+  border-radius:2px;background:var(--card)}
+
+/* Stappen */
+ol.flow{counter-reset:f;list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+ol.flow > li{counter-increment:f;display:grid;grid-template-columns:1.6rem 1fr;gap:.15rem .8rem;
+  align-items:start;background:var(--card);border:1px solid var(--rule);
+  border-radius:3px;padding:.7rem .9rem;break-inside:avoid}
+ol.flow > li::before{content:counter(f);grid-column:1;grid-row:1 / span 2;align-self:start;
+  width:1.6rem;height:1.6rem;border-radius:50%;
+  background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:.75rem;
+  display:flex;align-items:center;justify-content:center}
+ol.flow b{grid-column:2;grid-row:1;font-family:var(--display);font-size:.97rem;
+  font-weight:600;display:block;margin:0}
+ol.flow > li > span{grid-column:2;grid-row:2;font-size:.9rem;color:var(--ink-2);display:block}
+
+/* Twee kolommen */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.75rem}
+@media (max-width:700px){.cols{grid-template-columns:1fr}}
+
+ul.check{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+ul.check li{position:relative;padding-left:1.6rem;font-size:.9rem}
+ul.check li::before{content:"";position:absolute;left:0;top:.28rem;
+  width:.95rem;height:.95rem;border:1.5px solid var(--rule-2);
+  border-radius:2px;background:var(--card)}
+
+dl.fix{margin:0;display:grid;gap:.7rem}
+dl.fix dt{font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--warn)}
+dl.fix dd{margin:.1rem 0 0;font-size:.88rem;color:var(--ink-2)}
+
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:var(--display);font-size:.64rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);background:var(--sunk)}
+tbody tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--rule-2);border-radius:3px;background:var(--card)}
+
+.foot{margin-top:2rem;padding-top:.9rem;border-top:1px solid var(--rule-2);
+  font-size:.83rem;color:var(--ink-3);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.foot .mono{font-family:var(--mono);font-size:.72rem}
+
+@page{size:A4;margin:14mm 13mm}
+@media print{
+  :root{--paper:#FFF;--card:#FFF;--sunk:#F5F3ED;--ink:#141416;--ink-2:#3F4043;--ink-3:#6E6F72}
+  body{font-size:9.6pt;line-height:1.42;background:#fff}
+  .card-doc{max-width:none;padding:0}
+  .top h1{font-size:24pt}
+  .block{margin-bottom:5.5mm}
+  .cols{gap:7mm}
+  ol.flow > li{padding:1.8mm 2.4mm}
+  p,li{orphans:2;widows:2}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="card-doc">
+
+<header class="top">
+  <div>
+    <p class="eyebrow">Digitale Bazen &middot; Snelstart</p>
+    <h1>Je eerste blog</h1>
+  </div>
+  <div class="meta">AI Module v3.3.0<br>Augustus 2026</div>
+</header>
+
+<div class="golden">
+  <p><strong>Onthoud dit.</strong> De Generator publiceert nooit zelf. Alles komt als concept in je Blogs. Er gaat niets live zonder dat jij op Publiceren klikt.</p>
+</div>
+
+<div class="block">
+  <h2 class="sec">Vooraf &mdash; eenmalig, door de beheerder</h2>
+  <ul class="pre">
+    <li>Onder <span class="ui">Generator</span> &rsaquo; <span class="ui">Instellingen</span> staan Bedrijf, Doelgroep en Tone of voice ingevuld. Vooral <span class="ui">Site-context</span> met een lijstje &ldquo;wat niet doen&rdquo; maakt het verschil.</li>
+    <li>Er is een zoekwoordenonderzoek geüpload bij <span class="ui">Instellingen</span> &rsaquo; <span class="ui">Zoekwoorden</span> (.xlsx, .csv of .ods, max 1 MB, kolom <em>Zoekwoord</em> verplicht).</li>
+    <li>De knop <span class="ui">Calibreren</span> onder <span class="ui">Layout-calibratie</span> is één keer gedraaid.</li>
+  </ul>
+</div>
+
+<div class="block">
+  <h2 class="sec">De route &mdash; elke blog opnieuw</h2>
+  <ol class="flow">
+    <li><b>Open het Plan</b><span>Ga naar <span class="ui">Generator</span> &rsaquo; <span class="ui">Plan</span>. Nog geen plan? Klik <span class="ui">Analyseer onderzoek</span> en wacht een paar minuten. Dit kost je geen dagelijkse generaties.</span></li>
+    <li><b>Pak de bovenste aanbeveling</b><span>Bovenaan staat &ldquo;Aanbevolen om nu te maken&rdquo; met de reden erbij. Twijfel je? Neem gewoon nummer één.</span></li>
+    <li><b>Controleer de hoek</b><span>Klap <span class="ui">Hoek</span> open onder het zoekwoord. Dit bepaalt of de lezer na het artikel verder klikt. Pas hem aan als je iets beters weet en klik ergens anders; hij bewaart zichzelf.</span></li>
+    <li><b>Klik op Genereer</b><span>Je komt in <span class="ui">Creatie</span>, met het zoekwoord al klaar. Wil je bijsturen, klap dan <span class="ui">Geavanceerd</span> open. Anders meteen op <span class="ui">Genereer blogpost</span>.</span></li>
+    <li><b>Wacht één tot drie minuten</b><span>De voortgangsbalk toont de echte stand. Je mag het tabblad sluiten; het schrijven loopt op de achtergrond door en het concept verschijnt hoe dan ook onder <span class="ui">Blogs</span>.</span></li>
+    <li><b>Kijk na en publiceer</b><span>Reken op tien tot twintig minuten. Gebruik de checklist hiernaast. Daarna <span class="ui">Publiceren</span>; de status in het Plan loopt vanzelf mee.</span></li>
+  </ol>
+</div>
+
+<div class="cols">
+  <div class="block">
+    <h2 class="sec">Nakijken voor je publiceert</h2>
+    <ul class="check">
+      <li>Klopt het inhoudelijk? Let op cijfers en jaartallen.</li>
+      <li>Klinkt het als jullie? Zo niet, meld het &mdash; dat hoort in de instellingen thuis, niet in dit artikel.</li>
+      <li>Staan er beloftes in die je niet waarmaakt?</li>
+      <li>Titel goed leesbaar en niet geforceerd?</li>
+      <li>RankMath rechts: focus-zoekwoord, SEO-titel (± 60 tekens), meta-omschrijving (± 155 tekens).</li>
+      <li>Zoekwoorddichtheid groen? Zo niet, voeg het zoekwoord letterlijk een paar keer toe.</li>
+      <li>Passen de afbeeldingen, en heeft de coverfoto het zoekwoord in de alt-tekst?</li>
+      <li>Externe bronnen rechts: vink aan wat je wilt, klik <span class="ui">Geselecteerde invoegen</span>. Alleen ✓ en ↪ gebruiken.</li>
+    </ul>
+  </div>
+
+  <div class="block">
+    <h2 class="sec">Gaat er iets mis?</h2>
+    <dl class="fix">
+      <dt>Genereer-knop is grijs</dt>
+      <dd>Maak eerst de pillar van dat cluster. Daarna komen de rest vrij.</dd>
+
+      <dt>Geen geldig JSON-object / afgekapt</dt>
+      <dd>Klik gewoon opnieuw op Genereren. Dit lost zichzelf vrijwel altijd op.</dd>
+
+      <dt>Duurt onverwacht lang</dt>
+      <dd>Kijk eerst onder <span class="ui">Blogs</span> of het concept er alsnog staat.</dd>
+
+      <dt>Dagelijkse limiet bereikt</dt>
+      <dd>Tien blogs per dag, lopende meegeteld. Morgen weer, of vraag ons om meer.</dd>
+
+      <dt>Nonce ongeldig</dt>
+      <dd>Het scherm stond te lang open. Ververs de pagina.</dd>
+
+      <dt>Iets over API-sleutels of ACF</dt>
+      <dd>Niet zelf oplossen &mdash; geef het bij ons door met de exacte melding erbij.</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="block">
+  <h2 class="sec">Goed om te weten</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Onderwerp</th><th>Waarde</th><th>Toelichting</th></tr></thead>
+      <tbody>
+        <tr><td>Blogs per dag</td><td>10</td><td>Lopende generaties tellen mee</td></tr>
+        <tr><td>Plan-analyses</td><td>Onbeperkt</td><td>Tellen niet mee voor je limiet</td></tr>
+        <tr><td>Lengte per artikel</td><td>2.500 – 3.200 woorden</td><td>Smalle onderwerpen mogen korter</td></tr>
+        <tr><td>Nieuwe upload onderzoek</td><td>Vervangt de zoekwoorden</td><td>Je plan en statussen blijven staan</td></tr>
+        <tr><td>Tempo in de pilot</td><td>2 tot 4 per week</td><td>Maak eerst een cluster áf voor je een nieuw begint</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<footer class="foot">
+  <span>Meer uitleg staat in de volledige handleiding <em>Van zoekwoord naar blog</em>.</span>
+  <span class="mono">Vragen? Je contactpersoon bij Digitale Bazen.</span>
+</footer>
+
+</div>
