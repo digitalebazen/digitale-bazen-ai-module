@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.3.0
+Stable tag: 3.4.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -146,6 +146,17 @@ Diagnostisch (no-op, handig bij het debuggen van de Plan-laag):
 * `db_ai_planner_debug_result( $result )`
 
 == Changelog ==
+
+= 3.4.0 =
+* **Minder dezelfde stockfoto's.** De generator vroeg vijf zoekresultaten op en
+  pakte altijd nummer één, dus dezelfde zoekterm gaf steevast dezelfde foto. Hij
+  haalt nu 30 resultaten op en neemt de eerste die nog niet op je site staat. Het
+  foto-id van Pexels of Unsplash wordt bij de afbeelding bewaard, zodat ook latere
+  blogs een ander beeld krijgen. Zijn alle resultaten al eens gebruikt, dan pakt
+  hij er willekeurig een — liever een herhaling dan een blog zonder beeld.
+  Geldt ook binnen één blog: twee blokken met dezelfde zoekterm krijgen nu twee
+  verschillende foto's. Aantal kandidaten is te sturen met de filter
+  `db_ai_image_candidates`.
 
 = 3.3.0 =
 * **Nieuw — "Eigen onderwerp" bij Creatie:** stap 1 geeft nu de keuze tussen

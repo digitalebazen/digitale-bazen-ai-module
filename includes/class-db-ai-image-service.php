@@ -17,6 +17,30 @@ class DB_AI_Image_Service {
 	public const GENERATE_TIMEOUT = 60;
 
 	/**
+	 * Meta-key waarin het foto-id van de stockprovider bewaard wordt
+	 * (`pexels:12345`). Hiermee slaan we bij een volgende generatie foto's over
+	 * die al op deze site staan.
+	 */
+	public const META_STOCK_ID = '_db_ai_stock_id';
+
+	/**
+	 * Hoeveel zoekresultaten we opvragen om uit te kiezen. Tot v3.3.0 vroegen we
+	 * er 5 op en pakten altijd nummer 1 — zelfde zoekterm gaf dus altijd dezelfde
+	 * foto. Filterbaar via `db_ai_image_candidates`. Pexels staat max 80 toe,
+	 * Unsplash max 30.
+	 */
+	public const DEFAULT_CANDIDATES = 30;
+
+	/**
+	 * Al gebruikte stockfoto's, als `provider:id => true`. Wordt één keer uit de
+	 * database geladen en tijdens de generatie aangevuld, zodat twee blokken in
+	 * dezelfde blog ook niet hetzelfde beeld krijgen.
+	 *
+	 * @var array<string,true>|null
+	 */
+	private $used_stock_ids = null;
+
+	/**
 	 * Resolve één afbeelding naar een attachment ID. Afhankelijk van de instelling
 	 * `image_source` wordt het beeld AI-gegenereerd (Google Gemini) of via stockfoto's
 	 * (Pexels → Unsplash) gezocht. Mislukt de AI-generatie, dan valt hij automatisch
@@ -73,28 +97,99 @@ class DB_AI_Image_Service {
 	private function find_stock( string $query, string $alt_text, int $post_id ) {
 		$orientation = (string) apply_filters( 'db_ai_image_orientation', 'landscape' );
 
-		$photo = $this->search_pexels( $query, $orientation );
-		if ( is_wp_error( $photo ) ) {
-			$pexels_error = $photo;
-			$photo        = $this->search_unsplash( $query, $orientation );
-			if ( is_wp_error( $photo ) ) {
+		$candidates = $this->search_pexels( $query, $orientation );
+		if ( is_wp_error( $candidates ) ) {
+			$pexels_error = $candidates;
+			$candidates   = $this->search_unsplash( $query, $orientation );
+			if ( is_wp_error( $candidates ) ) {
 				return new WP_Error(
 					'db_ai_no_image_found',
 					sprintf(
 						/* translators: 1 = pexels error, 2 = unsplash error */
 						__( 'Geen afbeelding gevonden via Pexels of Unsplash. Pexels: %1$s. Unsplash: %2$s', 'digitale-bazen-ai-module' ),
 						$pexels_error->get_error_message(),
-						$photo->get_error_message()
+						$candidates->get_error_message()
 					)
 				);
 			}
+		}
+
+		$photo = $this->pick_photo( $candidates );
+		if ( null === $photo ) {
+			return new WP_Error( 'db_ai_no_image_found', __( 'Geen bruikbaar zoekresultaat.', 'digitale-bazen-ai-module' ) );
 		}
 
 		return $this->sideload_photo( $photo, $query, $alt_text, $post_id );
 	}
 
 	/**
-	 * @return array|WP_Error  ['provider', 'image_url', 'source_url', 'photographer']
+	 * Kies een foto uit de zoekresultaten.
+	 *
+	 * De resultaten staan op relevantie, dus we nemen de eerste die nog niet
+	 * eerder op deze site is gebruikt. Dat houdt het beeld passend én voorkomt
+	 * dat elke blog met dezelfde zoekterm hetzelfde plaatje krijgt. Is alles al
+	 * een keer langsgekomen, dan pakken we willekeurig iets uit de hele set —
+	 * liever een herhaling dan een blog zonder beeld.
+	 *
+	 * @param array $candidates
+	 * @return array|null
+	 */
+	private function pick_photo( array $candidates ): ?array {
+		if ( empty( $candidates ) ) {
+			return null;
+		}
+
+		$used = $this->used_stock_ids();
+
+		foreach ( $candidates as $candidate ) {
+			$id = (string) ( $candidate['stock_id'] ?? '' );
+			if ( '' !== $id && ! isset( $used[ $id ] ) ) {
+				return $candidate;
+			}
+		}
+
+		return $candidates[ random_int( 0, count( $candidates ) - 1 ) ];
+	}
+
+	/**
+	 * Alle stockfoto's die al eerder zijn geïmporteerd, als opzoeklijst.
+	 *
+	 * @return array<string,true>
+	 */
+	private function used_stock_ids(): array {
+		if ( null === $this->used_stock_ids ) {
+			global $wpdb;
+
+			$rows = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+					self::META_STOCK_ID
+				)
+			);
+
+			$this->used_stock_ids = array_fill_keys( array_map( 'strval', (array) $rows ), true );
+		}
+
+		return $this->used_stock_ids;
+	}
+
+	/** Onthoud een zojuist gebruikte foto voor de rest van deze generatie. */
+	private function mark_stock_used( string $stock_id ): void {
+		if ( '' === $stock_id ) {
+			return;
+		}
+		$this->used_stock_ids();
+		$this->used_stock_ids[ $stock_id ] = true;
+	}
+
+	/** Aantal zoekresultaten om uit te kiezen. */
+	private function candidate_count(): int {
+		$count = (int) apply_filters( 'db_ai_image_candidates', self::DEFAULT_CANDIDATES );
+		return max( 1, min( 30, $count ) );
+	}
+
+	/**
+	 * @return array|WP_Error  Lijst kandidaten op relevantie: [ ['provider','stock_id','image_url','source_url','photographer'], … ]
 	 */
 	private function search_pexels( string $query, string $orientation ) {
 		$key = DB_AI_Settings::get_api_key( 'pexels' );
@@ -105,7 +200,7 @@ class DB_AI_Image_Service {
 		$url = add_query_arg(
 			[
 				'query'       => $query,
-				'per_page'    => 5,
+				'per_page'    => $this->candidate_count(),
 				'orientation' => $orientation,
 			],
 			self::PEXELS_ENDPOINT
@@ -133,28 +228,36 @@ class DB_AI_Image_Service {
 			);
 		}
 
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		$body   = json_decode( wp_remote_retrieve_body( $response ), true );
 		$photos = $body['photos'] ?? [];
 		if ( empty( $photos ) ) {
 			return new WP_Error( 'db_ai_pexels_empty', __( 'Pexels gaf geen resultaten.', 'digitale-bazen-ai-module' ) );
 		}
 
-		$first = $photos[0];
-		$image_url = $first['src']['large2x'] ?? $first['src']['large'] ?? $first['src']['original'] ?? '';
-		if ( '' === $image_url ) {
+		$candidates = [];
+		foreach ( $photos as $photo ) {
+			$image_url = $photo['src']['large2x'] ?? $photo['src']['large'] ?? $photo['src']['original'] ?? '';
+			if ( '' === $image_url ) {
+				continue;
+			}
+			$candidates[] = [
+				'provider'     => 'pexels',
+				'stock_id'     => isset( $photo['id'] ) ? 'pexels:' . $photo['id'] : '',
+				'image_url'    => $image_url,
+				'source_url'   => $photo['url'] ?? '',
+				'photographer' => $photo['photographer'] ?? '',
+			];
+		}
+
+		if ( empty( $candidates ) ) {
 			return new WP_Error( 'db_ai_pexels_no_url', __( 'Pexels resultaat zonder bruikbare URL.', 'digitale-bazen-ai-module' ) );
 		}
 
-		return [
-			'provider'     => 'pexels',
-			'image_url'    => $image_url,
-			'source_url'   => $first['url'] ?? '',
-			'photographer' => $first['photographer'] ?? '',
-		];
+		return $candidates;
 	}
 
 	/**
-	 * @return array|WP_Error
+	 * @return array|WP_Error  Lijst kandidaten, zelfde vorm als search_pexels().
 	 */
 	private function search_unsplash( string $query, string $orientation ) {
 		$key = DB_AI_Settings::get_api_key( 'unsplash' );
@@ -165,7 +268,7 @@ class DB_AI_Image_Service {
 		$url = add_query_arg(
 			[
 				'query'       => $query,
-				'per_page'    => 5,
+				'per_page'    => $this->candidate_count(),
 				'orientation' => $orientation,
 			],
 			self::UNSPLASH_ENDPOINT
@@ -199,22 +302,30 @@ class DB_AI_Image_Service {
 			return new WP_Error( 'db_ai_unsplash_empty', __( 'Unsplash gaf geen resultaten.', 'digitale-bazen-ai-module' ) );
 		}
 
-		$first     = $results[0];
-		$image_url = $first['urls']['regular'] ?? $first['urls']['full'] ?? '';
-		if ( '' === $image_url ) {
+		$candidates = [];
+		foreach ( $results as $result ) {
+			$image_url = $result['urls']['regular'] ?? $result['urls']['full'] ?? '';
+			if ( '' === $image_url ) {
+				continue;
+			}
+			$candidates[] = [
+				'provider'     => 'unsplash',
+				'stock_id'     => isset( $result['id'] ) ? 'unsplash:' . $result['id'] : '',
+				'image_url'    => $image_url,
+				'source_url'   => $result['links']['html'] ?? '',
+				'photographer' => $result['user']['name'] ?? '',
+			];
+		}
+
+		if ( empty( $candidates ) ) {
 			return new WP_Error( 'db_ai_unsplash_no_url', __( 'Unsplash resultaat zonder bruikbare URL.', 'digitale-bazen-ai-module' ) );
 		}
 
-		return [
-			'provider'     => 'unsplash',
-			'image_url'    => $image_url,
-			'source_url'   => $first['links']['html'] ?? '',
-			'photographer' => $first['user']['name'] ?? '',
-		];
+		return $candidates;
 	}
 
 	/**
-	 * @param array $photo  Result from search_pexels / search_unsplash
+	 * @param array $photo  Eén gekozen kandidaat uit search_pexels / search_unsplash
 	 * @return int|WP_Error  Attachment ID
 	 */
 	private function sideload_photo( array $photo, string $query, string $alt_text, int $post_id ) {
@@ -258,6 +369,13 @@ class DB_AI_Image_Service {
 			update_post_meta( $attachment_id, '_db_ai_photographer', sanitize_text_field( $photo['photographer'] ) );
 		}
 		update_post_meta( $attachment_id, '_db_ai_source_provider', sanitize_key( $photo['provider'] ) );
+
+		// Vastleggen wélke foto dit was, zodat een volgende generatie hem overslaat.
+		$stock_id = (string) ( $photo['stock_id'] ?? '' );
+		if ( '' !== $stock_id ) {
+			update_post_meta( $attachment_id, self::META_STOCK_ID, sanitize_text_field( $stock_id ) );
+			$this->mark_stock_used( $stock_id );
+		}
 
 		return $attachment_id;
 	}
