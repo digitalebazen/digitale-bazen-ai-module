@@ -4,7 +4,7 @@ Tags: ai, blog, generator, seo, acf, rankmath
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.4.0
+Stable tag: 3.5.0
 License: Proprietary
 
 Genereer SEO-blogposts met AI op basis van zoekwoordenonderzoek.
@@ -146,6 +146,18 @@ Diagnostisch (no-op, handig bij het debuggen van de Plan-laag):
 * `db_ai_planner_debug_result( $result )`
 
 == Changelog ==
+
+= 3.5.0 =
+* **Instellingen ook voor redacteuren.** De pagina Generator -> Instellingen zat op
+  `manage_options` en was dus alleen voor beheerders. Ze draait nu op dezelfde
+  capability als Creatie en Plan (`publish_posts`), zodat redacteuren Bedrijf,
+  Doelgroep, Tone of voice, Site-context, de zoekwoordenonderzoeken en de
+  layout-calibratie zelf kunnen bijwerken. Het tabblad **API-keys** blijft
+  voorbehouden aan beheerders: het wordt voor de rest niet getoond en `sanitize()`
+  negeert meegestuurde key-velden, dus opslaan door een redacteur laat de sleutels
+  ongemoeid. Ook het uploaden en verwijderen van een zoekwoordenonderzoek en de
+  knop Calibreren volgen nu deze capability. Wil je de instellingen tóch alleen
+  voor beheerders? Gebruik de nieuwe filter `db_ai_settings_capability`.
 
 = 3.4.0 =
 * **Minder dezelfde stockfoto's.** De generator vroeg vijf zoekresultaten op en

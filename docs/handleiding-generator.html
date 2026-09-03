@@ -176,6 +176,14 @@ ul.plain li::marker{color:var(--gold)}
 .note--why{background:var(--blue-wash);border-color:var(--blue-edge)}
 .note--why .lab{color:var(--blue)}
 
+/* ── Schermafbeeldingen ──────────────────────────── */
+figure.shot{margin:1.6rem 0;padding:0}
+figure.shot img{
+  display:block;width:100%;height:auto;
+  border:1px solid var(--rule-2);border-radius:3px;background:var(--card)
+}
+figure.shot figcaption{margin-top:.55rem;font-size:.85rem;color:var(--ink-3);max-width:64ch}
+
 /* ── Tables ──────────────────────────────────────── */
 .tbl-wrap{overflow-x:auto;margin:1.4rem 0;border:1px solid var(--rule-2);border-radius:3px}
 table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--card)}
@@ -231,7 +239,7 @@ dl.gloss dd{margin:.15rem 0 0;color:var(--ink-2);font-size:.95rem;max-width:64ch
   h3{font-size:11.4pt;break-after:avoid}
   h4{break-after:avoid}
   p,li{orphans:3;widows:3}
-  .note,.tbl-wrap,ol.steps > li,ul.check li,dl.gloss > div{break-inside:avoid}
+  .note,.tbl-wrap,ol.steps > li,ul.check li,dl.gloss > div,figure.shot{break-inside:avoid}
   thead{display:table-header-group}
   tr{break-inside:avoid}
   a{color:var(--ink);text-decoration:none}
@@ -405,9 +413,9 @@ dl.gloss dd{margin:.15rem 0 0;color:var(--ink-2);font-size:.95rem;max-width:64ch
   <p>Onder <span class="ui">Layouts</span> vink je aan welke blokken gebruikt mogen worden. Standaard staat alles aan, behalve quote- en testimonial-achtige blokken; die zijn permanent uitgesloten.</p>
   <p>Onder <span class="ui">Layout-calibratie</span> zit een knop <span class="ui">Calibreren</span>. Daarmee bekijkt de Generator je thema en schrijft per blok op hoe het eruitziet en wanneer je het inzet. Je leest het na, past aan waar nodig en slaat op. Doe dit één keer bij aanvang, en opnieuw als je thema verbouwd wordt.</p>
 
-  <div class="note note--warn">
-    <span class="lab">Let op</span>
-    <p>Het tabblad Instellingen is alleen zichtbaar voor beheerders. Werk je als redacteur, dan zie je <span class="ui">Creatie</span> en <span class="ui">Plan</span> wel, maar Instellingen niet. Laat een beheerder dit hoofdstuk doorlopen voordat je begint.</p>
+  <div class="note note--why">
+    <span class="lab">Wie mag hierbij?</span>
+    <p><span class="ui">Instellingen</span> is zichtbaar voor iedereen die blogs mag publiceren, dus ook voor redacteuren &mdash; net als <span class="ui">Creatie</span> en <span class="ui">Plan</span>. Eén uitzondering: het tabblad <span class="ui">API-keys</span> zie je alleen als beheerder. Sla je als redacteur de instellingen op, dan blijven die sleutels ongemoeid.</p>
   </div>
 </section>
 
@@ -499,6 +507,13 @@ dl.gloss dd{margin:.15rem 0 0;color:var(--ink-2);font-size:.95rem;max-width:64ch
     <span class="lab">Pillar eerst</span>
     <p>Binnen een cluster maak je altijd eerst de pillar. Zolang die er niet is, staan de <span class="ui">Genereer</span>-knoppen van de supporting-artikelen uitgeschakeld. Dat is met opzet: zonder pillar is er geen artikel om naartoe te linken.</p>
   </div>
+
+  <p>Werk je met Rank Math? Zet dan bij het publiceren van een pillar ook <span class="ui">Deze bericht is Pillar inhoud</span> aan in de <span class="ui">Rank Math SEO</span>-box onder de editor. Rank Math zet dat artikel daarna bovenaan in de linksuggesties bij je andere blogs, zodat de supporting-artikelen er makkelijk naartoe linken.</p>
+
+  <figure class="shot">
+    <img src="images/rankmath-pillar-content.png" alt="De Rank Math SEO-box met onderin het aanvinkvakje Deze bericht is Pillar inhoud">
+    <figcaption>Het vakje staat onderaan de <span class="ui">Algemeen</span>-tab van de Rank Math-box, onder het focus-zoekwoord.</figcaption>
+  </figure>
 
   <h3>De funnel-hoek</h3>
   <p>Onder elk zoekwoord staat een ingeklapt kopje <span class="ui">Hoek</span>. Daar staat de invalshoek die de Generator voor dat artikel voorstelt, en waar hij de lezer naartoe leidt.</p>

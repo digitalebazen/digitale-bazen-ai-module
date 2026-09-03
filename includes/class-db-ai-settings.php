@@ -152,6 +152,19 @@ class DB_AI_Settings {
 		return (string) ( $opts['image_style'] ?? '' );
 	}
 
+	/**
+	 * Wie de instellingen mag beheren. Standaard hetzelfde niveau als Creatie en
+	 * Plan (publish_posts), zodat redacteuren de generator zelf kunnen bijstellen.
+	 * Het tabblad API-keys blijft voorbehouden aan beheerders (manage_options).
+	 *
+	 * Los af te schermen via de filter `db_ai_settings_capability`.
+	 */
+	public static function get_capability(): string {
+		$default = (string) apply_filters( 'db_ai_admin_menu_capability', 'publish_posts' );
+
+		return (string) apply_filters( 'db_ai_settings_capability', $default );
+	}
+
 	// ─── Instance: menu + Settings API ─────────────────────────────────────
 
 	private $page_hook = '';
@@ -171,6 +184,9 @@ class DB_AI_Settings {
 		// en de submenu-volgorde Creatie → (Plan) → Instellingen klopt (§0N).
 		add_action( 'admin_menu', [ $this, 'register_menu' ], 11 );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		// options.php toetst het opslaan standaard op manage_options. Zelfde capability
+		// als de pagina, anders ziet een redacteur het formulier wel maar kan hij niet opslaan.
+		add_filter( 'option_page_capability_db_ai_settings_group', [ self::class, 'get_capability' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_assets' ] );
 	}
 
@@ -262,7 +278,7 @@ class DB_AI_Settings {
 			$parent,
 			__( 'Generator instellingen', 'digitale-bazen-ai-module' ),
 			__( 'Instellingen', 'digitale-bazen-ai-module' ),
-			'manage_options',
+			self::get_capability(),
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
 		);
@@ -787,6 +803,9 @@ class DB_AI_Settings {
 		// Keys: lege submission = bestaande waarde behouden (we tonen ze niet terug,
 		// dus user kan niet "weten" of er iets staat — we updaten alleen bij niet-lege input).
 		foreach ( [ 'anthropic', 'pexels', 'unsplash', 'gemini' ] as $name ) {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				continue; // Tabblad API-keys is alleen voor beheerders.
+			}
 			$field = $name . '_key';
 			if ( self::is_constant_defined( $name ) ) {
 				continue; // Constant wint, optie negeren.
@@ -1484,11 +1503,18 @@ class DB_AI_Settings {
 	}
 
 	public function render_page(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( self::get_capability() ) ) {
 			wp_die( esc_html__( 'Geen toegang.', 'digitale-bazen-ai-module' ) );
 		}
 
-		$tabs = $this->get_tabs();
+		// Het tabblad API-keys alleen voor beheerders. sanitize() negeert meegestuurde
+		// key-velden voor de rest, dus opslaan door een redacteur laat de keys intact.
+		$tabs = array_values( array_filter(
+			$this->get_tabs(),
+			static function ( array $tab ): bool {
+				return 'ai' !== $tab['id'] || current_user_can( 'manage_options' );
+			}
+		) );
 		?>
 		<div class="wrap db-ai-tabs">
 			<h1>

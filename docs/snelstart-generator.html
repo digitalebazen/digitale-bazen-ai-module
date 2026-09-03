@@ -94,6 +94,10 @@ ul.check li::before{content:"";position:absolute;left:0;top:.28rem;
   width:.95rem;height:.95rem;border:1.5px solid var(--rule-2);
   border-radius:2px;background:var(--card)}
 
+figure.shot{margin:.7rem 0 0;padding:0;break-inside:avoid}
+figure.shot img{display:block;width:100%;height:auto;
+  border:1px solid var(--rule-2);border-radius:3px;background:var(--card)}
+
 dl.fix{margin:0;display:grid;gap:.7rem}
 dl.fix dt{font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--warn)}
 dl.fix dd{margin:.1rem 0 0;font-size:.88rem;color:var(--ink-2)}
@@ -138,7 +142,7 @@ tbody tr:last-child td{border-bottom:none}
 </div>
 
 <div class="block">
-  <h2 class="sec">Vooraf &mdash; eenmalig, door de beheerder</h2>
+  <h2 class="sec">Vooraf &mdash; eenmalig, door beheerder of redacteur</h2>
   <ul class="pre">
     <li>Onder <span class="ui">Generator</span> &rsaquo; <span class="ui">Instellingen</span> staan Bedrijf, Doelgroep en Tone of voice ingevuld. Vooral <span class="ui">Site-context</span> met een lijstje &ldquo;wat niet doen&rdquo; maakt het verschil.</li>
     <li>Er is een zoekwoordenonderzoek geüpload bij <span class="ui">Instellingen</span> &rsaquo; <span class="ui">Zoekwoorden</span> (.xlsx, .csv of .ods, max 1 MB, kolom <em>Zoekwoord</em> verplicht).</li>
@@ -170,7 +174,11 @@ tbody tr:last-child td{border-bottom:none}
       <li>Zoekwoorddichtheid groen? Zo niet, voeg het zoekwoord letterlijk een paar keer toe.</li>
       <li>Passen de afbeeldingen, en heeft de coverfoto het zoekwoord in de alt-tekst?</li>
       <li>Externe bronnen rechts: vink aan wat je wilt, klik <span class="ui">Geselecteerde invoegen</span>. Alleen ✓ en ↪ gebruiken.</li>
+      <li>Is de blogpost een pillar? Vink dit dan onderaan bij de Rank Math-instellingen aan.</li>
     </ul>
+    <figure class="shot">
+      <img src="images/rankmath-pillar-vinkje.png" alt="Aanvinkvakje Deze bericht is Pillar inhoud onderaan de Rank Math-box">
+    </figure>
   </div>
 
   <div class="block">
@@ -205,9 +213,9 @@ tbody tr:last-child td{border-bottom:none}
       <tbody>
         <tr><td>Blogs per dag</td><td>10</td><td>Lopende generaties tellen mee</td></tr>
         <tr><td>Plan-analyses</td><td>Onbeperkt</td><td>Tellen niet mee voor je limiet</td></tr>
-        <tr><td>Lengte per artikel</td><td>2.500 – 3.200 woorden</td><td>Smalle onderwerpen mogen korter</td></tr>
+        <tr><td>Lengte per artikel</td><td>2.500 – 3.200 woorden</td><td></td></tr>
         <tr><td>Nieuwe upload onderzoek</td><td>Vervangt de zoekwoorden</td><td>Je plan en statussen blijven staan</td></tr>
-        <tr><td>Tempo in de pilot</td><td>2 tot 4 per week</td><td>Maak eerst een cluster áf voor je een nieuw begint</td></tr>
+        <tr><td>Tempo in de pilot</td><td>2 tot 4 per maand</td><td>Maak eerst een cluster áf voor je een nieuw begint</td></tr>
       </tbody>
     </table>
   </div>

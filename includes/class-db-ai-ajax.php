@@ -39,7 +39,7 @@ class DB_AI_Ajax {
 		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
 			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( DB_AI_Settings::get_capability() ) ) {
 			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
 
@@ -125,7 +125,7 @@ class DB_AI_Ajax {
 		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
 			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( DB_AI_Settings::get_capability() ) ) {
 			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
 
@@ -150,7 +150,7 @@ class DB_AI_Ajax {
 		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
 			wp_send_json_error( [ 'message' => __( 'Nonce ongeldig. Herlaad de pagina.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( DB_AI_Settings::get_capability() ) ) {
 			wp_send_json_error( [ 'message' => __( 'Geen toegang.', 'digitale-bazen-ai-module' ) ], 403 );
 		}
 
